@@ -1,0 +1,42 @@
+Language: Cpp
+BasedOnStyle: LLVM
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines: DontAlign
+AlignOperands: DontAlign
+AlignTrailingComments: false
+AllowAllArgumentsOnNextLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: Empty
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBraces: Attach
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+ColumnLimit: 120
+CompactNamespaces: false
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+IncludeCategories:
+  - Regex:        '^(<(eo|noir)/)'
+    SortPriority: 2
+  - Regex:        '^(<catch2/)'
+    SortPriority: 1
+  - Regex:        '^(<[_0-9A-Za-z]+/)'
+    SortPriority: 3
+  - Regex:        '^(<[_0-9A-Za-z]+)'
+    SortPriority: 4
+IndentGotoLabels: false
+IndentPPDirectives: AfterHash
+IndentWidth: 2
+KeepEmptyLinesAtTheStartOfBlocks: true
+NamespaceIndentation: Inner
+PackConstructorInitializers: NextLine
+PointerAlignment: Left
+SpaceAfterTemplateKeyword: false
+SpaceBeforeCtorInitializerColon: false
+SpacesBeforeTrailingComments: 1
+SpacesInLineCommentPrefix:
+  Minimum: 0
+UseTab: Never
