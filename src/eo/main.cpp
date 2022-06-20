@@ -1,4 +1,5 @@
 #include <eo/go.h>
+#include <boost/exception/diagnostic_information.hpp>
 #include <iostream>
 
 using namespace eo;
