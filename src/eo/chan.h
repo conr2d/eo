@@ -24,4 +24,14 @@ auto make_chan(size_t s = 0) -> chan<T> {
   return chan<T>{executor, s};
 }
 
+struct default_chan_type: public chan<std::monostate> {
+  default_chan_type(): chan(executor, 0) { close(); }
+
+  auto operator*() {
+    return async_receive(boost::asio::experimental::as_result(boost::asio::use_awaitable));
+  }
+};
+
+extern default_chan_type default_chan;
+
 } // namespace eo
