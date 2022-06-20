@@ -48,7 +48,7 @@ auto create_file(const std::string& p) -> std::FILE* {
   return f;
 }
 
-auto write_file(std::FILE* f) {
+void write_file(std::FILE* f) {
   fmt::println("writing");
   fmt::fprintln(f, "data");
 }
