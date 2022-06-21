@@ -1,7 +1,8 @@
 // This file is part of NOIR.
+// MIT license can be applied only when this file is used outside of NOIR.
 //
 // Copyright (c) 2022 Haderech Pte. Ltd.
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later OR MIT
 //
 #pragma once
 #include <fmt/core.h>
