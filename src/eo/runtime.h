@@ -1,8 +1,8 @@
 #pragma once
 #include <boost/asio/thread_pool.hpp>
 
-namespace eo {
+namespace eo::runtime {
 
 extern boost::asio::thread_pool executor;
 
-} // namespace eo
+} // namespace eo::runtime

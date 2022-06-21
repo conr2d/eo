@@ -1,5 +1,5 @@
 #pragma once
-#include <eo/executor.h>
+#include <eo/runtime.h>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
@@ -20,12 +20,12 @@ using namespace boost::asio::experimental::awaitable_operators;
 
 template<typename F>
 void go(F&& f) {
-  boost::asio::post(executor, std::forward<F>(f));
+  boost::asio::post(runtime::executor, std::forward<F>(f));
 }
 
 template<typename F>
 void go(F&& f) requires(std::is_same_v<decltype(f()), func<>>) {
-  boost::asio::co_spawn(executor, std::forward<F>(f), boost::asio::detached);
+  boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
 }
 
 } // namespace eo

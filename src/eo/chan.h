@@ -21,11 +21,11 @@ auto operator*(chan<T>& channel) {
 
 template<typename T = std::monostate>
 auto make_chan(size_t s = 0) -> chan<T> {
-  return chan<T>{executor, s};
+  return chan<T>{runtime::executor, s};
 }
 
 struct default_chan_type: public chan<std::monostate> {
-  default_chan_type(): chan(executor, 0) { close(); }
+  default_chan_type(): chan(runtime::executor, 0) { close(); }
 
   auto operator*() {
     return async_receive(boost::asio::experimental::as_result(boost::asio::use_awaitable));
