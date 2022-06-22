@@ -24,7 +24,12 @@ void go(F&& f) {
 }
 
 template<typename F>
-void go(F&& f) requires(std::is_same_v<decltype(f()), func<>>) {
+concept Awaitable = requires (F&& f) {
+  boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
+};
+
+template<Awaitable F>
+void go(F&& f) {
   boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
 }
 
