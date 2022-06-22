@@ -24,7 +24,7 @@ void go(F&& f) {
 }
 
 template<typename F>
-concept Awaitable = requires (F&& f) {
+concept Awaitable = requires(F&& f) {
   boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
 };
 

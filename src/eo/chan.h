@@ -30,8 +30,10 @@ auto make_shared_chan(size_t s = 0) -> std::shared_ptr<chan<T>> {
   return std::make_shared<chan<T>>(runtime::executor, s);
 }
 
-struct default_chan_type: public chan<std::monostate> {
-  default_chan_type(): chan(runtime::executor, 0) { close(); }
+struct default_chan_type : public chan<std::monostate> {
+  default_chan_type(): chan(runtime::executor, 0) {
+    close();
+  }
 
   auto operator*() {
     return async_receive(boost::asio::experimental::as_result(boost::asio::use_awaitable));
