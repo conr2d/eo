@@ -15,8 +15,9 @@ auto operator<<(chan<T>& channel, U&& message) {
 }
 
 template<typename T>
-auto operator*(chan<T>& channel) {
-  return channel.async_receive(boost::asio::use_awaitable);
+func<T> operator*(chan<T>& channel) {
+  auto res = co_await channel.async_receive(eoroutine);
+  co_return res ? res.value() : T{};
 }
 
 template<typename T = std::monostate>
