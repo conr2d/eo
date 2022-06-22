@@ -47,7 +47,7 @@ func main() {
 
 ``` c++
 // C++
-func<> f(const std::string& s) {
+func<> f(std::string s) {
   fmt::println(s);
   co_return; // if co_await keyword is used in function body, this can be omitted
 }
