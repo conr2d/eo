@@ -8,3 +8,5 @@ add_executable(non-blocking-channel-operations non-blocking-channel-operations.c
 add_executable(waitgroups waitgroups.cpp)
 add_executable(mutexes mutexes.cpp)
 add_executable(defer defer.cpp)
+
+add_executable(default-selection default-selection.cpp)
