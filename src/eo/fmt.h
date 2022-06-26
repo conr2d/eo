@@ -2,6 +2,7 @@
 #include <eo/core.h>
 
 #include <fmt/format.h>
+#include <map>
 
 namespace fmt {
 
