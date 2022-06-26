@@ -82,8 +82,8 @@ func main() {
 // C++
 func<> eo_main() {
   auto ch = make_chan<std::string>();
-  go([&]() -> func<> { co_await (ch << "ping"); });
-  auto msg = co_await *ch; // * operator calls async_receive(), so co_await is necessary
+  go([&]() -> func<> { co_await *(ch << "ping"); });
+  auto msg = co_await **ch;
   fmt::println(msg);
 }
 ```
@@ -112,16 +112,12 @@ func f() {
 // C++
 func<> f() {
   for (;;) {
-    // co_await awaitable functions combined by || operator will return
-    // std::variant<...> of possible return values from awaitable functions.
-    // Returned variant will have first returned value from awaitable function executions.
-    // default_chan is a closed channel and it returns immediately so as to work like default case.
-    auto res = co_await (*ch || *default_chan);
-    switch (res.index()) {
-    case 0: // *ch
-      fmt::println(std::get<0>(res));
+    auto select = Select{*ch, CaseDefault()};
+    switch (select.index()) {
+    case 0:
+      fmt::println(co_await select.process<0>());
       break;
-    case 1: // *default_chan
+    default:
       co_return;
     }
   }

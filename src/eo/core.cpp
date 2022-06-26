@@ -15,11 +15,3 @@ boost::asio::thread_pool executor = []() {
 }();
 
 } // namespace eo::runtime
-
-namespace eo {
-
-// XXX: default_chan should be declared below eo::runtime::executor on the same file,
-// or it can cause segfault because of the order of initialization.
-default_chan_type default_chan{};
-
-} // namespace eo

@@ -41,21 +41,21 @@ func<> eo_main() {
 
   go([&]() -> func<> {
     co_await time::sleep(std::chrono::seconds(1));
-    co_await (c1 << "one");
+    co_await *(c1 << "one");
   });
   go([&]() -> func<> {
     co_await time::sleep(std::chrono::seconds(2));
-    co_await (c2 << "two");
+    co_await *(c2 << "two");
   });
 
   for (auto i = 0; i < 2; i++) {
-    auto res = co_await (*c1 || *c2);
-    switch (res.index()) {
+    auto select = Select{*c1, *c2};
+    switch (co_await select.index()) {
     case 0:
-      fmt::println("received {}", std::get<0>(res));
+      fmt::println("received {}", co_await select.process<0>());
       break;
     case 1:
-      fmt::println("received {}", std::get<1>(res));
+      fmt::println("received {}", co_await select.process<1>());
       break;
     }
   }

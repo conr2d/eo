@@ -26,12 +26,12 @@
 using namespace eo;
 
 func<> ping(chan<std::string>& pings, const std::string& msg) {
-  co_await (pings << msg);
+  co_await *(pings << msg);
 }
 
 func<> pong(chan<std::string>& pings, chan<std::string>& pongs) {
-  auto msg = co_await *pings;
-  co_await (pongs << msg);
+  auto msg = co_await **pings;
+  co_await *(pongs << msg);
 }
 
 func<> eo_main() {
@@ -39,5 +39,5 @@ func<> eo_main() {
   auto pongs = make_chan<std::string>(1);
   co_await ping(pings, "passed message");
   co_await pong(pings, pongs);
-  fmt::println(co_await *pongs);
+  fmt::println(co_await **pongs);
 }
