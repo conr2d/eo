@@ -5,8 +5,12 @@
 namespace eo {
 
 struct CaseDefault {
-  auto ready() { return true; }
-  auto wait() -> boost::asio::awaitable<bool> { co_return true; }
+  auto ready() {
+    return true;
+  }
+  auto wait() -> boost::asio::awaitable<bool> {
+    co_return true;
+  }
   void get() {}
 };
 
@@ -25,7 +29,7 @@ struct Select {
   std::tuple<T, Ts...> cases;
 
   template<size_t I = 0>
-  auto index() -> int requires (one_of<CaseDefault, Ts...>) {
+  auto index() -> int requires(one_of<CaseDefault, Ts...>) {
     if constexpr (!sizeof...(Ts)) {
       return 0;
     }
@@ -38,11 +42,12 @@ struct Select {
     return -1;
   }
 
-  auto index() requires (!one_of<CaseDefault, Ts...>) {
-    return [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
-      auto res = co_await (std::get<I>(cases).wait() || ...);
+  auto index() requires(!one_of<CaseDefault, Ts...>) {
+    return [this]<size_t... I>(std::index_sequence<I...>)->boost::asio::awaitable<int> {
+      auto res = co_await(std::get<I>(cases).wait() || ...);
       co_return res.index();
-    }(std::make_index_sequence<sizeof...(Ts) + 1>());
+    }
+    (std::make_index_sequence<sizeof...(Ts) + 1>());
   }
 
   template<size_t I>
