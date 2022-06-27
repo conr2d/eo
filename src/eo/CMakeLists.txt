@@ -2,7 +2,7 @@ add_library(eo STATIC
   core.cpp
   math/rand.cpp
 )
-target_include_directories(eo PUBLIC ${PROJECT_SOURCE_DIR} ${Boost_INCLUDE_DIR})
+target_include_directories(eo PUBLIC ${PROJECT_SOURCE_DIR}/src ${Boost_INCLUDE_DIR})
 target_link_libraries(eo
   fmt::fmt
   nonstd::scope-lite
