@@ -34,10 +34,12 @@ func<> eo_main() {
   auto boom = time::Timer(std::chrono::milliseconds(500));
 
   for (;;) {
-    // auto select = Select{ *tick.ch, *boom.ch, CaseDefault() };
-    // auto index = select.index();
-    auto select = Select{ *tick.ch, *boom.ch };
-    auto index = co_await select.index();
+    auto select = Select{ *tick.ch, *boom.ch, CaseDefault() };
+    auto index = select.index();
+
+    // select.index() is asynchronous when default case doesn't exist
+    // auto select = Select{ *tick.ch, *boom.ch };
+    // auto index = co_await select.index();
 
     switch (index) {
     case 0:
