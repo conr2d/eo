@@ -1,3 +1,6 @@
+// Copyright (c) 2022 Jeeyong "conr2d" Um
+// SPDX-License-Identifier: MIT
+//
 #pragma once
 #include <boost/preprocessor/cat.hpp>
 #include <nonstd/scope.hpp>

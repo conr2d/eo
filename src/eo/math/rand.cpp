@@ -1,3 +1,6 @@
+// Copyright (c) 2022 Jeeyong "conr2d" Um
+// SPDX-License-Identifier: MIT
+//
 #include <eo/math/rand.h>
 #include <random>
 #include <shared_mutex>
