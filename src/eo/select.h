@@ -72,7 +72,7 @@ public:
 
   auto index() requires(!one_of<CaseDefault, Ts...>) {
     return [this]<size_t... I>(std::index_sequence<I...>)->boost::asio::awaitable<int> {
-      auto res = co_await(std::get<I>(cases).wait() || ...);
+      auto res = co_await (std::get<I>(cases).wait() || ...);
       co_return res.index();
     }
     (std::make_index_sequence<sizeof...(Ts) + 1>());
