@@ -48,8 +48,8 @@ func<> eo_main() {
     co_await *(c2 << "two");
   });
 
+  auto select = Select{*c1, *c2};
   for (auto i = 0; i < 2; i++) {
-    auto select = Select{*c1, *c2};
     switch (co_await select.index()) {
     case 0:
       fmt::println("received {}", co_await select.process<0>());
