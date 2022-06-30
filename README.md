@@ -111,8 +111,8 @@ func f() {
 ``` c++
 // C++
 func<> f() {
+  auto select = Select{*ch, CaseDefault()};
   for (;;) {
-    auto select = Select{*ch, CaseDefault()};
     switch (co_await select.index()) {
     case 0:
       auto msg = co_await select.process<0>();

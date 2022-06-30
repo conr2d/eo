@@ -41,18 +41,21 @@ template<typename T>
 struct SendOp {
   chan<T>& ch;
   T value;
+  bool sent{false}; // TODO: need atomic?
 
+  // FIXME: there is no way to check whether a message can be sent via channel
+  // try_send() in ready stage, but turn off sent flag during process().
   auto ready() -> bool {
-    return ch.try_send(boost::system::error_code{}, value);
+    return sent ? sent : (sent = ch.try_send(boost::system::error_code{}, value));
   }
 
   auto wait() -> boost::asio::awaitable<bool> {
-    co_await ch.async_send(boost::system::error_code{}, value, eoroutine);
-    co_return true;
+    auto res = co_await ch.async_send(boost::system::error_code{}, value, eoroutine);
+    co_return (sent = !std::get<0>(res).value());
   }
 
-  auto process() -> boost::asio::awaitable<void> {
-    co_return;
+  auto process() -> boost::asio::awaitable<bool> {
+    co_return std::exchange(sent, false);
   }
 
   auto operator*() {
@@ -73,13 +76,16 @@ struct ReceiveOp {
     if (processed) {
       co_return true;
     }
+    // XXX: caching received value not to lose by coroutine cancellation
     processed = co_await ch.async_receive(use_awaitable);
     co_return true;
   }
 
   auto process() -> boost::asio::awaitable<T> {
     if (processed) {
-      co_return std::move(*processed);
+      std::optional<T> ret{};
+      std::swap(ret, processed);
+      co_return std::move(*ret);
     }
     auto res = co_await ch.async_receive(eoroutine);
     co_return !std::get<0>(res).value() ? std::get<1>(res) : T{};
