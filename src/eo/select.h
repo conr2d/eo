@@ -7,6 +7,10 @@
 
 namespace eo {
 
+namespace math::rand {
+  extern auto int63_n(int64_t n) -> int64_t;
+} // namespace math::rand
+
 struct CaseDefault {
   auto ready() {
     return true;
@@ -31,18 +35,40 @@ struct Select {
 
   std::tuple<T, Ts...> cases;
 
+private:
   template<size_t I = 0>
-  auto index() -> int requires(one_of<CaseDefault, Ts...>) {
+  void eval_ready(std::vector<size_t>& indices) {
     if constexpr (!sizeof...(Ts)) {
-      return 0;
+      indices.push_back(0);
+      return;
     }
     if constexpr (I < sizeof...(Ts) + 1) {
       if (std::get<I>(cases).ready()) {
-        return I;
+        indices.push_back(I);
+        return;
       }
-      return index<I + 1>();
+      eval_ready<I + 1>(indices);
     }
-    return -1;
+  }
+
+public:
+  // https://go.dev/ref/spec#Select_statements
+  // If one or more of the communications can proceed, a single one that can proceed is chosen via a uniform
+  // pseudo-random selection. Otherwise, if there is a default case, that case is chosen. If there is no default case,
+  // the "select" statement blocks until at least one of the communications can proceed.
+  auto index() -> boost::asio::awaitable<int>
+  requires(one_of<CaseDefault, Ts...>) {
+    std::vector<size_t> indices{};
+    indices.reserve(sizeof...(Ts) + 1);
+    eval_ready(indices);
+    switch (indices.size()) {
+    case 0:
+      co_return -1;
+    case 1:
+      co_return indices[0];
+    default:
+      co_return indices[math::rand::int63_n(indices.size())];
+    }
   }
 
   auto index() requires(!one_of<CaseDefault, Ts...>) {

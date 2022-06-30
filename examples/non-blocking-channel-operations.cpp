@@ -43,7 +43,7 @@ func<> eo_main() {
 
   {
     auto select = Select{*messages, CaseDefault{}};
-    switch (select.index()) {
+    switch (co_await select.index()) {
     case 0: {
       auto v = co_await select.process<0>();
       fmt::println("received message {}", v);
@@ -58,7 +58,7 @@ func<> eo_main() {
   {
     auto msg = "hi";
     auto select = Select{(messages << msg), CaseDefault{}};
-    switch (select.index()) {
+    switch (co_await select.index()) {
     case 0: {
       co_await select.process<0>();
       fmt::println("sent message {}", msg);
@@ -72,7 +72,7 @@ func<> eo_main() {
 
   {
     auto select = Select{*messages, *signals, CaseDefault{}};
-    switch (select.index()) {
+    switch (co_await select.index()) {
     case 0:
       fmt::println("received message {}", co_await select.process<0>());
       break;

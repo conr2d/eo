@@ -113,7 +113,7 @@ func f() {
 func<> f() {
   for (;;) {
     auto select = Select{*ch, CaseDefault()};
-    switch (select.index()) {
+    switch (co_await select.index()) {
     case 0:
       auto msg = co_await select.process<0>();
       fmt::println(msg);

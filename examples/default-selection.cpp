@@ -35,13 +35,9 @@ func<> eo_main() {
 
   for (;;) {
     auto select = Select{ *tick.ch, *boom.ch, CaseDefault() };
-    auto index = select.index();
-
-    // select.index() is asynchronous when default case doesn't exist
     // auto select = Select{ *tick.ch, *boom.ch };
-    // auto index = co_await select.index();
 
-    switch (index) {
+    switch (co_await select.index()) {
     case 0:
       co_await select.process<0>();
       fmt::println("tick.");
