@@ -42,10 +42,9 @@ private:
       indices.push_back(0);
       return;
     }
-    if constexpr (I < sizeof...(Ts) + 1) {
+    if constexpr (I < sizeof...(Ts)) {
       if (std::get<I>(cases).ready()) {
         indices.push_back(I);
-        return;
       }
       eval_ready<I + 1>(indices);
     }
