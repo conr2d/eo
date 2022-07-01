@@ -19,7 +19,7 @@ private:
   using super = boost::asio::experimental::concurrent_channel<void(boost::system::error_code, T)>;
 
 public:
-  using boost::asio::experimental::concurrent_channel<void(boost::system::error_code, T)>::concurrent_channel;
+  using super::super;
 
   template<typename U>
   auto operator<<(U&& message) -> SendOp<T> {
