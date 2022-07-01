@@ -15,6 +15,11 @@ struct Ticker {
     reset(d);
   }
 
+  template<typename Executor>
+  Ticker(const std::chrono::steady_clock::duration& d, Executor& executor): timer(executor) {
+    reset(d);
+  }
+
   ~Ticker() {
     timer.cancel();
   }

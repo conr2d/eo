@@ -28,6 +28,11 @@ void go(F&& f) {
   boost::asio::post(runtime::executor, std::forward<F>(f));
 }
 
+template<typename F, typename Executor>
+void go(F&& f, Executor& executor) {
+  boost::asio::post(executor, std::forward<F>(f));
+}
+
 template<typename F>
 concept Awaitable = requires(F&& f) {
   boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
@@ -36,6 +41,11 @@ concept Awaitable = requires(F&& f) {
 template<Awaitable F>
 void go(F&& f) {
   boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
+}
+
+template<Awaitable F, typename Executor>
+void go(F&& f, Executor& executor) {
+  boost::asio::co_spawn(executor, std::forward<F>(f), boost::asio::detached);
 }
 
 } // namespace eo

@@ -15,6 +15,11 @@ struct Timer {
     reset(d);
   }
 
+  template<typename Executor>
+  Timer(const std::chrono::steady_clock::duration& d, Executor& executor): timer(executor) {
+    reset(d);
+  }
+
   ~Timer() {
     timer.cancel();
   }
