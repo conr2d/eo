@@ -32,6 +32,7 @@ endif()
 include(conan)
 
 set(CONAN_PACKAGES
+  date/3.0.1
   fmt/8.1.1
   scope-lite/0.2.0
 )
@@ -66,6 +67,7 @@ if(APPLE)
 endif()
 
 find_package(Boost REQUIRED)
+find_package(date REQUIRED)
 find_package(fmt REQUIRED)
 find_package(scope-lite REQUIRED)
 

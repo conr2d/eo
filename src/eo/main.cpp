@@ -14,6 +14,7 @@ int main(int argc, char** argv) {
     std::exception_ptr _eptr{};
     boost::asio::co_spawn(runtime::executor, eo_main(), [&](std::exception_ptr eptr) {
       _eptr = eptr;
+      runtime::executor.stop();
     });
     runtime::executor.join();
     if (_eptr) {

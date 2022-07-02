@@ -7,18 +7,29 @@
 
 namespace eo::time {
 
-struct Ticker {
-  boost::asio::steady_timer timer{runtime::executor};
-  chan<> ch = make_chan(1);
+struct Ticker : public std::enable_shared_from_this<Ticker> {
+  using time_point = std::chrono::system_clock::time_point;
 
-  Ticker(const std::chrono::steady_clock::duration& d) {
-    reset(d);
+  boost::asio::steady_timer timer{runtime::executor};
+  chan<time_point> c = make_chan<time_point>(1);
+
+  static auto create(const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Ticker> {
+    auto timer = std::make_shared<Ticker>();
+    timer->reset(d);
+    return timer;
   }
 
   template<typename Executor>
-  Ticker(const std::chrono::steady_clock::duration& d, Executor& executor): timer(executor) {
-    reset(d);
+  static auto create_with_executor(const std::chrono::steady_clock::duration& d, Executor& executor) -> std::shared_ptr<Ticker> {
+    auto timer = std::make_shared<Ticker>(executor);
+    timer->reset(d);
+    return timer;
   }
+
+  Ticker() = default;
+
+  template<typename Executor>
+  Ticker(Executor& executor): timer(executor) {}
 
   ~Ticker() {
     timer.cancel();
@@ -27,13 +38,19 @@ struct Ticker {
   void reset(const std::chrono::steady_clock::duration& d) {
     timer.cancel();
     timer.expires_after(d);
-    timer.async_wait([this, d{d}](boost::system::error_code ec) {
+    timer.async_wait([=, self{shared_from_this()}](boost::system::error_code ec) {
       if (ec)
         return;
-      ch.try_send(boost::system::error_code{}, std::monostate{});
-      reset(d);
+      self->c.try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->reset(d);
     });
   }
+
+  void stop() {
+    timer.cancel();
+  }
 };
+
+const auto new_ticker = Ticker::create;
 
 } // namespace eo::time

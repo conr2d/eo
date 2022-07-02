@@ -4,6 +4,7 @@ add_library(eo STATIC
 )
 target_include_directories(eo PUBLIC ${PROJECT_SOURCE_DIR}/src ${Boost_INCLUDE_DIR})
 target_link_libraries(eo
+  date::date
   fmt::fmt
   nonstd::scope-lite
 )
