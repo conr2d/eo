@@ -1,0 +1,71 @@
+function(compiler_minimum_required COMPILER_ID VERSION)
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "${COMPILER_ID}")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${VERSION})
+      message(FATAL_ERROR "${COMPILER_ID} ${VERSION} or later is required.  You are running version ${CMAKE_CXX_COMPILER_VERSION}")
+    endif()
+  endif()
+endfunction()
+
+macro(check_connection)
+  if(UNIX AND NOT APPLE)
+    execute_process(COMMAND ping conan.io -c 2 -w 1000 RESULT_VARIABLE NO_CONNECTION OUTPUT_QUIET ERROR_QUIET)
+  elseif(APPLE)
+    execute_process(COMMAND ping conan.io -c 2 -W 1000 RESULT_VARIABLE NO_CONNECTION OUTPUT_QUIET ERROR_QUIET)
+  endif()
+endmacro()
+
+function(setup_conan)
+  if(NOT USE_CONAN)
+    return()
+  endif()
+
+  check_connection()
+
+  list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_BINARY_DIR})
+  list(APPEND CMAKE_PREFIX_PATH ${CMAKE_CURRENT_BINARY_DIR})
+
+  set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH}" PARENT_SCOPE)
+  set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH}" PARENT_SCOPE)
+
+  if(NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake" AND NOT NO_CONNECTION)
+    message(STATUS "Downloading conan.cmake from https://github.com/conan-io/cmake-conan")
+    file(DOWNLOAD "https://github.com/conan-io/cmake-conan/raw/0.18.1/conan.cmake" "${CMAKE_CURRENT_BINARY_DIR}/conan.cmake" TLS_VERIFY ON)
+  endif()
+
+  include(conan)
+
+  if(NOT CONAN_PACKAGES)
+    if(APPLE AND EXISTS ${PROJECT_SOURCE_DIR}/packages_macos.txt)
+      file(READ ${PROJECT_SOURCE_DIR}/packages_macos.txt CONAN_PACKAGES)
+    elseif(EXISTS ${PROJECT_SOURCE_DIR}/packages.txt)
+      file(READ ${PROJECT_SOURCE_DIR}/packages.txt CONAN_PACKAGES)
+    else()
+      message(FATAL_ERROR "require CONAN_PACKAGES variable or packages.txt file")
+    endif()
+  endif()
+
+  conan_cmake_configure(REQUIRES ${CONAN_PACKAGES} GENERATORS cmake_find_package)
+
+  set(PROJECT_BUILD_TYPE ${CMAKE_BUILD_TYPE})
+  set(CMAKE_BUILD_TYPE Release)
+  conan_cmake_autodetect(CONAN_SETTINGS)
+  set(CMAKE_BUILD_TYPE ${PROJECT_BUILD_TYPE})
+
+  # HACK: remove c++ standard version from conan settings to use prebuilt binaries
+  string(REPLACE ";compiler.cppstd=20" "" CONAN_SETTINGS "${CONAN_SETTINGS}")
+  if(NOT NO_CONNECTION)
+    conan_cmake_install(PATH_OR_REFERENCE . BUILD missing REMOTE conancenter SETTINGS ${CONAN_SETTINGS})
+  endif()
+endfunction()
+
+macro(setup_macos_path)
+  if(APPLE)
+    if(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "x86_64")
+      set(BREW_ROOT "/usr/local/opt")
+    elseif(CMAKE_HOST_SYSTEM_PROCESSOR STREQUAL "arm64")
+      set(BREW_ROOT "/opt/homebrew/opt")
+    endif()
+    set(BOOST_ROOT "${BREW_ROOT}/boost" CACHE STRING "boost root directory")
+    set(OPENSSL_ROOT_DIR "${BREW_ROOT}/openssl" CACHE STRING "openssl root directory")
+  endif()
+endmacro()
