@@ -8,28 +8,26 @@
 namespace eo::time {
 
 struct Ticker : public std::enable_shared_from_this<Ticker> {
+private:
+  template<typename Executor>
+  Ticker(Executor& ex): timer(ex) {}
+
+public:
   using time_point = std::chrono::system_clock::time_point;
 
-  boost::asio::steady_timer timer{runtime::executor};
+  boost::asio::steady_timer timer;
   chan<time_point> c = make_chan<time_point>(1);
 
+  template<typename Executor>
+  static auto create_with_executor(Executor& ex, const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Ticker> {
+    auto timer = std::shared_ptr<Ticker>(new Ticker(ex));
+    timer->reset(d);
+    return timer;
+  }
+
   static auto create(const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Ticker> {
-    auto timer = std::make_shared<Ticker>();
-    timer->reset(d);
-    return timer;
+    return create_with_executor(runtime::execution_context, d);
   }
-
-  template<typename Executor>
-  static auto create_with_executor(const std::chrono::steady_clock::duration& d, Executor& executor) -> std::shared_ptr<Ticker> {
-    auto timer = std::make_shared<Ticker>(executor);
-    timer->reset(d);
-    return timer;
-  }
-
-  Ticker() = default;
-
-  template<typename Executor>
-  Ticker(Executor& executor): timer(executor) {}
 
   ~Ticker() {
     timer.cancel();

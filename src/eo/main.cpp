@@ -12,11 +12,11 @@ extern func<> eo_main();
 int main(int argc, char** argv) {
   try {
     std::exception_ptr _eptr{};
-    boost::asio::co_spawn(runtime::executor, eo_main(), [&](std::exception_ptr eptr) {
+    boost::asio::co_spawn(runtime::execution_context, eo_main(), [&](std::exception_ptr eptr) {
       _eptr = eptr;
-      runtime::executor.stop();
+      runtime::execution_context.stop();
     });
-    runtime::executor.join();
+    runtime::execution_context.join();
     if (_eptr) {
       std::rethrow_exception(_eptr);
     }

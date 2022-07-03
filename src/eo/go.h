@@ -14,8 +14,8 @@
 
 namespace eo {
 
-template<typename Ret = void>
-using func = boost::asio::awaitable<Ret>;
+template<typename T = void>
+using func = boost::asio::awaitable<T>;
 
 using boost::asio::use_awaitable;
 
@@ -23,29 +23,35 @@ inline auto eoroutine = boost::asio::experimental::as_tuple(use_awaitable);
 
 using namespace boost::asio::experimental::awaitable_operators;
 
-template<typename F>
-void go(F&& f) {
-  boost::asio::post(runtime::executor, std::forward<F>(f));
-}
-
-template<typename F, typename Executor>
-void go(F&& f, Executor& executor) {
-  boost::asio::post(executor, std::forward<F>(f));
-}
 
 template<typename F>
 concept Awaitable = requires(F&& f) {
-  boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
+  boost::asio::co_spawn(runtime::execution_context, std::forward<F>(f), boost::asio::detached);
 };
 
-template<Awaitable F>
-void go(F&& f) {
-  boost::asio::co_spawn(runtime::executor, std::forward<F>(f), boost::asio::detached);
+template<typename Executor, Awaitable F, typename CompletionToken>
+void go(Executor& ex, F&& f, CompletionToken&& ct) {
+  boost::asio::co_spawn(ex, std::forward<F>(f), std::forward<CompletionToken>(ct));
 }
 
-template<Awaitable F, typename Executor>
-void go(F&& f, Executor& executor) {
-  boost::asio::co_spawn(executor, std::forward<F>(f), boost::asio::detached);
+template<typename Executor, typename F>
+void go(Executor& ex, F&& f) {
+  boost::asio::post(ex, std::forward<F>(f));
+}
+
+template<typename Executor, Awaitable F>
+void go(Executor& ex, F&& f) {
+  go(ex, std::forward<F>(f), boost::asio::detached);
+}
+
+template<Awaitable F, typename CompletionToken>
+void go(F&& f, CompletionToken&& ct) {
+  go(runtime::execution_context, std::forward<F>(f), std::forward<CompletionToken>(ct));
+}
+
+template<typename F>
+void go(F&& f) {
+  go(runtime::execution_context, std::forward<F>(f));
 }
 
 } // namespace eo

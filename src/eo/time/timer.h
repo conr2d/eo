@@ -8,29 +8,27 @@
 namespace eo::time {
 
 struct Timer : public std::enable_shared_from_this<Timer> {
+private:
+  template<typename Executor>
+  Timer(Executor& ex): timer(ex) {}
+
+public:
   using time_point = std::chrono::system_clock::time_point;
 
-  boost::asio::steady_timer timer{runtime::executor};
+  boost::asio::steady_timer timer;
   chan<time_point> c = make_chan<time_point>(1);
   bool expired;
 
+  template<typename Executor>
+  static auto create_with_executor(Executor& ex, const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Timer> {
+    auto timer = std::shared_ptr<Timer>(new Timer(ex));
+    timer->reset(d);
+    return timer;
+  }
+
   static auto create(const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Timer> {
-    auto timer = std::make_shared<Timer>();
-    timer->reset(d);
-    return timer;
+    return create_with_executor(runtime::execution_context, d);
   }
-
-  template<typename Executor>
-  static auto create_with_executor(const std::chrono::steady_clock::duration& d, Executor& executor) -> std::shared_ptr<Timer> {
-    auto timer = std::make_shared<Timer>(executor);
-    timer->reset(d);
-    return timer;
-  }
-
-  Timer() = default;
-
-  template<typename Executor>
-  Timer(Executor& executor): timer(executor) {}
 
   ~Timer() {
     timer.cancel();

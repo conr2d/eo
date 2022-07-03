@@ -6,7 +6,7 @@
 
 namespace eo::runtime {
 
-boost::asio::thread_pool executor = []() {
+boost::asio::thread_pool execution_context = []() {
   auto maxprocs = std::thread::hardware_concurrency();
   if (auto env = std::getenv("EOMAXPROCS")) {
     auto _maxprocs = std::stoull(env);

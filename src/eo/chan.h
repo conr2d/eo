@@ -40,12 +40,12 @@ public:
 
 template<typename T = std::monostate>
 auto make_chan(size_t s = 0) -> chan<T> {
-  return chan<T>{runtime::executor, s};
+  return chan<T>{runtime::execution_context, s};
 }
 
 template<typename T = std::monostate>
 auto make_shared_chan(size_t s = 0) -> std::shared_ptr<chan<T>> {
-  return std::make_shared<chan<T>>(runtime::executor, s);
+  return std::make_shared<chan<T>>(runtime::execution_context, s);
 }
 
 template<typename T>

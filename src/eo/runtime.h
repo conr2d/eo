@@ -6,6 +6,6 @@
 
 namespace eo::runtime {
 
-extern boost::asio::thread_pool executor;
+extern boost::asio::thread_pool execution_context;
 
 } // namespace eo::runtime
