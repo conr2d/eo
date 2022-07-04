@@ -19,7 +19,8 @@ public:
   chan<time_point> c = make_chan<time_point>(1);
 
   template<typename Executor>
-  static auto create_with_executor(Executor& ex, const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Ticker> {
+  static auto create_with_executor(Executor& ex, const std::chrono::steady_clock::duration& d)
+    -> std::shared_ptr<Ticker> {
     auto timer = std::shared_ptr<Ticker>(new Ticker(ex));
     timer->reset(d);
     return timer;

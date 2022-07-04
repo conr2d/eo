@@ -20,7 +20,8 @@ public:
   bool expired;
 
   template<typename Executor>
-  static auto create_with_executor(Executor& ex, const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Timer> {
+  static auto create_with_executor(Executor& ex, const std::chrono::steady_clock::duration& d)
+    -> std::shared_ptr<Timer> {
     auto timer = std::shared_ptr<Timer>(new Timer(ex));
     timer->reset(d);
     return timer;
