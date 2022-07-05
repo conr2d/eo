@@ -71,11 +71,18 @@ public:
   }
 
   auto index() requires(!one_of<CaseDefault, Ts...>) {
-    return [this]<size_t... I>(std::index_sequence<I...>)->boost::asio::awaitable<int> {
-      auto res = co_await (std::get<I>(cases).wait() || ...);
-      co_return res.index();
+    if constexpr (!sizeof...(Ts)) {
+      return [this]() -> func<int> {
+        co_await std::get<0>(cases).wait();
+        co_return 0;
+      }();
+    } else {
+      return [this]<size_t... I>(std::index_sequence<I...>)->boost::asio::awaitable<int> {
+        auto res = co_await (std::get<I>(cases).wait() || ...);
+        co_return res.index();
+      }
+      (std::make_index_sequence<sizeof...(Ts) + 1>());
     }
-    (std::make_index_sequence<sizeof...(Ts) + 1>());
   }
 
   template<size_t I>
