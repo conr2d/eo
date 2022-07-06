@@ -2,6 +2,13 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <boost/asio/detail/config.hpp>
+#if defined(__clang__) && !defined(BOOST_ASIO_HAS_CO_AWAIT)
+#  if __has_include(<coroutine>)
+#    define BOOST_ASIO_HAS_CO_AWAIT 1
+#  endif
+#endif
+
 #include <eo/runtime.h>
 #include <boost/asio/awaitable.hpp>
 #include <boost/asio/co_spawn.hpp>
