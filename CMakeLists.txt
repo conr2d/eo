@@ -12,9 +12,9 @@ compiler_minimum_required("Clang" 10.0)
 compiler_minimum_required("AppleClang" 10.0)
 
 option(USE_CONAN "use conan to setup build dependencies" ON)
+option(CHECK_CONNECTION "check the network connection status" ON)
 
 set(CONAN_PACKAGES
-  date/3.0.1
   fmt/8.1.1
   scope-lite/0.2.0
 )
@@ -29,7 +29,6 @@ setup_conan()
 setup_macos_path()
 
 find_package(Boost REQUIRED)
-find_package(date REQUIRED)
 find_package(fmt REQUIRED)
 find_package(scope-lite REQUIRED)
 

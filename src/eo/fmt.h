@@ -4,8 +4,6 @@
 #pragma once
 #include <eo/core.h>
 
-#include <date/date.h>
-#include <date/tz.h>
 #include <fmt/format.h>
 #include <map>
 
@@ -64,7 +62,10 @@ struct formatter<std::chrono::time_point<Clock>> {
   }
   template<typename FormatContext>
   auto format(const std::chrono::time_point<Clock>& p, FormatContext& ctx) {
-    return format_to(ctx.out(), date::format("%F %T %z %Z", date::make_zoned(date::current_zone(), p)));
+    auto buffer = std::vector<char>(256);
+    auto t = Clock::to_time_t(p);
+    auto size = std::strftime(buffer.data(), buffer.size(), "%F %T %z %Z", std::localtime(&t));
+    return format_to(ctx.out(), "{}", std::string_view(buffer.data(), size));
   }
 };
 
