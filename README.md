@@ -14,7 +14,7 @@ Eo is under active development and its APIs are not stable.
 
 Build dependencies will be installed by [Conan](https://github.com/conan-io/conan) package manager.
 
-- C++20 (GCC 11, Clang 10)
+- C++20 (Clang 10+) (GCC support is temporarily disabled)
 - Boost 1.78 (On MacOS, use [brew](https://brew.sh/) to install boost)
 - [fmt](https://github.com/fmtlib/fmt)
 - [scope-lite](https://github.com/martinmoene/scope-lite)

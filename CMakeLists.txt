@@ -7,7 +7,9 @@ add_compile_definitions(BOOST_ASIO_HAS_STD_INVOKE_RESULT)
 
 include(cmake_common.txt)
 
-compiler_minimum_required("GNU" 11.0)
+# boost::asio::experimental::awaitable_operators doesn't work with GCC
+compiler_minimum_required("GNU" UNSUPPORTED)
+
 compiler_minimum_required("Clang" 10.0)
 compiler_minimum_required("AppleClang" 10.0)
 

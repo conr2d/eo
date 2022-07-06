@@ -1,5 +1,8 @@
 function(compiler_minimum_required COMPILER_ID VERSION)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "${COMPILER_ID}")
+    if("${VERSION}" STREQUAL "UNSUPPORTED")
+      message(FATAL_ERROR "${COMPILER_ID} compiler is NOT supported")
+    endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS ${VERSION})
       message(FATAL_ERROR "${COMPILER_ID} ${VERSION} or later is required.  You are running version ${CMAKE_CXX_COMPILER_VERSION}")
     endif()
