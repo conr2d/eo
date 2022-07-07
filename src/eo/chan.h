@@ -19,7 +19,7 @@ public:
   using channel_type = boost::asio::experimental::concurrent_channel<void(boost::system::error_code, T)>;
 
   template<typename Executor>
-  chan(Executor&& ex, size_t capacity): impl(new channel_type(ex, capacity)) {}
+  chan(Executor&& ex, size_t capacity = 0): impl(new channel_type(ex, capacity)) {}
 
   template<typename U>
   auto operator<<(U&& message) const -> SendOp<T> {
