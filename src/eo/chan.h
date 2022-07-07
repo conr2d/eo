@@ -37,9 +37,8 @@ public:
     impl->close();
   }
 
-  template<typename... Args>
-  auto try_send(Args&&... args) {
-    return impl->try_send(std::forward<Args>(args)...);
+  auto& raw() {
+    return *impl;
   }
 
 private:

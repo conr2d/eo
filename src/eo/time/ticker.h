@@ -40,7 +40,7 @@ public:
     timer.async_wait([=, self{shared_from_this()}](boost::system::error_code ec) {
       if (ec)
         return;
-      self->c.try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
       self->reset(d);
     });
   }

@@ -43,7 +43,7 @@ public:
       self->expired = true;
       if (ec)
         return;
-      self->c.try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
     });
   }
 
