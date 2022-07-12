@@ -1,5 +1,6 @@
 add_library(eo STATIC
   math/rand.cpp
+  os.cpp
   runtime.cpp
 )
 target_include_directories(eo PUBLIC ${PROJECT_SOURCE_DIR}/src ${Boost_INCLUDE_DIR})
