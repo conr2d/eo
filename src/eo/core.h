@@ -5,5 +5,6 @@
 
 #include <eo/chan.h>
 #include <eo/defer.h>
+#include <eo/error.h>
 #include <eo/invoke.h>
 #include <eo/select.h>
