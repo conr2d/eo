@@ -10,7 +10,8 @@ auto expand_env(const std::string& s) -> std::string {
 
   std::string v{};
   for (auto i = 0; i < p.we_wordc; ++i) {
-    if (i) v += " ";
+    if (i)
+      v += " ";
     v += p.we_wordv[i];
   }
   return v;
