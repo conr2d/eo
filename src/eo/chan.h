@@ -21,6 +21,14 @@ public:
   template<typename Executor>
   chan(Executor&& ex, size_t capacity = 0): impl(new channel_type(ex, capacity)) {}
 
+  chan(chan<T>& c): impl(c.impl) {}
+  chan(chan<T>&& c): impl(std::move(c.impl)) {}
+
+  auto& operator=(chan<T>&& c) {
+    impl = std::move(c.impl);
+    return *this;
+  }
+
   template<typename U>
   auto operator<<(U&& message) const -> SendOp<T> {
     return {impl, T{std::forward<U>(message)}};
@@ -39,6 +47,10 @@ public:
 
   auto& raw() {
     return *impl;
+  }
+
+  friend auto operator==(const chan<T>& lhs, const chan<T>& rhs) {
+    return lhs.impl.get() == rhs.impl.get();
   }
 
 private:
