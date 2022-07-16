@@ -1,4 +1,5 @@
 add_library(eo STATIC
+  context.cpp
   math/rand.cpp
   os.cpp
   runtime.cpp
