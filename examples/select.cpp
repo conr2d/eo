@@ -41,11 +41,11 @@ func<> eo_main() {
 
   go([&]() -> func<> {
     co_await time::sleep(std::chrono::seconds(1));
-    co_await *(c1 << "one");
+    co_await (c1 << "one");
   });
   go([&]() -> func<> {
     co_await time::sleep(std::chrono::seconds(2));
-    co_await *(c2 << "two");
+    co_await (c2 << "two");
   });
 
   auto select = Select{*c1, *c2};

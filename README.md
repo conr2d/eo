@@ -82,8 +82,8 @@ func main() {
 // C++
 func<> eo_main() {
   auto ch = make_chan<std::string>();
-  go([&]() -> func<> { co_await *(ch << "ping"); });
-  auto msg = co_await **ch;
+  go([&]() -> func<> { co_await (ch << "ping"); });
+  auto msg = co_await *ch;
   fmt::println(msg);
 }
 ```

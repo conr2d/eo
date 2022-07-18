@@ -8,10 +8,10 @@
 namespace eo {
 
 template<typename T>
-struct SendOp;
+struct send_t;
 
 template<typename T>
-struct ReceiveOp;
+struct recv_t;
 
 template<typename T = std::monostate>
 class chan {
@@ -30,12 +30,19 @@ public:
   }
 
   template<typename U>
-  auto operator<<(U&& message) const -> SendOp<T> {
-    return {impl, T{std::forward<U>(message)}};
+  auto operator<<(U&& message) const -> send_t<T> {
+    send_t<T> op{};
+    op.c = impl;
+    op.value = T{std::forward<U>(message)};
+    op = op.wait();
+    return op;
   }
 
-  auto operator*() const -> ReceiveOp<T> {
-    return {impl};
+  auto operator*() const -> recv_t<T> {
+    recv_t<T> op{};
+    op.c = impl;
+    op = op.process();
+    return op;
   }
 
   void close() {
@@ -63,55 +70,73 @@ auto make_chan(size_t s = 0) -> chan<T> {
 }
 
 template<typename T>
-struct SendOp {
-  std::shared_ptr<typename chan<T>::channel_type> ch;
+struct send_t : public boost::asio::awaitable<bool> {
+private:
+  using super = boost::asio::awaitable<bool>;
+
+public:
+  using super::super;
+
+  auto& operator=(super&& other) {
+    *static_cast<super*>(this) = std::forward<super>(other);
+    return *this;
+  }
+
+  std::shared_ptr<typename chan<T>::channel_type> c;
   T value;
   bool sent{false}; // TODO: need atomic?
 
   // FIXME: there is no way to check whether a message can be sent via channel
   // try_send() in ready stage, but turn off sent flag during process().
   auto ready() -> bool {
-    if (!sent && !ch->is_open()) {
+    if (!sent && !c->is_open()) {
       return true;
     }
-    return sent ? sent : (sent = ch->try_send(boost::system::error_code{}, value));
+    return sent ? sent : (sent = c->try_send(boost::system::error_code{}, value));
   }
 
   auto wait() -> boost::asio::awaitable<bool> {
-    if (!ch->is_open()) {
+    if (!c->is_open()) {
       throw std::runtime_error("panic: send on closed channel");
     }
-    auto res = co_await ch->async_send(boost::system::error_code{}, value, eoroutine);
+    auto res = co_await c->async_send(boost::system::error_code{}, value, eoroutine);
     co_return (sent = !std::get<0>(res).value());
   }
 
   auto process() -> boost::asio::awaitable<bool> {
-    if (!sent && !ch->is_open()) {
+    if (!sent && !c->is_open()) {
       throw std::runtime_error("panic: send on closed channel");
     }
     co_return std::exchange(sent, false);
   }
-
-  auto operator*() {
-    return wait();
-  }
 };
 
 template<typename T>
-struct ReceiveOp {
-  std::shared_ptr<typename chan<T>::channel_type> ch;
+struct recv_t : public boost::asio::awaitable<T> {
+private:
+  using super = boost::asio::awaitable<T>;
+
+public:
+  using super::super;
+
+  auto& operator=(super&& other) {
+    *static_cast<super*>(this) = std::forward<super>(other);
+    return *this;
+  }
+
+  std::shared_ptr<typename chan<T>::channel_type> c;
   std::optional<T> processed;
 
   auto ready() -> bool {
-    return ch->ready() || !ch->is_open();
+    return c->ready() || !c->is_open();
   }
 
   auto wait() -> boost::asio::awaitable<bool> {
-    if (processed || !ch->is_open()) {
+    if (processed || !c->is_open()) {
       co_return true;
     }
     // XXX: caching received value not to lose by coroutine cancellation
-    processed = co_await ch->async_receive(use_awaitable);
+    processed = co_await c->async_receive(use_awaitable);
     co_return true;
   }
 
@@ -121,13 +146,27 @@ struct ReceiveOp {
       std::swap(ret, processed);
       co_return std::move(*ret);
     }
-    auto res = co_await ch->async_receive(eoroutine);
+    auto res = co_await c->async_receive(eoroutine);
     co_return !std::get<0>(res).value() ? std::get<1>(res) : T{};
-  }
-
-  auto operator*() {
-    return process();
   }
 };
 
 } // namespace eo
+
+namespace std {
+#ifdef __clang__
+namespace experimental {
+#endif
+  template<typename T>
+  struct coroutine_traits<eo::send_t<T>> {
+    typedef coroutine_traits<boost::asio::awaitable<void>>::promise_type promise_type;
+  };
+
+  template<typename T>
+  struct coroutine_traits<eo::recv_t<T>> {
+    typedef typename coroutine_traits<boost::asio::awaitable<T>>::promise_type promise_type;
+  };
+#ifdef __clang__
+} // namespace experimental
+#endif
+} // namespace std

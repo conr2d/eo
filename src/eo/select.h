@@ -31,7 +31,7 @@ constexpr bool one_of = OneOf<T, Ts...>::value;
 
 template<typename T, typename... Ts>
 struct Select {
-  Select(T&& t, Ts&&... ts): cases(t, ts...) {}
+  Select(T&& t, Ts&&... ts): cases(std::make_tuple(std::forward<T>(t), std::forward<Ts>(ts)...)) {}
 
   std::tuple<T, Ts...> cases;
 

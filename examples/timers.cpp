@@ -32,12 +32,12 @@ using namespace eo;
 func<> eo_main() {
   auto timer1 = time::new_timer(std::chrono::seconds(2));
 
-  co_await **timer1->c;
+  co_await *timer1->c;
   fmt::println("Timer 1 fired");
 
   auto timer2 = time::new_timer(std::chrono::seconds(1));
   go([=]() -> func<> {
-    co_await **timer2->c;
+    co_await *timer2->c;
     fmt::println("Timer 2 fired");
   });
   auto stop2 = timer2->stop();

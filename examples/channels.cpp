@@ -20,9 +20,9 @@ using namespace eo;
 func<> eo_main() {
   auto messages = make_chan<std::string>();
 
-  go([&]() -> func<> { co_await *(messages << "ping"); });
+  go([&]() -> func<> { co_await (messages << "ping"); });
 
-  auto msg = co_await **messages;
+  auto msg = co_await *messages;
   fmt::println(msg);
 
   co_return;

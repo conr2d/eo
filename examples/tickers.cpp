@@ -54,6 +54,6 @@ func<> eo_main() {
 
   co_await time::sleep(std::chrono::milliseconds(1600));
   ticker->stop();
-  co_await *(done << true);
+  co_await (done << true);
   fmt::println("Ticker stopped");
 }
