@@ -34,7 +34,6 @@ func<> eo_main() {
   auto boom = time::new_timer(std::chrono::milliseconds(500));
 
   auto select = Select{ *tick->c, *boom->c, CaseDefault() };
-  // auto select = Select{ *tick.c, *boom.c };
 
   for (;;) {
     switch (co_await select.index()) {
