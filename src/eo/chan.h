@@ -154,7 +154,7 @@ public:
 } // namespace eo
 
 namespace std {
-#ifdef __clang__
+#if __has_include(<experimental/coroutine>)
 namespace experimental {
 #endif
   template<typename T>
@@ -166,7 +166,7 @@ namespace experimental {
   struct coroutine_traits<eo::recv_t<T>> {
     typedef typename coroutine_traits<boost::asio::awaitable<T>>::promise_type promise_type;
   };
-#ifdef __clang__
+#if __has_include(<experimental/coroutine>)
 } // namespace experimental
 #endif
 } // namespace std
