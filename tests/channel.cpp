@@ -43,10 +43,7 @@ void test_unbuffered_send_receive() {
     }(),
     asio::detached);
 
-  auto result = asio::co_spawn(
-    io,
-    [&]() -> eo::func<std::string> { co_return co_await *ch; }(),
-    asio::use_future);
+  auto result = asio::co_spawn(io, [&]() -> eo::func<std::string> { co_return co_await *ch; }(), asio::use_future);
 
   io.run();
   assert(result.get() == "ping");
@@ -57,10 +54,7 @@ void test_close_then_receive_zero_value() {
   eo::chan<int> ch{io.get_executor()};
   ch.close();
 
-  auto result = asio::co_spawn(
-    io,
-    [&]() -> eo::func<int> { co_return co_await *ch; }(),
-    asio::use_future);
+  auto result = asio::co_spawn(io, [&]() -> eo::func<int> { co_return co_await *ch; }(), asio::use_future);
 
   io.run();
   assert(result.get() == 0);
