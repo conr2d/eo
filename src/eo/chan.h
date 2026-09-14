@@ -19,6 +19,7 @@ public:
   using channel_type = boost::asio::experimental::concurrent_channel<void(boost::system::error_code, T)>;
 
   template<typename Executor>
+    requires(!std::is_same_v<std::remove_cvref_t<Executor>, chan>)
   chan(Executor&& ex, size_t capacity = 0): impl(new channel_type(ex, capacity)) {}
 
   chan(const chan&) = default;
