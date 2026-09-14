@@ -25,9 +25,8 @@ inline auto eoroutine = boost::asio::experimental::as_tuple(use_awaitable);
 using namespace boost::asio::experimental::awaitable_operators;
 
 template<typename F>
-concept Awaitable = requires(F&& f) {
-  boost::asio::co_spawn(runtime::execution_context, std::forward<F>(f), boost::asio::detached);
-};
+concept Awaitable =
+  requires(F&& f) { boost::asio::co_spawn(runtime::execution_context, std::forward<F>(f), boost::asio::detached); };
 
 template<typename Executor, Awaitable F, typename CompletionToken>
 void go(Executor& ex, F&& f, CompletionToken&& ct) {
