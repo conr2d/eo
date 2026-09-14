@@ -6,6 +6,8 @@
 
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
+#include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/use_future.hpp>
 
 #include <stdexcept>
@@ -47,21 +49,24 @@ auto select_closed_receive(eo::chan<int> closed, eo::chan<int> idle) -> eo::func
 }
 
 auto select_blocking_winner_and_reuse_loser(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {
-  auto sent = co_await (second << 22);
-  check(sent, "buffered send should succeed");
-
   auto select = eo::Select{*first, *second};
   auto index = co_await select.index();
-  check(index == 1, "ready second receive should win blocking select");
+  check(index == 1, "later second send should wake blocking select");
 
   auto selected = co_await select.process<1>();
   check(selected == 22, "selected receive should preserve the winning value");
 
-  sent = co_await (first << 11);
+  auto sent = co_await (first << 11);
   check(sent, "losing channel should remain usable after cancellation");
 
   auto remaining = co_await *first;
   check(remaining == 11, "losing receive cancellation should not consume a later value");
+}
+
+auto send_after_select_suspends(eo::chan<int> ch) -> eo::func<> {
+  co_await asio::post(asio::use_awaitable);
+  auto sent = co_await (ch << 22);
+  check(sent, "wake-up send should succeed");
 }
 
 void test_ready_case_beats_default() {
@@ -101,7 +106,10 @@ void test_blocking_select_cancels_loser_cleanly() {
   eo::chan<int> second{io.get_executor(), 1};
 
   auto result = asio::co_spawn(io, select_blocking_winner_and_reuse_loser(first, second), asio::use_future);
+  auto sender = asio::co_spawn(io, send_after_select_suspends(second), asio::use_future);
+
   io.run();
+  sender.get();
   result.get();
 }
 
