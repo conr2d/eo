@@ -86,9 +86,6 @@ auto value(Context* c, Context::Type key) -> std::any {
 CancelContext::CancelContext(Context* parent): context(parent) {}
 
 auto CancelContext::done() -> std::optional<chan<>> {
-  if (done_) {
-    return *done_;
-  }
   std::unique_lock _{mtx};
   if (!done_) {
     done_ = make_chan();
@@ -97,7 +94,17 @@ auto CancelContext::done() -> std::optional<chan<>> {
 }
 
 auto CancelContext::err() -> Error {
+  std::unique_lock _{mtx};
   return err_;
+}
+
+auto CancelContext::add_child(std::shared_ptr<Canceler> child) -> Error {
+  std::unique_lock _{mtx};
+  if (err_) {
+    return err_;
+  }
+  children.emplace(child.get(), std::move(child));
+  return {};
 }
 
 void CancelContext::cancel(bool remove_from_parent, Error err) {
@@ -153,12 +160,8 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
     }
   });
   if (auto [p, ok] = parent_cancel_ctx(parent); ok) {
-    std::unique_lock _{p->mtx};
-    if (p->err()) {
-      // parent has already been canceled
-      child->cancel(false, p->err());
-    } else {
-      p->children.emplace(child.get(), std::move(child));
+    if (auto err = p->add_child(child); err) {
+      child->cancel(false, err);
     }
   } else {
     go([parent, child = std::move(child)]() mutable -> func<> {
