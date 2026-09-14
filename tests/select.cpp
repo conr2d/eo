@@ -81,7 +81,8 @@ auto select_closed_send(eo::chan<int> ch) -> eo::func<> {
   try {
     co_await select.process<0>();
   } catch (const std::runtime_error& error) {
-    check(std::string{error.what()} == "panic: send on closed channel", "closed selected send returned the wrong error");
+    check(
+      std::string{error.what()} == "panic: send on closed channel", "closed selected send returned the wrong error");
     co_return;
   }
 
