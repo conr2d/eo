@@ -56,7 +56,8 @@ public:
   // pseudo-random selection. Otherwise, if there is a default case, that case is chosen. If there is no default case,
   // the "select" statement blocks until at least one of the communications can proceed.
   auto index() -> boost::asio::awaitable<int>
-  requires(one_of<CaseDefault, Ts...>) {
+    requires(one_of<CaseDefault, Ts...>)
+  {
     std::vector<size_t> indices{};
     indices.reserve(sizeof...(Ts) + 1);
     eval_ready(indices);
@@ -70,18 +71,19 @@ public:
     }
   }
 
-  auto index() requires(!one_of<CaseDefault, Ts...>) {
+  auto index()
+    requires(!one_of<CaseDefault, Ts...>)
+  {
     if constexpr (!sizeof...(Ts)) {
       return [this]() -> func<int> {
         co_await std::get<0>(cases).wait();
         co_return 0;
       }();
     } else {
-      return [this]<size_t... I>(std::index_sequence<I...>)->boost::asio::awaitable<int> {
+      return [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
         auto res = co_await (std::get<I>(cases).wait() || ...);
         co_return res.index();
-      }
-      (std::make_index_sequence<sizeof...(Ts) + 1>());
+      }(std::make_index_sequence<sizeof...(Ts) + 1>());
     }
   }
 
