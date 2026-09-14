@@ -49,8 +49,8 @@ public:
     if (!impl->is_open()) {
       throw std::runtime_error("panic: close of closed channel");
     }
-    impl->close();
     impl->cancel();
+    impl->close();
   }
 
   auto& raw() {
