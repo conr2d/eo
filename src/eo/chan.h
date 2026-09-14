@@ -50,6 +50,7 @@ public:
       throw std::runtime_error("panic: close of closed channel");
     }
     impl->close();
+    impl->cancel();
   }
 
   auto& raw() {
