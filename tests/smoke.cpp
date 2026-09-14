@@ -3,7 +3,7 @@
 #include <cstdlib>
 
 int main() {
-  static_assert(__cplusplus >= 202302L, "Eo requires C++23");
+  static_assert(__cplusplus >= 202100L, "Eo requires C++23 mode");
 
   bool deferred = false;
   {
