@@ -3,8 +3,11 @@
 //
 #include <eo/context.h>
 
+#include <atomic>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <vector>
 
 void check(bool condition, const char* message) {
   if (!condition) {
@@ -96,6 +99,37 @@ void test_child_of_canceled_parent_is_canceled_immediately() {
   cancel_child();
 }
 
+void test_concurrent_state_access_during_cancel() {
+  auto [ctx, cancel] = eo::context::with_cancel(eo::context::background());
+  std::atomic_bool valid{true};
+  std::vector<std::thread> readers;
+
+  for (int i = 0; i < 8; ++i) {
+    readers.emplace_back([&] {
+      for (int j = 0; j < 1000; ++j) {
+        if (!ctx->done().has_value()) {
+          valid = false;
+        }
+        auto err = ctx->err();
+        if (err && err != eo::context::canceled) {
+          valid = false;
+        }
+      }
+    });
+  }
+
+  std::thread canceler([&] { cancel(); });
+
+  for (auto& reader : readers) {
+    reader.join();
+  }
+  canceler.join();
+
+  check(valid, "concurrent context access observed invalid state");
+  check(ctx->err() == eo::context::canceled, "concurrent cancel should preserve cancellation error");
+  check(!ctx->done()->raw().is_open(), "concurrent cancel should close the done channel");
+}
+
 void test_nil_parent_is_rejected() {
   try {
     eo::context::with_cancel(nullptr);
@@ -115,5 +149,6 @@ int main() {
   test_parent_retains_uncanceled_child();
   test_child_cancel_releases_parent_reference();
   test_child_of_canceled_parent_is_canceled_immediately();
+  test_concurrent_state_access_during_cancel();
   test_nil_parent_is_rejected();
 }

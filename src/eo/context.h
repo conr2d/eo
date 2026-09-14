@@ -47,6 +47,7 @@ struct CancelContext : public Context, public Canceler {
   auto type() -> Type override;
 
   void cancel(bool remove_from_parent, Error err) override;
+  auto add_child(std::shared_ptr<Canceler> child) -> Error;
 
   Context* context;
   std::mutex mtx;
