@@ -49,6 +49,7 @@ public:
     if (!impl->is_open()) {
       throw std::runtime_error("panic: close of closed channel");
     }
+    impl->cancel();
     impl->close();
   }
 
@@ -100,7 +101,13 @@ public:
       throw std::runtime_error("panic: send on closed channel");
     }
     auto res = co_await c->async_send(boost::system::error_code{}, value, eoroutine);
-    co_return (sent = !std::get<0>(res).value());
+    if (std::get<0>(res)) {
+      if (!c->is_open()) {
+        throw std::runtime_error("panic: send on closed channel");
+      }
+      co_return false;
+    }
+    co_return (sent = true);
   }
 
   auto process() -> boost::asio::awaitable<bool> {

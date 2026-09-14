@@ -63,6 +63,15 @@ auto select_blocking_winner_and_reuse_loser(eo::chan<int> first, eo::chan<int> s
   check(remaining == 11, "losing receive cancellation should not consume a later value");
 }
 
+auto select_receive_wins_over_blocked_send(eo::chan<int> send_channel, eo::chan<int> receive_channel) -> eo::func<> {
+  auto select = eo::Select{send_channel << 11, *receive_channel};
+  auto index = co_await select.index();
+  check(index == 1, "receive should win while send remains blocked");
+
+  auto selected = co_await select.process<1>();
+  check(selected == 22, "selected receive should preserve its value");
+}
+
 auto send_after_select_suspends(eo::chan<int> ch) -> eo::func<> {
   co_await asio::post(asio::use_awaitable);
   auto sent = co_await (ch << 22);
@@ -113,9 +122,24 @@ void test_blocking_select_cancels_loser_cleanly() {
   result.get();
 }
 
+void test_blocking_select_cancels_losing_send_cleanly() {
+  asio::io_context io;
+  eo::chan<int> blocked_send{io.get_executor()};
+  eo::chan<int> receive_winner{io.get_executor()};
+
+  auto result =
+    asio::co_spawn(io, select_receive_wins_over_blocked_send(blocked_send, receive_winner), asio::use_future);
+  auto sender = asio::co_spawn(io, send_after_select_suspends(receive_winner), asio::use_future);
+
+  io.run();
+  sender.get();
+  result.get();
+}
+
 int main() {
   test_ready_case_beats_default();
   test_default_when_no_case_ready();
   test_closed_receive_is_ready();
   test_blocking_select_cancels_loser_cleanly();
+  test_blocking_select_cancels_losing_send_cleanly();
 }
