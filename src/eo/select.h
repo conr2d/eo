@@ -37,17 +37,26 @@ struct Select {
 
 private:
   template<size_t I = 0>
-  void eval_ready(std::vector<size_t>& indices) {
-    if constexpr (!sizeof...(Ts)) {
-      indices.push_back(0);
-      return;
-    }
+  auto ready(size_t index) -> bool {
     if constexpr (I < sizeof...(Ts)) {
-      if (std::get<I>(cases).ready()) {
-        indices.push_back(I);
+      if (I == index) {
+        return std::get<I>(cases).ready();
       }
-      eval_ready<I + 1>(indices);
+      return ready<I + 1>(index);
     }
+    return false;
+  }
+
+  auto randomized_indices() -> std::vector<size_t> {
+    std::vector<size_t> indices(sizeof...(Ts));
+    for (size_t i = 0; i < indices.size(); ++i) {
+      indices[i] = i;
+    }
+    for (size_t i = indices.size(); i > 1; --i) {
+      auto j = static_cast<size_t>(math::rand::int63_n(i));
+      std::swap(indices[i - 1], indices[j]);
+    }
+    return indices;
   }
 
 public:
@@ -58,17 +67,12 @@ public:
   auto index() -> boost::asio::awaitable<int>
     requires(one_of<CaseDefault, Ts...>)
   {
-    std::vector<size_t> indices{};
-    indices.reserve(sizeof...(Ts) + 1);
-    eval_ready(indices);
-    switch (indices.size()) {
-    case 0:
-      co_return -1;
-    case 1:
-      co_return indices[0];
-    default:
-      co_return indices[math::rand::int63_n(indices.size())];
+    for (auto index : randomized_indices()) {
+      if (ready(index)) {
+        co_return index;
+      }
     }
+    co_return -1;
   }
 
   auto index()
