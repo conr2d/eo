@@ -11,7 +11,8 @@ auto invoke(func<T> f) {
   if constexpr (std::is_void_v<T>) {
     go(std::forward<func<>>(f), [promise{std::move(promise)}](std::exception_ptr ep) mutable {
       if (ep) {
-        // TODO: exception handling
+        promise.set_exception(ep);
+        return;
       }
       promise.set_value();
     });
@@ -20,7 +21,8 @@ auto invoke(func<T> f) {
   } else {
     go(std::forward<func<T>>(f), [promise{std::move(promise)}](std::exception_ptr ep, T v) mutable {
       if (ep) {
-        // TODO: exception handling
+        promise.set_exception(ep);
+        return;
       }
       promise.set_value(std::forward<T>(v));
     });

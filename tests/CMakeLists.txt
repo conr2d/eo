@@ -22,3 +22,8 @@ add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 
 add_test(NAME eo.error COMMAND eo_error)
+
+add_executable(eo_invoke invoke.cpp)
+target_link_libraries(eo_invoke PRIVATE eo::eo)
+
+add_test(NAME eo.invoke COMMAND eo_invoke)
