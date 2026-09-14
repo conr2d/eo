@@ -17,11 +17,10 @@ class UserErrorRegistry {
 public:
   std::string message(int condition);
 
-  // message is not copied, so it MUST point out statically allocated memory address.
   Error register_error(std::string_view message);
 
 private:
-  std::map<int, std::string_view> messages;
+  std::map<int, std::string> messages;
   int counter = 0;
 };
 
@@ -132,13 +131,13 @@ private:
 
 inline std::string UserErrorRegistry::message(int condition) {
   if (messages.contains(condition)) {
-    return std::string{messages[condition]};
+    return messages[condition];
   }
   return "runtime error";
 }
 
 inline Error UserErrorRegistry::register_error(std::string_view message) {
-  messages[++counter] = message;
+  messages[++counter] = std::string{message};
   return Error(counter, user_category());
 }
 
