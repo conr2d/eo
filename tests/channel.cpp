@@ -13,8 +13,12 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 namespace asio = boost::asio;
+
+static_assert(std::is_copy_constructible_v<eo::chan<int>>);
+static_assert(std::is_copy_assignable_v<eo::chan<int>>);
 
 void check(bool condition, std::string_view message) {
   if (!condition) {
@@ -182,6 +186,25 @@ void test_channel_copy_shares_identity() {
   check(original == copy, "copied channel did not preserve identity");
 }
 
+void test_channel_const_copy_shares_identity() {
+  asio::io_context io;
+  eo::chan<int> original{io.get_executor(), 1};
+  const auto& view = original;
+  auto copy = view;
+
+  check(original == copy, "copying a const channel did not preserve identity");
+}
+
+void test_channel_copy_assignment_shares_identity() {
+  asio::io_context io;
+  eo::chan<int> source{io.get_executor(), 1};
+  eo::chan<int> target{io.get_executor(), 1};
+
+  target = source;
+
+  check(source == target, "copy assignment did not preserve channel identity");
+}
+
 int main() {
   test_buffered_send_receive();
   test_unbuffered_send_receive();
@@ -192,4 +215,6 @@ int main() {
   test_send_on_closed_channel_panics();
   test_double_close_panics();
   test_channel_copy_shares_identity();
+  test_channel_const_copy_shares_identity();
+  test_channel_copy_assignment_shares_identity();
 }
