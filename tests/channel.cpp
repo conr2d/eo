@@ -7,20 +7,28 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/use_future.hpp>
 
-#include <cassert>
 #include <future>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 
 namespace asio = boost::asio;
 
+void check(bool condition, std::string_view message) {
+  if (!condition) {
+    throw std::runtime_error(std::string{message});
+  }
+}
+
 auto buffered_roundtrip(eo::chan<int> ch) -> eo::func<int> {
-  assert(co_await (ch << 42));
+  auto sent = co_await (ch << 42);
+  check(sent, "buffered send failed");
   co_return co_await *ch;
 }
 
 auto send_string(eo::chan<std::string> ch) -> eo::func<> {
-  assert(co_await (ch << "ping"));
+  auto sent = co_await (ch << "ping");
+  check(sent, "unbuffered send failed");
   co_return;
 }
 
@@ -44,7 +52,7 @@ void test_buffered_send_receive() {
   auto result = asio::co_spawn(io, buffered_roundtrip(ch), asio::use_future);
 
   io.run();
-  assert(result.get() == 42);
+  check(result.get() == 42, "buffered receive returned the wrong value");
 }
 
 void test_unbuffered_send_receive() {
@@ -56,7 +64,7 @@ void test_unbuffered_send_receive() {
 
   io.run();
   sender.get();
-  assert(receiver.get() == "ping");
+  check(receiver.get() == "ping", "unbuffered receive returned the wrong value");
 }
 
 void test_close_then_receive_zero_value() {
@@ -67,7 +75,7 @@ void test_close_then_receive_zero_value() {
   auto result = asio::co_spawn(io, receive_int(ch), asio::use_future);
 
   io.run();
-  assert(result.get() == 0);
+  check(result.get() == 0, "closed channel receive did not return the zero value");
 }
 
 void test_send_on_closed_channel_panics() {
@@ -81,10 +89,12 @@ void test_send_on_closed_channel_panics() {
 
   try {
     result.get();
-    assert(false);
   } catch (const std::runtime_error& error) {
-    assert(std::string{error.what()} == "panic: send on closed channel");
+    check(std::string{error.what()} == "panic: send on closed channel", "closed channel send returned the wrong error");
+    return;
   }
+
+  throw std::runtime_error("send on closed channel did not panic");
 }
 
 void test_double_close_panics() {
@@ -94,10 +104,12 @@ void test_double_close_panics() {
 
   try {
     ch.close();
-    assert(false);
   } catch (const std::runtime_error& error) {
-    assert(std::string{error.what()} == "panic: close of closed channel");
+    check(std::string{error.what()} == "panic: close of closed channel", "double close returned the wrong error");
+    return;
   }
+
+  throw std::runtime_error("double close did not panic");
 }
 
 void test_channel_copy_shares_identity() {
@@ -105,7 +117,7 @@ void test_channel_copy_shares_identity() {
   eo::chan<int> original{io.get_executor(), 1};
   auto copy = original;
 
-  assert(original == copy);
+  check(original == copy, "copied channel did not preserve identity");
 }
 
 int main() {
