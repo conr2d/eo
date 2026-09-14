@@ -88,6 +88,22 @@ auto select_closed_send(eo::chan<int> ch) -> eo::func<> {
   throw std::runtime_error("selected send on closed channel did not panic");
 }
 
+auto select_commits_only_winning_send(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {
+  auto select = eo::Select{first << 11, second << 22, eo::CaseDefault{}};
+  auto index = co_await select.index();
+  check(index == 0 || index == 1, "one ready send should be selected");
+  check(first.raw().ready() == (index == 0), "first send readiness did not match selection");
+  check(second.raw().ready() == (index == 1), "second send readiness did not match selection");
+
+  if (index == 0) {
+    check(co_await select.process<0>(), "selected first send should report success");
+    check(co_await *first == 11, "selected first send should preserve its value");
+  } else {
+    check(co_await select.process<1>(), "selected second send should report success");
+    check(co_await *second == 22, "selected second send should preserve its value");
+  }
+}
+
 auto select_blocking_winner_and_reuse_loser(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {
   auto select = eo::Select{*first, *second};
   auto index = co_await select.index();
@@ -177,6 +193,16 @@ void test_closed_send_is_selected_then_panics() {
   result.get();
 }
 
+void test_select_commits_only_winning_send() {
+  asio::io_context io;
+  eo::chan<int> first{io.get_executor(), 1};
+  eo::chan<int> second{io.get_executor(), 1};
+
+  auto result = asio::co_spawn(io, select_commits_only_winning_send(first, second), asio::use_future);
+  io.run();
+  result.get();
+}
+
 void test_blocking_select_cancels_loser_cleanly() {
   asio::io_context io;
   eo::chan<int> first{io.get_executor(), 1};
@@ -211,6 +237,7 @@ int main() {
   test_ready_send_beats_default();
   test_default_when_send_is_blocked();
   test_closed_send_is_selected_then_panics();
+  test_select_commits_only_winning_send();
   test_blocking_select_cancels_loser_cleanly();
   test_blocking_select_cancels_losing_send_cleanly();
 }
