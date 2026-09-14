@@ -125,7 +125,7 @@ func<> f() {
 
 ### Defer
 
-`defer` is represented by the `eo_defer` macro and C++23 `std::scope_exit`.
+`defer` is represented by the `eo_defer` macro, which uses Eo's lightweight internal RAII scope guard to run the deferred callable when the surrounding scope exits.
 
 ```go
 // Go
