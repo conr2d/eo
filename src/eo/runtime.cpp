@@ -2,16 +2,22 @@
 // SPDX-License-Identifier: MIT
 //
 #include <eo/core.h>
+
+#include <algorithm>
+#include <charconv>
+#include <string_view>
 #include <thread>
 
 namespace eo::runtime {
 
 boost::asio::thread_pool execution_context = []() {
-  auto maxprocs = std::thread::hardware_concurrency();
+  auto maxprocs = std::max<std::size_t>(1, std::thread::hardware_concurrency());
   if (auto env = std::getenv("EOMAXPROCS")) {
-    auto _maxprocs = std::stoull(env);
-    if (_maxprocs >= 1) {
-      maxprocs = _maxprocs;
+    std::size_t configured{};
+    std::string_view value{env};
+    auto [ptr, ec] = std::from_chars(value.data(), value.data() + value.size(), configured);
+    if (ec == std::errc{} && ptr == value.data() + value.size() && configured >= 1) {
+      maxprocs = configured;
     }
   }
   return boost::asio::thread_pool{maxprocs};
