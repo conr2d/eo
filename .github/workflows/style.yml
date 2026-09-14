@@ -14,10 +14,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install clang-format
+      - name: Install formatters
         run: |
           sudo apt-get update
           sudo apt-get install -y clang-format
+          python3 -m pip install --disable-pip-version-check 'cmakefmt==1.7.0'
 
       - name: Check C++ formatting
         run: |
@@ -26,4 +27,4 @@ jobs:
             -print0 | xargs -0 clang-format --dry-run --Werror
 
       - name: Check CMake formatting
-        uses: cmakefmt/cmakefmt-action@v2
+        run: cmakefmt --check .
