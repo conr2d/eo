@@ -6,20 +6,24 @@
 #include <utility>
 
 namespace eo::detail {
-template <typename F> class scope_exit {
+template<typename F>
+class scope_exit {
 public:
-  explicit scope_exit(F function) : function_(std::move(function)) {}
+  explicit scope_exit(F function): function_(std::move(function)) {}
 
-  scope_exit(const scope_exit &) = delete;
-  scope_exit &operator=(const scope_exit &) = delete;
+  scope_exit(const scope_exit&) = delete;
+  scope_exit& operator=(const scope_exit&) = delete;
 
-  ~scope_exit() noexcept { function_(); }
+  ~scope_exit() noexcept {
+    function_();
+  }
 
 private:
   F function_;
 };
 
-template <typename F> scope_exit(F) -> scope_exit<F>;
+template<typename F>
+scope_exit(F) -> scope_exit<F>;
 } // namespace eo::detail
 
 #define EO_CONCAT_IMPL(a, b) a##b
