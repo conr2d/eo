@@ -19,11 +19,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang-format
 
-      - name: Check C++ formatting
+      - name: Show C++ formatting diff
         run: |
           find src examples tests -type f \
             \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' -o -name '*.cc' \) \
-            -print0 | xargs -0 clang-format --dry-run --Werror
+            -print0 | xargs -0 clang-format -i
+          git diff -- src examples tests
+          git diff --exit-code -- src examples tests
 
       - name: Check CMake formatting
         uses: cmakefmt/cmakefmt-action@v2
