@@ -9,15 +9,13 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-24.04
-    env:
-      CXX: g++-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build g++-14 libboost-all-dev libfmt-dev
+          sudo apt-get install -y cmake ninja-build libboost-all-dev libfmt-dev
       - name: Configure
         run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
       - name: Build
