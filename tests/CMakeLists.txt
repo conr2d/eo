@@ -12,3 +12,8 @@ add_executable(eo_select select.cpp)
 target_link_libraries(eo_select PRIVATE eo::eo)
 
 add_test(NAME eo.select COMMAND eo_select)
+
+add_executable(eo_context context.cpp)
+target_link_libraries(eo_context PRIVATE eo::eo)
+
+add_test(NAME eo.context COMMAND eo_context)
