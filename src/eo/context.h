@@ -3,7 +3,7 @@
 
 #include <any>
 #include <concepts>
-#include <set>
+#include <map>
 
 namespace eo::context {
 
@@ -50,7 +50,7 @@ struct CancelContext : public Context, public Canceler {
 
   Context* context;
   std::mutex mtx;
-  std::set<Canceler*> children;
+  std::map<Canceler*, std::shared_ptr<Canceler>> children;
 
 private:
   std::optional<chan<>> done_;
