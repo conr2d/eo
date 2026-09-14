@@ -55,6 +55,47 @@ void test_parent_cancel_propagates_to_child() {
   cancel_child();
 }
 
+void test_parent_retains_uncanceled_child() {
+  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
+  std::weak_ptr<eo::context::Context> child_ref;
+
+  {
+    auto [child, cancel_child] = eo::context::with_cancel(parent.get());
+    child_ref = child;
+  }
+
+  check(!child_ref.expired(), "parent should retain an uncanceled child");
+
+  cancel_parent();
+
+  check(child_ref.expired(), "parent cancel should release retained children");
+}
+
+void test_child_cancel_releases_parent_reference() {
+  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
+  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
+  std::weak_ptr<eo::context::Context> child_ref = child;
+
+  cancel_child();
+  child.reset();
+
+  check(child_ref.expired(), "child cancel should detach it from the parent");
+  cancel_parent();
+}
+
+void test_child_of_canceled_parent_is_canceled_immediately() {
+  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
+  cancel_parent();
+
+  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
+  auto done = child->done();
+
+  check(child->err() == eo::context::canceled, "child should inherit an already canceled parent error");
+  check(!done->raw().is_open(), "child of canceled parent should start with closed done channel");
+
+  cancel_child();
+}
+
 void test_nil_parent_is_rejected() {
   try {
     eo::context::with_cancel(nullptr);
@@ -71,5 +112,8 @@ int main() {
   test_cancel_closes_done_and_sets_error();
   test_cancel_is_idempotent();
   test_parent_cancel_propagates_to_child();
+  test_parent_retains_uncanceled_child();
+  test_child_cancel_releases_parent_reference();
+  test_child_of_canceled_parent_is_canceled_immediately();
   test_nil_parent_is_rejected();
 }

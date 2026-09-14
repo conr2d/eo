@@ -61,11 +61,7 @@ void remove_child(Context* parent, Canceler* child) {
     return;
   }
   std::unique_lock _{p->mtx};
-  if (p->children.size()) {
-    if (auto it = p->children.find(child); it != p->children.end()) {
-      p->children.erase(it);
-    }
-  }
+  p->children.erase(child);
 }
 
 auto value(Context* c, Context::Type key) -> std::any {
@@ -119,7 +115,7 @@ void CancelContext::cancel(bool remove_from_parent, Error err) {
     } else {
       done_->close();
     }
-    for (auto& c : children) {
+    for (auto& [_, c] : children) {
       c->cancel(false, err);
     }
     children.clear();
@@ -140,13 +136,13 @@ auto CancelContext::type() -> Type {
   return Cancel;
 }
 
-void propagate_cancel(Context* parent, Canceler* child) {
+void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
   auto done = parent->done();
   if (!done) {
     return; // parent is never canceled
   }
-  invoke([&]() -> func<> {
-    auto select = Select{**done, CaseDefault()};
+  invoke([parent, child]() -> func<> {
+    auto select = Select{**parent->done(), CaseDefault()};
     switch (co_await select.index()) {
     case 0:
       co_await select.process<0>();
@@ -162,10 +158,10 @@ void propagate_cancel(Context* parent, Canceler* child) {
       // parent has already been canceled
       child->cancel(false, p->err());
     } else {
-      p->children.insert(child);
+      p->children.emplace(child.get(), std::move(child));
     }
   } else {
-    go([=]() mutable -> func<> {
+    go([parent, child = std::move(child)]() mutable -> func<> {
       auto select = Select{**parent->done(), **child->done()};
       switch (co_await select.index()) {
       case 0:
@@ -185,7 +181,7 @@ auto with_cancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, Cancel
     throw std::runtime_error("cannot create context from nil parent");
   }
   auto c = std::make_shared<CancelContext>(parent);
-  propagate_cancel(parent, c.get());
+  propagate_cancel(parent, c);
   return {c, [cw{std::weak_ptr<CancelContext>(c)}]() {
             if (cw.expired())
               return;
