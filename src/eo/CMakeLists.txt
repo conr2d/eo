@@ -4,20 +4,21 @@ add_library(eo STATIC
   os.cpp
   runtime.cpp
 )
-target_include_directories(eo PUBLIC ${PROJECT_SOURCE_DIR}/src ${Boost_INCLUDE_DIR})
-target_link_libraries(eo
-  fmt::fmt
-  nonstd::scope-lite
+
+target_include_directories(eo
+  PUBLIC
+    ${PROJECT_SOURCE_DIR}/src
+    ${Boost_INCLUDE_DIRS}
 )
-if(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-  set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-  find_package(Threads REQUIRED)
-  target_link_libraries(eo Threads::Threads)
-endif()
+
+target_link_libraries(eo
+  PUBLIC
+    fmt::fmt
+    Threads::Threads
+)
 
 add_library(eo_main STATIC main.cpp)
-target_link_libraries(eo_main eo)
+target_link_libraries(eo_main PUBLIC eo)
 
 add_library(eo::eo ALIAS eo)
 add_library(eo::main ALIAS eo_main)
