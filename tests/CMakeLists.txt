@@ -32,6 +32,8 @@ add_executable(eo_runtime runtime.cpp)
 target_link_libraries(eo_runtime PRIVATE eo::eo)
 
 add_test(NAME eo.runtime COMMAND eo_runtime)
+add_test(NAME eo.runtime_two_workers COMMAND eo_runtime)
+set_tests_properties(eo.runtime_two_workers PROPERTIES ENVIRONMENT "EOMAXPROCS=2")
 add_test(NAME eo.runtime_zero_workers COMMAND eo_runtime)
 set_tests_properties(eo.runtime_zero_workers PROPERTIES ENVIRONMENT "EOMAXPROCS=0")
 add_test(NAME eo.runtime_invalid_workers COMMAND eo_runtime)
