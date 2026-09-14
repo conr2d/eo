@@ -102,7 +102,10 @@ public:
     }
     auto res = co_await c->async_send(boost::system::error_code{}, value, eoroutine);
     if (std::get<0>(res)) {
-      throw std::runtime_error("panic: send on closed channel");
+      if (!c->is_open()) {
+        throw std::runtime_error("panic: send on closed channel");
+      }
+      co_return false;
     }
     co_return (sent = true);
   }
