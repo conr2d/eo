@@ -55,9 +55,9 @@ public:
   constexpr Error(int ec, const std::error_category& ecat): value_(ec), category_(&ecat) {}
 
   template<typename T>
-  requires(!std::is_same_v<T, Error> &&
-    std::is_convertible_v<T, std::error_code>) // FIXME: clang-format 15 RequiresClausePosition: OwnLine
-    constexpr Error(T&& err) {
+    requires(!std::is_same_v<T, Error> &&
+      std::is_convertible_v<T, std::error_code>) // FIXME: clang-format 15 RequiresClausePosition: OwnLine
+  constexpr Error(T&& err) {
     auto& ec = static_cast<const std::error_code&>(err);
     value_ = ec.value();
     category_ = &ec.category();
