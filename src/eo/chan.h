@@ -21,13 +21,10 @@ public:
   template<typename Executor>
   chan(Executor&& ex, size_t capacity = 0): impl(new channel_type(ex, capacity)) {}
 
-  chan(chan<T>& c): impl(c.impl) {}
-  chan(chan<T>&& c): impl(std::move(c.impl)) {}
-
-  auto& operator=(chan<T>&& c) {
-    impl = std::move(c.impl);
-    return *this;
-  }
+  chan(const chan&) = default;
+  chan(chan&&) = default;
+  auto operator=(const chan&) -> chan& = default;
+  auto operator=(chan&&) -> chan& = default;
 
   template<typename U>
   auto operator<<(U&& message) const -> send_t<T> {
