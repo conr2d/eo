@@ -26,5 +26,8 @@ jobs:
             \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' -o -name '*.cc' \) \
             -print0 | xargs -0 clang-format --dry-run --Werror
 
-      - name: Check CMake formatting
-        run: cmakefmt --check .
+      - name: Show CMake formatting diff
+        run: |
+          cmakefmt --in-place .
+          git diff -- '**/CMakeLists.txt' 'CMakeLists.txt'
+          git diff --exit-code -- '**/CMakeLists.txt' 'CMakeLists.txt'
