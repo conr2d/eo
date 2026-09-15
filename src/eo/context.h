@@ -8,7 +8,7 @@
 
 namespace eo::context {
 
-extern const Error canceled;
+extern const Error Canceled;
 
 struct Context {
   enum class Type {
