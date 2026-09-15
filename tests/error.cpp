@@ -30,6 +30,26 @@ void test_registered_error_accepts_temporary_message() {
   check(error.message() == "temporary error", "registered error should preserve a temporary message");
 }
 
+void test_custom_error_preserves_message_in_error_code() {
+  eo::Error error{"custom error"};
+  auto code = static_cast<std::error_code>(error);
+
+  check(code.message() == "custom error", "custom error_code conversion should preserve the message");
+}
+
+void test_custom_error_preserves_message_in_exception() {
+  auto exception = eo::make_exception_ptr(eo::Error{"exception error"});
+
+  try {
+    std::rethrow_exception(exception);
+  } catch (const std::error_code& error) {
+    check(error.message() == "exception error", "custom error exception should preserve the message");
+    return;
+  }
+
+  throw std::runtime_error("custom error exception had the wrong type");
+}
+
 void test_registered_errors_are_thread_safe() {
   constexpr int thread_count = 8;
   constexpr int errors_per_thread = 64;
@@ -65,5 +85,7 @@ void test_registered_errors_are_thread_safe() {
 int main() {
   test_registered_error_owns_message();
   test_registered_error_accepts_temporary_message();
+  test_custom_error_preserves_message_in_error_code();
+  test_custom_error_preserves_message_in_exception();
   test_registered_errors_are_thread_safe();
 }
