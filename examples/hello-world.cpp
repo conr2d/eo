@@ -13,7 +13,7 @@
 using namespace eo;
 
 func<> eo_main() {
-  fmt::println("hello world");
+  fmt::Println("hello world");
 
   co_return;
 }
