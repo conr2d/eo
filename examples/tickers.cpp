@@ -34,11 +34,11 @@
 using namespace eo;
 
 func<> eo_main() {
-  auto ticker = time::new_ticker(std::chrono::milliseconds(500));
+  auto ticker = time::NewTicker(std::chrono::milliseconds(500));
   auto done = make_chan<bool>();
 
   go([&]() -> func<> {
-    auto select = Select{*done, *ticker->c};
+    auto select = Select{*done, *ticker->C};
     for (;;) {
       switch (co_await select.index()) {
       case 0:
@@ -53,7 +53,7 @@ func<> eo_main() {
   });
 
   co_await time::sleep(std::chrono::milliseconds(1600));
-  ticker->stop();
+  ticker->Stop();
   co_await (done << true);
   fmt::println("Ticker stopped");
 }

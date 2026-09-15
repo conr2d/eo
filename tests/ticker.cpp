@@ -18,7 +18,7 @@ void check(bool condition, const char* message) {
 }
 
 void drain(const std::shared_ptr<eo::time::Ticker>& ticker) {
-  while (ticker->c.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {})) {
+  while (ticker->C.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {})) {
   }
 }
 
@@ -28,11 +28,11 @@ void test_stop_prevents_future_ticks() {
   auto ticker = eo::time::Ticker::create_with_executor(executor, 1ms);
 
   std::this_thread::sleep_for(5ms);
-  ticker->stop();
+  ticker->Stop();
   drain(ticker);
   std::this_thread::sleep_for(5ms);
 
-  check(!ticker->c.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {}),
+  check(!ticker->C.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {}),
     "ticker produced a tick after stop");
 
   pool.stop();
@@ -44,14 +44,14 @@ void test_reset_restarts_stopped_ticker() {
   auto executor = pool.get_executor();
   auto ticker = eo::time::Ticker::create_with_executor(executor, 1h);
 
-  ticker->stop();
-  ticker->reset(1ms);
+  ticker->Stop();
+  ticker->Reset(1ms);
   std::this_thread::sleep_for(5ms);
 
-  check(ticker->c.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {}),
+  check(ticker->C.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {}),
     "reset did not restart a stopped ticker");
 
-  ticker->stop();
+  ticker->Stop();
   pool.stop();
   pool.join();
 }

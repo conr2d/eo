@@ -21,7 +21,7 @@ private:
       if (ec || self->stopped || current_generation != self->generation)
         return;
 
-      self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->C.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
       self->schedule_locked(d, current_generation);
     });
   }
@@ -30,13 +30,13 @@ public:
   using time_point = std::chrono::system_clock::time_point;
 
   boost::asio::steady_timer timer;
-  chan<time_point> c = make_chan<time_point>(1);
+  chan<time_point> C = make_chan<time_point>(1);
 
   template<typename Executor>
   static auto create_with_executor(Executor& ex,
     const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Ticker> {
     auto timer = std::shared_ptr<Ticker>(new Ticker(ex));
-    timer->reset(d);
+    timer->Reset(d);
     return timer;
   }
 
@@ -48,7 +48,7 @@ public:
     timer.cancel();
   }
 
-  void reset(const std::chrono::steady_clock::duration& d) {
+  void Reset(const std::chrono::steady_clock::duration& d) {
     std::lock_guard lock(state_mutex);
     timer.cancel();
     stopped = false;
@@ -56,7 +56,7 @@ public:
     schedule_locked(d, current_generation);
   }
 
-  void stop() {
+  void Stop() {
     std::lock_guard lock(state_mutex);
     stopped = true;
     ++generation;
@@ -69,6 +69,6 @@ private:
   size_t generation = 0;
 };
 
-const auto new_ticker = Ticker::create;
+const auto NewTicker = Ticker::create;
 
 } // namespace eo::time
