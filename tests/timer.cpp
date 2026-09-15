@@ -4,8 +4,11 @@
 #include <eo/time/timer.h>
 
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
+#include <boost/asio/thread_pool.hpp>
 
 #include <chrono>
+#include <latch>
 #include <stdexcept>
 
 namespace asio = boost::asio;
@@ -28,6 +31,27 @@ void test_reset_ignores_stale_cancel_completion() {
   check(timer->stop(), "stale reset cancellation should not expire the replacement timer");
 }
 
+void test_timer_state_is_safe_across_worker_threads() {
+  asio::thread_pool pool{2};
+  auto executor = pool.get_executor();
+  auto timer = eo::time::Timer::create_with_executor(executor, 1h);
+  constexpr int reset_count = 64;
+  std::latch resets{reset_count};
+
+  for (int i = 0; i < reset_count; ++i) {
+    asio::post(pool, [timer, &resets] {
+      timer->reset(1h);
+      resets.count_down();
+    });
+  }
+
+  resets.wait();
+  check(timer->stop(), "concurrent resets should leave the latest timer active");
+  pool.stop();
+  pool.join();
+}
+
 int main() {
   test_reset_ignores_stale_cancel_completion();
+  test_timer_state_is_safe_across_worker_threads();
 }
