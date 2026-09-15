@@ -33,22 +33,21 @@ func<> eo_main() {
   auto tick = time::NewTicker(std::chrono::milliseconds(100));
   auto boom = time::NewTimer(std::chrono::milliseconds(500));
 
-  auto select = Select{*tick->C, *boom->C, CaseDefault()};
-
   for (;;) {
-    switch (co_await select.index()) {
-    case 0:
-      co_await select.process<0>();
+    switch (auto select = Select{*tick->C, *boom->C}; select.try_index()) {
+    case 0: {
       fmt::Println("tick.");
       break;
-    case 1:
-      co_await select.process<1>();
+    }
+    case 1: {
       fmt::Println("BOOM!");
       co_return;
-    default:
+    }
+    default: {
       fmt::Println("    .");
       co_await time::Sleep(std::chrono::milliseconds(50));
       break;
+    }
     }
   }
 }
