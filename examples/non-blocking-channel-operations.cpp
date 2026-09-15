@@ -81,4 +81,6 @@ func<> eo_main() {
     break;
   }
   }
+
+  co_return;
 }
