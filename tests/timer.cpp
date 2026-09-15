@@ -70,6 +70,29 @@ void test_reset_discards_stale_expired_value() {
   check(!received, "reset should discard a stale value from the previous timer configuration");
 }
 
+void test_stop_discards_pending_expired_value() {
+  asio::io_context io;
+  auto executor = io.get_executor();
+  auto timer = eo::time::Timer::create_with_executor(executor, 0ms);
+
+  io.run();
+
+  check(timer->stop(), "stop should report a pending unread timer delivery as stopped");
+  const auto received = timer->c.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  check(!received, "stop should prevent stale timer values from being received afterward");
+}
+
+void test_stop_reports_consumed_expired_timer() {
+  asio::io_context io;
+  auto executor = io.get_executor();
+  auto timer = eo::time::Timer::create_with_executor(executor, 0ms);
+
+  io.run();
+  const auto received = timer->c.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  check(received, "expired timer should have a pending value before it is consumed");
+  check(!timer->stop(), "stop should report false after the expired value was already received");
+}
+
 void test_timer_state_is_safe_across_worker_threads() {
   asio::thread_pool pool{2};
   auto executor = pool.get_executor();
@@ -96,5 +119,7 @@ int main() {
   test_reset_reports_stopped_timer();
   test_reset_reports_expired_timer();
   test_reset_discards_stale_expired_value();
+  test_stop_discards_pending_expired_value();
+  test_stop_reports_consumed_expired_timer();
   test_timer_state_is_safe_across_worker_threads();
 }
