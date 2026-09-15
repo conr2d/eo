@@ -21,6 +21,10 @@ public:
   Error register_error(std::string_view message);
 
 private:
+  friend class Error;
+
+  int register_condition(std::string_view message);
+
   std::mutex mutex;
   std::map<int, std::string> messages;
   int counter = 0;
@@ -64,7 +68,7 @@ public:
     category_ = &ec.category();
   }
 
-  Error(std::string_view message): value_(-1), message_(message) {}
+  Error(std::string_view message): value_(user_error_registry().register_condition(message)) {}
 
   template<typename... T>
   static constexpr auto format(fmt::format_string<T...> fmt, T&&... args) {
@@ -139,11 +143,15 @@ inline std::string UserErrorRegistry::message(int condition) {
   return "runtime error";
 }
 
-inline Error UserErrorRegistry::register_error(std::string_view message) {
+inline int UserErrorRegistry::register_condition(std::string_view message) {
   std::lock_guard _{mutex};
   const auto condition = ++counter;
   messages.emplace(condition, message);
-  return Error(condition, user_category());
+  return condition;
+}
+
+inline Error UserErrorRegistry::register_error(std::string_view message) {
+  return Error(register_condition(message), user_category());
 }
 
 inline std::exception_ptr make_exception_ptr(Error err) {
