@@ -4,6 +4,9 @@
 #include <eo/context.h>
 
 #include <atomic>
+#include <chrono>
+#include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -14,6 +17,39 @@ void check(bool condition, const char* message) {
     throw std::runtime_error(message);
   }
 }
+
+struct CustomContext : eo::context::Context {
+  CustomContext(): done_(eo::make_chan()) {}
+
+  auto done() -> std::optional<eo::chan<>> override {
+    return done_;
+  }
+
+  auto err() -> eo::Error override {
+    std::lock_guard _{mutex_};
+    return err_;
+  }
+
+  auto value(Type key) -> std::any override {
+    if (key == Custom) {
+      return 42;
+    }
+    return {};
+  }
+
+  void cancel() {
+    {
+      std::lock_guard _{mutex_};
+      err_ = eo::context::canceled;
+    }
+    done_.close();
+  }
+
+private:
+  eo::chan<> done_;
+  std::mutex mutex_;
+  eo::Error err_;
+};
 
 void test_background_context_is_never_canceled() {
   auto* ctx = eo::context::background();
@@ -104,6 +140,32 @@ void test_child_survives_released_parent() {
   check(!child_done->raw().is_open(), "child cancel should still close done after parent release");
 }
 
+void test_shared_custom_parent_survives_external_release() {
+  auto parent = std::make_shared<CustomContext>();
+  std::weak_ptr<CustomContext> parent_ref = parent;
+  auto [child, cancel_child] = eo::context::with_cancel(std::shared_ptr<eo::context::Context>{parent});
+
+  parent.reset();
+
+  check(!parent_ref.expired(), "child should retain a shared custom parent");
+  check(std::any_cast<int>(child->value(eo::context::Context::Custom)) == 42,
+    "child should preserve value lookup through a shared custom parent");
+
+  parent_ref.lock()->cancel();
+  for (int i = 0; i < 100 && !child->err(); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+
+  check(child->err() == eo::context::canceled, "shared custom parent cancellation should propagate to child");
+  cancel_child();
+  child.reset();
+
+  for (int i = 0; i < 100 && !parent_ref.expired(); ++i) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  check(parent_ref.expired(), "released child should release its shared custom parent");
+}
+
 void test_child_of_canceled_parent_is_canceled_immediately() {
   auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
   cancel_parent();
@@ -167,6 +229,7 @@ int main() {
   test_parent_retains_uncanceled_child();
   test_child_cancel_releases_parent_reference();
   test_child_survives_released_parent();
+  test_shared_custom_parent_survives_external_release();
   test_child_of_canceled_parent_is_canceled_immediately();
   test_concurrent_state_access_during_cancel();
   test_nil_parent_is_rejected();
