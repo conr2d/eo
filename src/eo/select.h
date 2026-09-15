@@ -36,9 +36,11 @@ struct Select {
   std::tuple<T, Ts...> cases;
 
 private:
+  static constexpr bool has_default = one_of<CaseDefault, std::remove_cvref_t<T>, std::remove_cvref_t<Ts>...>;
+
   template<size_t I = 0>
   auto ready(size_t index) -> bool {
-    if constexpr (I < sizeof...(Ts)) {
+    if constexpr (I < sizeof...(Ts) + 1) {
       if (I == index) {
         return std::get<I>(cases).ready();
       }
@@ -47,11 +49,24 @@ private:
     return false;
   }
 
-  auto randomized_indices() -> std::vector<size_t> {
-    std::vector<size_t> indices(sizeof...(Ts));
-    for (size_t i = 0; i < indices.size(); ++i) {
-      indices[i] = i;
+  template<size_t I>
+  void append_communication_index(std::vector<size_t>& indices) {
+    using Case = std::remove_cvref_t<std::tuple_element_t<I, decltype(cases)>>;
+    if constexpr (!std::is_same_v<Case, CaseDefault>) {
+      indices.push_back(I);
     }
+  }
+
+  template<size_t... I>
+  auto communication_indices(std::index_sequence<I...>) -> std::vector<size_t> {
+    std::vector<size_t> indices;
+    indices.reserve(sizeof...(Ts));
+    (append_communication_index<I>(indices), ...);
+    return indices;
+  }
+
+  auto randomized_indices() -> std::vector<size_t> {
+    auto indices = communication_indices(std::make_index_sequence<sizeof...(Ts) + 1>());
     for (size_t i = indices.size(); i > 1; --i) {
       auto j = static_cast<size_t>(math::rand::int63_n(i));
       std::swap(indices[i - 1], indices[j]);
@@ -65,7 +80,7 @@ public:
   // pseudo-random selection. Otherwise, if there is a default case, that case is chosen. If there is no default case,
   // the "select" statement blocks until at least one of the communications can proceed.
   auto index() -> boost::asio::awaitable<int>
-    requires(one_of<CaseDefault, Ts...>)
+    requires(has_default)
   {
     for (auto index : randomized_indices()) {
       if (ready(index)) {
@@ -76,7 +91,7 @@ public:
   }
 
   auto index()
-    requires(!one_of<CaseDefault, Ts...>)
+    requires(!has_default)
   {
     if constexpr (!sizeof...(Ts)) {
       return [this]() -> func<int> {

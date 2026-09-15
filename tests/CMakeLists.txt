@@ -13,6 +13,11 @@ target_link_libraries(eo_select PRIVATE eo::eo)
 
 add_test(NAME eo.select COMMAND eo_select)
 
+add_executable(eo_select_default_position select_default_position.cpp)
+target_link_libraries(eo_select_default_position PRIVATE eo::eo)
+
+add_test(NAME eo.select_default_position COMMAND eo_select_default_position)
+
 add_executable(eo_context context.cpp)
 target_link_libraries(eo_context PRIVATE eo::eo)
 
