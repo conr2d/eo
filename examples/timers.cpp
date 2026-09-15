@@ -45,5 +45,5 @@ func<> eo_main() {
     fmt::println("Timer 2 stopped");
   }
 
-  co_await time::sleep(std::chrono::seconds(2));
+  co_await time::Sleep(std::chrono::seconds(2));
 }
