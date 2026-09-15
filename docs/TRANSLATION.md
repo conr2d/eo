@@ -4,9 +4,17 @@ Eo exists to make mechanical Go-to-C++ translation predictable, reviewable, and 
 
 The translation model should preserve source structure whenever C++ permits it. Transformations should be introduced only when they are required by C++ syntax, C++ semantics, or an explicit Eo mapping.
 
+## Compatibility target
+
+Eo targets observable semantics defined by the Go language specification and memory model for supported, data-race-free programs.
+
+Eo does not attempt to reproduce implementation details of a particular Go runtime version, such as exact scheduler interleavings, pseudo-random sequences, stack behavior, or timing accidents that the language does not guarantee.
+
+This keeps the compatibility target stable as Go implementations evolve: Eo follows specified language behavior rather than cloning one runtime implementation.
+
 ## Identifier preservation
 
-When an Eo symbol corresponds directly to a Go symbol, Eo preserves the Go identifier spelling whenever practical.
+When an Eo symbol corresponds directly to a Go symbol, Eo preserves the Go identifier spelling whenever C++ permits it.
 
 For example, a Go-compatible API should prefer:
 
@@ -36,7 +44,7 @@ Go export capitalization is preserved as spelling, but C++ visibility and linkag
 
 Renaming is appropriate when:
 
-- the Go identifier is not valid or practical C++ syntax;
+- the Go identifier is not valid C++ syntax;
 - preserving the name would change semantics or create an unavoidable language conflict;
 - Eo defines an explicit translation rule for the construct;
 - the symbol is an Eo-specific implementation detail with no Go counterpart.
@@ -48,3 +56,11 @@ These exceptions should stay small and documented so that translation remains me
 Identifier preservation is part of a broader rule: minimize source-level transformations that do not contribute to semantic correctness.
 
 C++-specific syntax such as pointer member access, coroutine operators, ownership types, and explicit templates may still differ from Go. Those required differences should not be compounded by unrelated renaming or redesign.
+
+Control-flow translations should preserve the source control-flow boundaries whenever possible. In particular, translation helpers should avoid introducing callbacks or nested lambdas merely to emulate source-language statements when doing so changes the meaning of `return`, `break`, or `continue`.
+
+## Select
+
+Go `select` uses a dedicated translation rule based on an ordinary C++ `switch`, one-shot communication operations, and explicit blocking versus non-blocking selection.
+
+See [Select Translation Design](./SELECT.md) for the canonical mapping and semantic requirements.
