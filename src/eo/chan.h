@@ -138,7 +138,17 @@ public:
   std::optional<T> processed;
 
   auto ready() -> bool {
-    return c->ready() || !c->is_open();
+    if (processed) {
+      return true;
+    }
+    if (c->try_receive([this](boost::system::error_code ec, T value) {
+          if (!ec) {
+            processed = std::move(value);
+          }
+        })) {
+      return true;
+    }
+    return !c->is_open();
   }
 
   auto wait() -> boost::asio::awaitable<bool> {
