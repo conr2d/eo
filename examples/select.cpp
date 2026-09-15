@@ -52,10 +52,10 @@ func<> eo_main() {
   for (auto i = 0; i < 2; i++) {
     switch (co_await select.index()) {
     case 0:
-      fmt::println("received {}", co_await select.process<0>());
+      fmt::println("received", co_await select.process<0>());
       break;
     case 1:
-      fmt::println("received {}", co_await select.process<1>());
+      fmt::println("received", co_await select.process<1>());
       break;
     }
   }

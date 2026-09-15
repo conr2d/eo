@@ -46,7 +46,7 @@ func<> eo_main() {
         co_return;
       case 1:
         auto t = co_await select.process<1>();
-        fmt::println("Tick at {}", t);
+        fmt::println("Tick at", t);
         break;
       }
     }

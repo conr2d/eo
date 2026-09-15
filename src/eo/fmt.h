@@ -5,32 +5,37 @@
 #include <eo/core.h>
 
 #include <fmt/format.h>
+#include <cstdio>
 #include <map>
+#include <utility>
 
 namespace fmt {
+namespace detail {
+
+  template<typename... T>
+  void print_line(std::FILE* f, T&&... args) {
+    bool first = true;
+    auto print_arg = [&](auto&& arg) {
+      if (!first) {
+        fmt::print(f, " ");
+      }
+      fmt::print(f, "{}", std::forward<decltype(arg)>(arg));
+      first = false;
+    };
+    (print_arg(std::forward<T>(args)), ...);
+    fmt::print(f, "\n");
+  }
+
+} // namespace detail
 
 template<typename... T>
-void println(format_string<T...> fmt, T&&... args) {
-  fmt::print(fmt, std::forward<T>(args)...);
-  fmt::print("\n");
-}
-
-template<typename T>
-void println(T&& arg) {
-  fmt::print("{}", arg);
-  fmt::print("\n");
+void println(T&&... args) {
+  detail::print_line(stdout, std::forward<T>(args)...);
 }
 
 template<typename... T>
-void fprintln(std::FILE* f, format_string<T...> fmt, T&&... args) {
-  fmt::print(f, fmt, std::forward<T>(args)...);
-  fmt::print(f, "\n");
-}
-
-template<typename T>
-void fprintln(std::FILE* f, T&& arg) {
-  fmt::print(f, "{}", arg);
-  fmt::print(f, "\n");
+void fprintln(std::FILE* f, T&&... args) {
+  detail::print_line(f, std::forward<T>(args)...);
 }
 
 template<typename K, typename V>
