@@ -31,7 +31,7 @@ struct CustomContext : eo::context::Context {
   }
 
   auto Value(Type key) -> std::any override {
-    if (key == Custom) {
+    if (key == Type::Custom) {
       return 42;
     }
     return {};
@@ -131,7 +131,7 @@ void test_child_survives_released_parent() {
   parent.reset();
 
   check(parent_ref.expired(), "child should not retain its parent through an ownership cycle");
-  check(!child->Value(eo::context::Context::Custom).has_value(),
+  check(!child->Value(eo::context::Context::Type::Custom).has_value(),
     "child value lookup should tolerate a released parent");
 
   cancel_child();
@@ -148,7 +148,7 @@ void test_shared_custom_parent_survives_external_release() {
   parent.reset();
 
   check(!parent_ref.expired(), "child should retain a shared custom parent");
-  check(std::any_cast<int>(child->Value(eo::context::Context::Custom)) == 42,
+  check(std::any_cast<int>(child->Value(eo::context::Context::Type::Custom)) == 42,
     "child should preserve value lookup through a shared custom parent");
 
   parent_ref.lock()->cancel();
