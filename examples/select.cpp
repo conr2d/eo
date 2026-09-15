@@ -40,11 +40,11 @@ func<> eo_main() {
   auto c2 = make_chan<std::string>();
 
   go([&]() -> func<> {
-    co_await time::sleep(std::chrono::seconds(1));
+    co_await time::Sleep(std::chrono::seconds(1));
     co_await (c1 << "one");
   });
   go([&]() -> func<> {
-    co_await time::sleep(std::chrono::seconds(2));
+    co_await time::Sleep(std::chrono::seconds(2));
     co_await (c2 << "two");
   });
 
