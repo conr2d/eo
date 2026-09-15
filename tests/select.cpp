@@ -153,10 +153,24 @@ auto select_receive_wins_over_blocked_send(eo::chan<int> send_channel, eo::chan<
   check(selected == 22, "selected receive should preserve its value");
 }
 
+auto select_receive_wakes_on_close(eo::chan<int> ch) -> eo::func<> {
+  auto select = eo::Select{*ch};
+  auto index = co_await select.index();
+  check(index == 0, "closing a blocked receive should wake the selected case");
+
+  auto value = co_await select.process<0>();
+  check(value == 0, "receive awakened by close should yield the zero value");
+}
+
 auto send_after_select_suspends(eo::chan<int> ch) -> eo::func<> {
   co_await asio::post(asio::use_awaitable);
   auto sent = co_await (ch << 22);
   check(sent, "wake-up send should succeed");
+}
+
+auto close_after_select_suspends(eo::chan<int> ch) -> eo::func<> {
+  co_await asio::post(asio::use_awaitable);
+  ch.close();
 }
 
 void test_ready_case_beats_default() {
@@ -263,6 +277,18 @@ void test_blocking_select_cancels_losing_send_cleanly() {
   result.get();
 }
 
+void test_blocking_receive_select_wakes_on_close() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor()};
+
+  auto result = asio::co_spawn(io, select_receive_wakes_on_close(ch), asio::use_future);
+  auto closer = asio::co_spawn(io, close_after_select_suspends(ch), asio::use_future);
+
+  io.run();
+  closer.get();
+  result.get();
+}
+
 int main() {
   test_ready_case_beats_default();
   test_default_when_no_case_ready();
@@ -274,4 +300,5 @@ int main() {
   test_ready_blocking_select_skips_wait();
   test_blocking_select_cancels_loser_cleanly();
   test_blocking_select_cancels_losing_send_cleanly();
+  test_blocking_receive_select_wakes_on_close();
 }
