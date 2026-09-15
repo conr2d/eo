@@ -38,6 +38,11 @@ target_link_libraries(eo_os PRIVATE eo::eo)
 
 add_test(NAME eo.os COMMAND eo_os)
 
+add_executable(eo_math_rand math_rand.cpp)
+target_link_libraries(eo_math_rand PRIVATE eo::eo)
+
+add_test(NAME eo.math_rand COMMAND eo_math_rand)
+
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 
