@@ -38,6 +38,8 @@ struct Select {
 private:
   static constexpr bool has_default = one_of<CaseDefault, std::remove_cvref_t<T>, std::remove_cvref_t<Ts>...>;
 
+  std::optional<size_t> selected_index;
+
   template<size_t I = 0>
   auto ready(size_t index) -> bool {
     if constexpr (I < sizeof...(Ts) + 1) {
@@ -47,6 +49,19 @@ private:
       return ready<I + 1>(index);
     }
     return false;
+  }
+
+  template<size_t I = 0>
+  void commit(size_t index) {
+    if constexpr (I < sizeof...(Ts) + 1) {
+      if (I == index) {
+        if constexpr (requires { std::get<I>(cases).commit(); }) {
+          std::get<I>(cases).commit();
+        }
+        return;
+      }
+      commit<I + 1>(index);
+    }
   }
 
   template<size_t I>
@@ -75,6 +90,18 @@ private:
   }
 
 public:
+  auto try_index() -> int {
+    for (auto index : randomized_indices()) {
+      if (ready(index)) {
+        commit(index);
+        selected_index = index;
+        return static_cast<int>(index);
+      }
+    }
+    selected_index.reset();
+    return -1;
+  }
+
   // https://go.dev/ref/spec#Select_statements
   // If one or more of the communications can proceed, a single one that can proceed is chosen via a uniform
   // pseudo-random selection. Otherwise, if there is a default case, that case is chosen. If there is no default case,
@@ -84,9 +111,11 @@ public:
   {
     for (auto index : randomized_indices()) {
       if (ready(index)) {
+        selected_index = index;
         co_return index;
       }
     }
+    selected_index.reset();
     co_return -1;
   }
 
@@ -95,19 +124,36 @@ public:
   {
     for (auto index : randomized_indices()) {
       if (ready(index)) {
+        commit(index);
+        selected_index = index;
         co_return index;
       }
     }
 
     if constexpr (!sizeof...(Ts)) {
       co_await std::get<0>(cases).wait();
+      selected_index = 0;
       co_return 0;
     } else {
       auto index = co_await [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
         auto res = co_await (std::get<I>(cases).wait() || ...);
         co_return res.index();
       }(std::make_index_sequence<sizeof...(Ts) + 1>());
+      selected_index = index;
       co_return index;
+    }
+  }
+
+  template<size_t I>
+  auto recv() {
+    static_assert(I < sizeof...(Ts) + 1, "Select receive index out of range");
+    if (!selected_index || *selected_index != I) {
+      throw std::runtime_error("Select receive accessor does not match selected case");
+    }
+    if constexpr (requires { std::get<I>(cases).get(); }) {
+      return std::get<I>(cases).get();
+    } else {
+      static_assert(I != I, "Select receive accessor requires a receive case");
     }
   }
 
