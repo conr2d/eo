@@ -45,9 +45,10 @@ public:
     std::lock_guard lock(state_mutex);
     const auto was_active = !expired;
     timer.cancel();
+    const auto current_generation = ++generation;
+    c.raw().try_receive([](boost::system::error_code, time_point) {});
     timer.expires_after(d);
     expired = false;
-    const auto current_generation = ++generation;
     timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
       std::lock_guard lock(self->state_mutex);
       if (ec || current_generation != self->generation)
