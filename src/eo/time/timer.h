@@ -61,12 +61,14 @@ public:
 
   auto stop() -> bool {
     std::lock_guard lock(state_mutex);
-    if (expired) {
-      return false;
-    }
     ++generation;
     timer.cancel();
-    return !std::exchange(expired, true);
+    const auto pending = c.raw().try_receive([](boost::system::error_code, time_point) {});
+    if (expired) {
+      return pending;
+    }
+    expired = true;
+    return true;
   }
 };
 
