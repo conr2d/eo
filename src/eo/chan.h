@@ -5,6 +5,8 @@
 #include <eo/go.h>
 #include <boost/asio/experimental/concurrent_channel.hpp>
 
+#include <atomic>
+
 namespace eo {
 
 template<typename T>
@@ -20,7 +22,8 @@ public:
 
   template<typename Executor>
     requires(!std::is_same_v<std::remove_cvref_t<Executor>, chan>)
-  chan(Executor&& ex, size_t capacity = 0): impl(new channel_type(ex, capacity)) {}
+  chan(Executor&& ex, size_t capacity = 0)
+    : impl(new channel_type(ex, capacity)), closed(std::make_shared<std::atomic_bool>(false)) {}
 
   chan(const chan&) = default;
   chan(chan&&) = default;
@@ -44,7 +47,8 @@ public:
   }
 
   void close() {
-    if (!impl->is_open()) {
+    bool expected = false;
+    if (!closed->compare_exchange_strong(expected, true)) {
       throw std::runtime_error("panic: close of closed channel");
     }
     impl->cancel();
@@ -61,6 +65,7 @@ public:
 
 private:
   std::shared_ptr<channel_type> impl;
+  std::shared_ptr<std::atomic_bool> closed;
 };
 
 template<typename T = std::monostate>
