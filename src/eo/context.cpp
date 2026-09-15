@@ -175,15 +175,16 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
     return; // parent is never canceled
   }
   invoke([parent, child]() -> func<> {
-    auto select = Select{**parent->Done(), CaseDefault()};
-    switch (co_await select.index()) {
-    case 0:
-      co_await select.process<0>();
+    switch (auto select = Select{**parent->Done()}; select.try_index()) {
+    case 0: {
       child->cancel(false, parent->Err());
       break;
-    default:
+    }
+    default: {
       break;
     }
+    }
+    co_return;
   });
   if (auto [p, ok] = parent_cancel_ctx(parent); ok) {
     if (auto err = p->add_child(child); err) {
@@ -191,15 +192,14 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
     }
   } else {
     go([parent, child = std::move(child)]() mutable -> func<> {
-      auto select = Select{**parent->Done(), **child->Done()};
-      switch (co_await select.index()) {
-      case 0:
-        co_await select.process<0>();
+      switch (auto select = Select{**parent->Done(), **child->Done()}; co_await select.index()) {
+      case 0: {
         child->cancel(false, parent->Err());
         break;
-      case 1:
-        co_await select.process<1>();
+      }
+      case 1: {
         break;
+      }
       }
     });
   }
