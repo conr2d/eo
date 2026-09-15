@@ -11,24 +11,6 @@ namespace math::rand {
   extern auto Int63n(int64_t n) -> int64_t;
 } // namespace math::rand
 
-struct CaseDefault {
-  auto ready() {
-    return true;
-  }
-  auto wait() -> boost::asio::awaitable<bool> {
-    co_return true;
-  }
-  void get() {}
-};
-
-template<typename T, typename... Ts>
-struct OneOf {
-  static constexpr bool value = (std::is_same_v<T, Ts> || ...);
-};
-
-template<typename T, typename... Ts>
-constexpr bool one_of = OneOf<T, Ts...>::value;
-
 template<typename T, typename... Ts>
 struct Select {
   Select(T&& t, Ts&&... ts): cases(std::make_tuple(std::forward<T>(t), std::forward<Ts>(ts)...)) {}
@@ -36,8 +18,6 @@ struct Select {
   std::tuple<T, Ts...> cases;
 
 private:
-  static constexpr bool has_default = one_of<CaseDefault, std::remove_cvref_t<T>, std::remove_cvref_t<Ts>...>;
-
   bool executed = false;
   bool receive_consumed = false;
   std::optional<size_t> selected_index;
@@ -73,24 +53,9 @@ private:
     }
   }
 
-  template<size_t I>
-  void append_communication_index(std::vector<size_t>& indices) {
-    using Case = std::remove_cvref_t<std::tuple_element_t<I, decltype(cases)>>;
-    if constexpr (!std::is_same_v<Case, CaseDefault>) {
-      indices.push_back(I);
-    }
-  }
-
-  template<size_t... I>
-  auto communication_indices(std::index_sequence<I...>) -> std::vector<size_t> {
-    std::vector<size_t> indices;
-    indices.reserve(sizeof...(Ts));
-    (append_communication_index<I>(indices), ...);
-    return indices;
-  }
-
   auto randomized_indices() -> std::vector<size_t> {
-    auto indices = communication_indices(std::make_index_sequence<sizeof...(Ts) + 1>());
+    std::vector<size_t> indices(sizeof...(Ts) + 1);
+    std::iota(indices.begin(), indices.end(), 0);
     for (size_t i = indices.size(); i > 1; --i) {
       auto j = static_cast<size_t>(math::rand::Int63n(i));
       std::swap(indices[i - 1], indices[j]);
@@ -99,6 +64,11 @@ private:
   }
 
 public:
+  Select(const Select&) = delete;
+  Select(Select&&) = delete;
+  auto operator=(const Select&) -> Select& = delete;
+  auto operator=(Select&&) -> Select& = delete;
+
   auto try_index() -> int {
     begin_selection();
     for (auto index : randomized_indices()) {
@@ -112,33 +82,13 @@ public:
     return -1;
   }
 
-  // https://go.dev/ref/spec#Select_statements
-  // If one or more of the communications can proceed, a single one that can proceed is chosen via a uniform
-  // pseudo-random selection. Otherwise, if there is a default case, that case is chosen. If there is no default case,
-  // the "select" statement blocks until at least one of the communications can proceed.
-  auto index() -> boost::asio::awaitable<int>
-    requires(has_default)
-  {
-    begin_selection();
-    for (auto index : randomized_indices()) {
-      if (ready(index)) {
-        selected_index = index;
-        co_return index;
-      }
-    }
-    selected_index.reset();
-    co_return -1;
-  }
-
-  auto index() -> boost::asio::awaitable<int>
-    requires(!has_default)
-  {
+  auto index() -> boost::asio::awaitable<int> {
     begin_selection();
     for (auto index : randomized_indices()) {
       if (ready(index)) {
         commit(index);
         selected_index = index;
-        co_return index;
+        co_return static_cast<int>(index);
       }
     }
 
@@ -152,7 +102,7 @@ public:
         co_return res.index();
       }(std::make_index_sequence<sizeof...(Ts) + 1>());
       selected_index = index;
-      co_return index;
+      co_return static_cast<int>(index);
     }
   }
 
@@ -171,11 +121,6 @@ public:
     } else {
       static_assert(I != I, "Select receive accessor requires a receive case");
     }
-  }
-
-  template<size_t I>
-  auto process() {
-    return std::get<I>(cases).process();
   }
 };
 
