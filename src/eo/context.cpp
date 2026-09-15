@@ -67,7 +67,7 @@ void remove_child(Context* parent, Canceler* child) {
 auto value(Context* c, Context::Type key) -> std::any {
   for (;;) {
     switch (c->type()) {
-    //case Context::Type::ValueContext:
+    //case Context::Type::ValueCtx:
     case Context::Type::Cancel:
       if (key == Context::Type::Cancel) {
         return c;
