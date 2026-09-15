@@ -99,6 +99,12 @@ public:
     return sent ? sent : (sent = c->try_send(boost::system::error_code{}, value));
   }
 
+  void commit() {
+    if (!sent && !c->is_open()) {
+      throw std::runtime_error("panic: send on closed channel");
+    }
+  }
+
   auto wait() -> boost::asio::awaitable<bool> {
     if (!c->is_open()) {
       throw std::runtime_error("panic: send on closed channel");
@@ -164,11 +170,18 @@ public:
     co_return !c->is_open();
   }
 
+  auto get() -> T {
+    if (!processed) {
+      return T{};
+    }
+    std::optional<T> ret{};
+    std::swap(ret, processed);
+    return std::move(*ret);
+  }
+
   auto process() -> boost::asio::awaitable<T> {
     if (processed) {
-      std::optional<T> ret{};
-      std::swap(ret, processed);
-      co_return std::move(*ret);
+      co_return get();
     }
     auto res = co_await c->async_receive(eoroutine);
     co_return !std::get<0>(res).value() ? std::get<1>(res) : T{};
