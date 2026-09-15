@@ -14,14 +14,14 @@ thread_local std::mt19937 rng = []() {
 
 auto Intn(int n) -> int {
   if (n <= 0) {
-    throw std::runtime_error("invalid argument to int_n");
+    throw std::runtime_error("invalid argument to Intn");
   }
   return std::uniform_int_distribution(0, n - 1)(rng);
 }
 
 auto Int63n(int64_t n) -> int64_t {
   if (n <= 0) {
-    throw std::runtime_error("invalid argument to int63_n");
+    throw std::runtime_error("invalid argument to Int63n");
   }
   return std::uniform_int_distribution<int64_t>(0, n - 1)(rng);
 }
