@@ -39,14 +39,14 @@ func<> eo_main() {
     switch (co_await select.index()) {
     case 0:
       co_await select.process<0>();
-      fmt::println("tick.");
+      fmt::Println("tick.");
       break;
     case 1:
       co_await select.process<1>();
-      fmt::println("BOOM!");
+      fmt::Println("BOOM!");
       co_return;
     default:
-      fmt::println("    .");
+      fmt::Println("    .");
       co_await time::Sleep(std::chrono::milliseconds(50));
       break;
     }
