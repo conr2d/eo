@@ -41,6 +41,7 @@ auto select_ready_over_default(eo::chan<int> ready, eo::chan<int> idle) -> eo::f
   auto select = eo::Select{*ready, *idle, eo::CaseDefault{}};
   auto index = co_await select.index();
   check(index == 0, "ready communication should win over default");
+  check(!ready.raw().ready(), "selected receive should be committed during readiness probing");
 
   auto value = co_await select.process<0>();
   check(value == 7, "selected receive should preserve its value");
