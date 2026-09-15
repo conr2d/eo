@@ -4,6 +4,7 @@
 #pragma once
 #include <eo/chan.h>
 #include <boost/asio/steady_timer.hpp>
+#include <mutex>
 
 namespace eo::time {
 
@@ -20,6 +21,10 @@ public:
   bool expired;
   size_t generation = 0;
 
+private:
+  std::mutex state_mutex;
+
+public:
   template<typename Executor>
   static auto create_with_executor(Executor& ex,
     const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Timer> {
@@ -37,11 +42,13 @@ public:
   }
 
   void reset(const std::chrono::steady_clock::duration& d) {
+    std::lock_guard lock(state_mutex);
     timer.cancel();
     timer.expires_after(d);
     expired = false;
     const auto current_generation = ++generation;
     timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
+      std::lock_guard lock(self->state_mutex);
       if (ec || current_generation != self->generation)
         return;
       self->expired = true;
@@ -50,6 +57,7 @@ public:
   }
 
   auto stop() -> bool {
+    std::lock_guard lock(state_mutex);
     if (expired) {
       return false;
     }
