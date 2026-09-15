@@ -33,6 +33,11 @@ target_link_libraries(eo_invoke PRIVATE eo::eo)
 
 add_test(NAME eo.invoke COMMAND eo_invoke)
 
+add_executable(eo_os os.cpp)
+target_link_libraries(eo_os PRIVATE eo::eo)
+
+add_test(NAME eo.os COMMAND eo_os)
+
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 
