@@ -17,7 +17,7 @@ public:
   using time_point = std::chrono::system_clock::time_point;
 
   boost::asio::steady_timer timer;
-  chan<time_point> c = make_chan<time_point>(1);
+  chan<time_point> C = make_chan<time_point>(1);
   bool expired = true;
   size_t generation = 0;
 
@@ -29,7 +29,7 @@ public:
   static auto create_with_executor(Executor& ex,
     const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Timer> {
     auto timer = std::shared_ptr<Timer>(new Timer(ex));
-    timer->reset(d);
+    timer->Reset(d);
     return timer;
   }
 
@@ -41,12 +41,12 @@ public:
     timer.cancel();
   }
 
-  auto reset(const std::chrono::steady_clock::duration& d) -> bool {
+  auto Reset(const std::chrono::steady_clock::duration& d) -> bool {
     std::lock_guard lock(state_mutex);
     const auto was_active = !expired;
     timer.cancel();
     const auto current_generation = ++generation;
-    c.raw().try_receive([](boost::system::error_code, time_point) {});
+    C.raw().try_receive([](boost::system::error_code, time_point) {});
     timer.expires_after(d);
     expired = false;
     timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
@@ -54,16 +54,16 @@ public:
       if (ec || current_generation != self->generation)
         return;
       self->expired = true;
-      self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->C.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
     });
     return was_active;
   }
 
-  auto stop() -> bool {
+  auto Stop() -> bool {
     std::lock_guard lock(state_mutex);
     ++generation;
     timer.cancel();
-    const auto pending = c.raw().try_receive([](boost::system::error_code, time_point) {});
+    const auto pending = C.raw().try_receive([](boost::system::error_code, time_point) {});
     if (expired) {
       return pending;
     }
@@ -72,6 +72,6 @@ public:
   }
 };
 
-const auto new_timer = Timer::create;
+const auto NewTimer = Timer::create;
 
 } // namespace eo::time
