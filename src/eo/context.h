@@ -11,11 +11,11 @@ namespace eo::context {
 extern const Error canceled;
 
 struct Context {
-  enum Type {
+  enum class Type {
     Empty,
     Cancel,
     Timer,
-    ValueCtx,
+    Value,
     Custom,
   };
 
@@ -23,7 +23,7 @@ struct Context {
   virtual auto Err() -> Error = 0;
   virtual auto Value(Type key) -> std::any = 0;
   virtual auto type() -> Type {
-    return Custom;
+    return Type::Custom;
   }
 };
 
