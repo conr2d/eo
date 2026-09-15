@@ -184,6 +184,7 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
       break;
     }
     }
+    co_return;
   });
   if (auto [p, ok] = parent_cancel_ctx(parent); ok) {
     if (auto err = p->add_child(child); err) {
