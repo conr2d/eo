@@ -15,7 +15,7 @@ struct Context {
     Empty,
     Cancel,
     Timer,
-    Value,
+    ValueContext,
     Custom,
   };
 
