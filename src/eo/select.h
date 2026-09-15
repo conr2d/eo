@@ -103,11 +103,11 @@ public:
       co_await std::get<0>(cases).wait();
       co_return 0;
     } else {
-      auto res = co_await [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<decltype(
-                            co_await (std::get<I>(cases).wait() || ...))> {
-        co_return co_await (std::get<I>(cases).wait() || ...);
+      auto index = co_await [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
+        auto res = co_await (std::get<I>(cases).wait() || ...);
+        co_return res.index();
       }(std::make_index_sequence<sizeof...(Ts) + 1>());
-      co_return res.index();
+      co_return index;
     }
   }
 
