@@ -5,12 +5,26 @@
 #include <eo/chan.h>
 #include <boost/asio/steady_timer.hpp>
 
+#include <mutex>
+
 namespace eo::time {
 
 struct Ticker : public std::enable_shared_from_this<Ticker> {
 private:
   template<typename Executor>
   Ticker(Executor& ex): timer(ex) {}
+
+  void schedule_locked(const std::chrono::steady_clock::duration& d, size_t current_generation) {
+    timer.expires_after(d);
+    timer.async_wait([self{shared_from_this()}, d, current_generation](boost::system::error_code ec) {
+      std::lock_guard lock(self->state_mutex);
+      if (ec || self->stopped || current_generation != self->generation)
+        return;
+
+      self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->schedule_locked(d, current_generation);
+    });
+  }
 
 public:
   using time_point = std::chrono::system_clock::time_point;
@@ -35,19 +49,24 @@ public:
   }
 
   void reset(const std::chrono::steady_clock::duration& d) {
+    std::lock_guard lock(state_mutex);
     timer.cancel();
-    timer.expires_after(d);
-    timer.async_wait([=, self{shared_from_this()}](boost::system::error_code ec) {
-      if (ec)
-        return;
-      self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
-      self->reset(d);
-    });
+    stopped = false;
+    const auto current_generation = ++generation;
+    schedule_locked(d, current_generation);
   }
 
   void stop() {
+    std::lock_guard lock(state_mutex);
+    stopped = true;
+    ++generation;
     timer.cancel();
   }
+
+private:
+  std::mutex state_mutex;
+  bool stopped = false;
+  size_t generation = 0;
 };
 
 const auto new_ticker = Ticker::create;
