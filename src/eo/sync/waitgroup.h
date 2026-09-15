@@ -3,16 +3,12 @@
 //
 #pragma once
 #include <atomic>
-#include <condition_variable>
 #include <memory>
-#include <shared_mutex>
 
 namespace eo::sync {
 
 struct WaitGroup {
-  std::shared_mutex mtx;
   std::atomic<int> state{0};
-  std::condition_variable_any cv;
 
   void add(int delta) {
     auto current = state.fetch_add(delta) + delta;
@@ -20,7 +16,7 @@ struct WaitGroup {
       throw std::runtime_error("sync: negative WaitGroup counter");
     }
     if (current == 0) {
-      cv.notify_all();
+      state.notify_all();
     }
   }
 
@@ -29,8 +25,11 @@ struct WaitGroup {
   }
 
   void wait() {
-    std::shared_lock lock(mtx);
-    cv.wait(lock, [&]() { return state == 0; });
+    auto current = state.load();
+    while (current != 0) {
+      state.wait(current);
+      current = state.load();
+    }
   }
 };
 
