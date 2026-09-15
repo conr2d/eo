@@ -145,4 +145,6 @@ func<> f() {
 
 ### Libraries
 
-Some frequently used Go APIs are mirrored for easier source translation. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.
+Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling whenever C++ permits it, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.
+
+See [Translation Principles](./docs/TRANSLATION.md) for the identifier-preservation policy and related translation rules.
