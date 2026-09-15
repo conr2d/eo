@@ -43,6 +43,11 @@ target_link_libraries(eo_timer PRIVATE eo::eo)
 
 add_test(NAME eo.timer COMMAND eo_timer)
 
+add_executable(eo_ticker ticker.cpp)
+target_link_libraries(eo_ticker PRIVATE eo::eo)
+
+add_test(NAME eo.ticker COMMAND eo_ticker)
+
 add_executable(eo_runtime runtime.cpp)
 target_link_libraries(eo_runtime PRIVATE eo::eo)
 
