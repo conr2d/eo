@@ -47,7 +47,7 @@ func<> eo_main() {
       co_return;
     default:
       fmt::println("    .");
-      co_await time::sleep(std::chrono::milliseconds(50));
+      co_await time::Sleep(std::chrono::milliseconds(50));
       break;
     }
   }

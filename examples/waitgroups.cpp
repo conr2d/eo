@@ -41,7 +41,7 @@ using namespace eo;
 func<> worker(int id) {
   fmt::print("Worker {:d} starting\n", id);
 
-  co_await time::sleep(std::chrono::seconds(1));
+  co_await time::Sleep(std::chrono::seconds(1));
   fmt::print("Worker {:d} done\n", id);
 }
 
