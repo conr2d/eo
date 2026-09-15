@@ -23,7 +23,7 @@ func<> eo_main() {
   go([&]() -> func<> { co_await (messages << "ping"); });
 
   auto msg = co_await *messages;
-  fmt::println(msg);
+  fmt::Println(msg);
 
   co_return;
 }

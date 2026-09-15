@@ -38,23 +38,23 @@ std::string read_file(std::FILE* file) {
 
 void test_adds_spaces_between_operands() {
   auto file = make_file();
-  fmt::fprintln(file.get(), "hello", "world", 42, true);
+  fmt::Fprintln(file.get(), "hello", "world", 42, true);
 
-  check(read_file(file.get()) == "hello world 42 true\n", "fprintln should separate all operands with spaces");
+  check(read_file(file.get()) == "hello world 42 true\n", "Fprintln should separate all operands with spaces");
 }
 
 void test_does_not_interpret_format_strings() {
   auto file = make_file();
-  fmt::fprintln(file.get(), "value {}", 42);
+  fmt::Fprintln(file.get(), "value {}", 42);
 
-  check(read_file(file.get()) == "value {} 42\n", "fprintln should treat braces as ordinary text");
+  check(read_file(file.get()) == "value {} 42\n", "Fprintln should treat braces as ordinary text");
 }
 
 void test_empty_call_writes_newline() {
   auto file = make_file();
-  fmt::fprintln(file.get());
+  fmt::Fprintln(file.get());
 
-  check(read_file(file.get()) == "\n", "fprintln with no operands should write only a newline");
+  check(read_file(file.get()) == "\n", "Fprintln with no operands should write only a newline");
 }
 
 int main() {

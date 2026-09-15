@@ -48,14 +48,14 @@ func main() {
 ```cpp
 // C++
 func<> f(std::string s) {
-  fmt::println(s);
+  fmt::Println(s);
   co_return;
 }
 
 func<> eo_main() {
   go(f("hello"));
   go([]() -> func<> {
-    fmt::println("world");
+    fmt::Println("world");
     co_return;
   });
   co_return;
@@ -84,7 +84,7 @@ func<> eo_main() {
   auto ch = make_chan<std::string>();
   go([&]() -> func<> { co_await (ch << "ping"); });
   auto msg = co_await *ch;
-  fmt::println(msg);
+  fmt::Println(msg);
 }
 ```
 
@@ -114,7 +114,7 @@ func<> f() {
     switch (co_await select.index()) {
     case 0:
       auto msg = co_await select.process<0>();
-      fmt::println(msg);
+      fmt::Println(msg);
       break;
     default:
       co_return;
@@ -138,8 +138,8 @@ func f() {
 ```cpp
 // C++
 func<> f() {
-  eo_defer([]() { fmt::println("world"); });
-  fmt::println("hello");
+  eo_defer([]() { fmt::Println("world"); });
+  fmt::Println("hello");
 }
 ```
 

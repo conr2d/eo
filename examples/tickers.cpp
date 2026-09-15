@@ -46,7 +46,7 @@ func<> eo_main() {
         co_return;
       case 1:
         auto t = co_await select.process<1>();
-        fmt::println("Tick at", t);
+        fmt::Println("Tick at", t);
         break;
       }
     }
@@ -55,5 +55,5 @@ func<> eo_main() {
   co_await time::Sleep(std::chrono::milliseconds(1600));
   ticker->Stop();
   co_await (done << true);
-  fmt::println("Ticker stopped");
+  fmt::Println("Ticker stopped");
 }

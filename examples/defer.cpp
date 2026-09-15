@@ -40,7 +40,7 @@
 using namespace eo;
 
 auto create_file(const std::string& p) -> std::FILE* {
-  fmt::println("creating");
+  fmt::Println("creating");
   auto f = std::fopen(p.c_str(), "w");
   if (!f) {
     throw std::runtime_error(std::strerror(errno));
@@ -49,12 +49,12 @@ auto create_file(const std::string& p) -> std::FILE* {
 }
 
 void write_file(std::FILE* f) {
-  fmt::println("writing");
-  fmt::fprintln(f, "data");
+  fmt::Println("writing");
+  fmt::Fprintln(f, "data");
 }
 
 void close_file(std::FILE* f) {
-  fmt::println("closing");
+  fmt::Println("closing");
   auto err = std::fclose(f);
 
   if (err) {

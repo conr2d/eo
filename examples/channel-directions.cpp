@@ -39,5 +39,5 @@ func<> eo_main() {
   auto pongs = make_chan<std::string>(1);
   co_await ping(pings, "passed message");
   co_await pong(pings, pongs);
-  fmt::println(co_await *pongs);
+  fmt::Println(co_await *pongs);
 }
