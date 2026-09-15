@@ -4,6 +4,7 @@
 #pragma once
 #include <eo/chan.h>
 #include <boost/asio/steady_timer.hpp>
+#include <mutex>
 
 namespace eo::time {
 
@@ -18,7 +19,12 @@ public:
   boost::asio::steady_timer timer;
   chan<time_point> c = make_chan<time_point>(1);
   bool expired;
+  size_t generation = 0;
 
+private:
+  std::mutex state_mutex;
+
+public:
   template<typename Executor>
   static auto create_with_executor(Executor& ex,
     const std::chrono::steady_clock::duration& d) -> std::shared_ptr<Timer> {
@@ -36,21 +42,26 @@ public:
   }
 
   void reset(const std::chrono::steady_clock::duration& d) {
+    std::lock_guard lock(state_mutex);
     timer.cancel();
     timer.expires_after(d);
     expired = false;
-    timer.async_wait([=, self{shared_from_this()}](boost::system::error_code ec) {
-      self->expired = true;
-      if (ec)
+    const auto current_generation = ++generation;
+    timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
+      std::lock_guard lock(self->state_mutex);
+      if (ec || current_generation != self->generation)
         return;
+      self->expired = true;
       self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
     });
   }
 
   auto stop() -> bool {
+    std::lock_guard lock(state_mutex);
     if (expired) {
       return false;
     }
+    ++generation;
     timer.cancel();
     return !std::exchange(expired, true);
   }

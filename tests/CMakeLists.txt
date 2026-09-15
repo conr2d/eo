@@ -38,6 +38,11 @@ target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 
 add_test(NAME eo.waitgroup COMMAND eo_waitgroup)
 
+add_executable(eo_timer timer.cpp)
+target_link_libraries(eo_timer PRIVATE eo::eo)
+
+add_test(NAME eo.timer COMMAND eo_timer)
+
 add_executable(eo_runtime runtime.cpp)
 target_link_libraries(eo_runtime PRIVATE eo::eo)
 
