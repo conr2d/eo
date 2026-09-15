@@ -83,7 +83,12 @@ auto value(Context* c, Context::Type key) -> std::any {
   }
 }
 
-CancelContext::CancelContext(Context* parent): context(parent) {}
+CancelContext::CancelContext(Context* parent): context(parent) {
+  if (auto [p, ok] = parent_cancel_ctx(parent); ok) {
+    parent_ = p->weak_from_this();
+    has_managed_parent_ = !parent_.expired();
+  }
+}
 
 auto CancelContext::done() -> std::optional<chan<>> {
   std::unique_lock _{mtx};
@@ -128,13 +133,27 @@ void CancelContext::cancel(bool remove_from_parent, Error err) {
     children.clear();
   }
   if (remove_from_parent) {
-    remove_child(context, this);
+    if (has_managed_parent_) {
+      if (auto parent = parent_.lock()) {
+        std::unique_lock _{parent->mtx};
+        parent->children.erase(this);
+      }
+    } else {
+      remove_child(context, this);
+    }
   }
 }
 
 auto CancelContext::value(Type key) -> std::any {
   if (key == Cancel) {
     return this;
+  }
+  if (has_managed_parent_) {
+    auto parent = parent_.lock();
+    if (!parent) {
+      return {};
+    }
+    return parent->value(key);
   }
   return context::value(context, key);
 }
