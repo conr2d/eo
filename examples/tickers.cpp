@@ -38,16 +38,16 @@ func<> eo_main() {
   auto done = make_chan<bool>();
 
   go([&]() -> func<> {
-    auto select = Select{*done, *ticker->C};
     for (;;) {
-      switch (co_await select.index()) {
-      case 0:
-        co_await select.process<0>();
+      switch (auto select = Select{*done, *ticker->C}; co_await select.index()) {
+      case 0: {
         co_return;
-      case 1:
-        auto t = co_await select.process<1>();
+      }
+      case 1: {
+        auto t = select.recv<1>();
         fmt::Println("Tick at", t);
         break;
+      }
       }
     }
   });
