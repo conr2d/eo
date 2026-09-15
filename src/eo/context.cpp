@@ -33,7 +33,7 @@ auto EmptyContext::Value(Type key) -> std::any {
 }
 
 auto EmptyContext::type() -> Type {
-  return Empty;
+  return Type::Empty;
 }
 
 auto parent_cancel_ctx(Context* parent) -> std::tuple<CancelContext*, bool> {
@@ -67,7 +67,7 @@ void remove_child(Context* parent, Canceler* child) {
 auto value(Context* c, Context::Type key) -> std::any {
   for (;;) {
     switch (c->type()) {
-    //case Context::Type::ValueCtx:
+    //case Context::Type::Value:
     case Context::Type::Cancel:
       if (key == Context::Type::Cancel) {
         return c;
@@ -152,7 +152,7 @@ void CancelContext::cancel(bool remove_from_parent, Error err) {
 }
 
 auto CancelContext::Value(Type key) -> std::any {
-  if (key == Cancel) {
+  if (key == Type::Cancel) {
     return this;
   }
   if (has_managed_parent_) {
@@ -166,7 +166,7 @@ auto CancelContext::Value(Type key) -> std::any {
 }
 
 auto CancelContext::type() -> Type {
-  return Cancel;
+  return Type::Cancel;
 }
 
 void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
