@@ -46,11 +46,11 @@ func<> eo_main() {
     switch (co_await select.index()) {
     case 0: {
       auto msg = co_await select.process<0>();
-      fmt::println("received message", msg);
+      fmt::Println("received message", msg);
       break;
     }
     default:
-      fmt::println("no message received");
+      fmt::Println("no message received");
       break;
     }
   }
@@ -61,11 +61,11 @@ func<> eo_main() {
     switch (co_await select.index()) {
     case 0: {
       co_await select.process<0>();
-      fmt::println("sent message", msg);
+      fmt::Println("sent message", msg);
       break;
     }
     default:
-      fmt::println("no message sent");
+      fmt::Println("no message sent");
       break;
     }
   }
@@ -75,16 +75,16 @@ func<> eo_main() {
     switch (co_await select.index()) {
     case 0: {
       auto msg = co_await select.process<0>();
-      fmt::println("received message", msg);
+      fmt::Println("received message", msg);
       break;
     }
     case 1: {
       auto signal = co_await select.process<1>();
-      fmt::println("received signal", signal);
+      fmt::Println("received signal", signal);
       break;
     }
     default:
-      fmt::println("no activity");
+      fmt::Println("no activity");
       break;
     }
   }
