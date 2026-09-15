@@ -6,6 +6,7 @@
 #pragma once
 #include <fmt/core.h>
 #include <map>
+#include <mutex>
 #include <optional>
 #include <system_error>
 
@@ -20,6 +21,7 @@ public:
   Error register_error(std::string_view message);
 
 private:
+  std::mutex mutex;
   std::map<int, std::string> messages;
   int counter = 0;
 };
@@ -130,15 +132,18 @@ private:
 };
 
 inline std::string UserErrorRegistry::message(int condition) {
-  if (messages.contains(condition)) {
-    return messages[condition];
+  std::lock_guard _{mutex};
+  if (auto it = messages.find(condition); it != messages.end()) {
+    return it->second;
   }
   return "runtime error";
 }
 
 inline Error UserErrorRegistry::register_error(std::string_view message) {
-  messages[++counter] = std::string{message};
-  return Error(counter, user_category());
+  std::lock_guard _{mutex};
+  const auto condition = ++counter;
+  messages.emplace(condition, message);
+  return Error(condition, user_category());
 }
 
 inline std::exception_ptr make_exception_ptr(Error err) {
