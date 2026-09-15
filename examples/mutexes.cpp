@@ -66,15 +66,15 @@ func<> eo_main() {
     for (auto i = 0; i < n; i++) {
       c.inc(name);
     }
-    wg.done();
+    wg.Done();
   };
 
-  wg.add(3);
+  wg.Add(3);
   go([&]() { do_increment("a", 10000); });
   go([&]() { do_increment("a", 10000); });
   go([&]() { do_increment("b", 10000); });
 
-  wg.wait();
+  wg.Wait();
   fmt::println(c.counters);
 
   co_return;
