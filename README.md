@@ -109,15 +109,16 @@ func f() {
 ```cpp
 // C++
 func<> f() {
-  auto select = Select{*ch, CaseDefault()};
   for (;;) {
-    switch (co_await select.index()) {
-    case 0:
-      auto msg = co_await select.process<0>();
+    switch (auto select = Select{*ch}; select.try_index()) {
+    case 0: {
+      auto msg = select.recv<0>();
       fmt::Println(msg);
       break;
-    default:
+    }
+    default: {
       co_return;
+    }
     }
   }
 }
