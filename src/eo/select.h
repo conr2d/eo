@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/go.h>
+#include <numeric>
 #include <tuple>
 
 namespace eo {
