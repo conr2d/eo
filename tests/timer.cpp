@@ -31,6 +31,33 @@ void test_reset_ignores_stale_cancel_completion() {
   check(timer->stop(), "stale reset cancellation should not expire the replacement timer");
 }
 
+void test_reset_reports_active_timer() {
+  asio::io_context io;
+  auto executor = io.get_executor();
+  auto timer = eo::time::Timer::create_with_executor(executor, 1h);
+
+  check(timer->reset(1h), "reset should report an active timer");
+}
+
+void test_reset_reports_stopped_timer() {
+  asio::io_context io;
+  auto executor = io.get_executor();
+  auto timer = eo::time::Timer::create_with_executor(executor, 1h);
+
+  check(timer->stop(), "timer should be active before stop");
+  check(!timer->reset(1h), "reset should report a stopped timer as inactive");
+}
+
+void test_reset_reports_expired_timer() {
+  asio::io_context io;
+  auto executor = io.get_executor();
+  auto timer = eo::time::Timer::create_with_executor(executor, 0ms);
+
+  io.run();
+
+  check(!timer->reset(1h), "reset should report an expired timer as inactive");
+}
+
 void test_timer_state_is_safe_across_worker_threads() {
   asio::thread_pool pool{2};
   auto executor = pool.get_executor();
@@ -53,5 +80,8 @@ void test_timer_state_is_safe_across_worker_threads() {
 
 int main() {
   test_reset_ignores_stale_cancel_completion();
+  test_reset_reports_active_timer();
+  test_reset_reports_stopped_timer();
+  test_reset_reports_expired_timer();
   test_timer_state_is_safe_across_worker_threads();
 }
