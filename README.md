@@ -109,15 +109,16 @@ func f() {
 ```cpp
 // C++
 func<> f() {
-  auto select = Select{*ch, CaseDefault()};
   for (;;) {
-    switch (co_await select.index()) {
-    case 0:
-      auto msg = co_await select.process<0>();
+    switch (auto select = Select{*ch}; select.try_index()) {
+    case 0: {
+      auto msg = select.recv<0>();
       fmt::Println(msg);
       break;
-    default:
+    }
+    default: {
       co_return;
+    }
     }
   }
 }
@@ -145,6 +146,6 @@ func<> f() {
 
 ### Libraries
 
-Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling whenever C++ permits it, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.
+Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling when it is a valid, non-reserved C++ identifier, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.
 
 See [Translation Principles](./docs/TRANSLATION.md) for the identifier-preservation policy and related translation rules.
