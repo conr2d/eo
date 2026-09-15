@@ -49,17 +49,19 @@ private:
     return false;
   }
 
+  template<size_t I>
+  void append_communication_index(std::vector<size_t>& indices) {
+    using Case = std::remove_cvref_t<std::tuple_element_t<I, decltype(cases)>>;
+    if constexpr (!std::is_same_v<Case, CaseDefault>) {
+      indices.push_back(I);
+    }
+  }
+
   template<size_t... I>
   auto communication_indices(std::index_sequence<I...>) -> std::vector<size_t> {
     std::vector<size_t> indices;
     indices.reserve(sizeof...(Ts));
-    ([&] {
-      using Case = std::remove_cvref_t<std::tuple_element_t<I, decltype(cases)>>;
-      if constexpr (!std::is_same_v<Case, CaseDefault>) {
-        indices.push_back(I);
-      }
-    }(),
-      ...);
+    (append_communication_index<I>(indices), ...);
     return indices;
   }
 
