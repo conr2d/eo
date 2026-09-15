@@ -2,7 +2,7 @@ name: Style
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, labeled]
   workflow_dispatch:
   push:
     branches:
@@ -10,6 +10,7 @@ on:
 
 jobs:
   format:
+    if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.label.name == 'ci:run'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
