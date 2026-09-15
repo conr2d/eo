@@ -49,15 +49,15 @@ func<> eo_main() {
   auto wg = std::make_shared<sync::WaitGroup>();
 
   for (auto i = 1; i <= 5; i++) {
-    wg->add(1);
+    wg->Add(1);
 
     go([wg, i]() -> func<> {
-      eo_defer([&]() { wg->done(); });
+      eo_defer([&]() { wg->Done(); });
       co_await worker(i);
     });
   }
 
-  wg->wait();
+  wg->Wait();
 
   co_return;
 }
