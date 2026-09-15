@@ -4,7 +4,7 @@
 
 namespace eo::context {
 
-const Error canceled = user_error_registry().register_error("context canceled");
+const Error Canceled = user_error_registry().register_error("context canceled");
 
 auto closed_chan() -> chan<> {
   static auto c = []() {
@@ -210,7 +210,7 @@ auto cancel_func(const std::shared_ptr<CancelContext>& context) -> CancelFunc {
     if (cw.expired())
       return;
     auto c = cw.lock();
-    c->cancel(true, canceled);
+    c->cancel(true, Canceled);
   };
 }
 
