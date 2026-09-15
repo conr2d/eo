@@ -38,37 +38,36 @@ auto select_ready_over_default(eo::chan<int> ready, eo::chan<int> idle) -> eo::f
   auto sent = co_await (ready << 7);
   check(sent, "buffered send should succeed");
 
-  auto select = eo::Select{*ready, *idle, eo::CaseDefault{}};
-  auto index = co_await select.index();
+  auto select = eo::Select{*ready, *idle};
+  auto index = select.try_index();
   check(index == 0, "ready communication should win over default");
   check(!ready.raw().ready(), "selected receive should be committed during readiness probing");
 
-  auto value = co_await select.process<0>();
+  auto value = select.recv<0>();
   check(value == 7, "selected receive should preserve its value");
 }
 
 auto select_default_when_idle(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {
-  auto select = eo::Select{*first, *second, eo::CaseDefault{}};
-  auto index = co_await select.index();
+  auto select = eo::Select{*first, *second};
+  auto index = select.try_index();
   check(index == -1, "default should be selected when no communication is ready");
+  co_return;
 }
 
 auto select_closed_receive(eo::chan<int> closed, eo::chan<int> idle) -> eo::func<> {
-  auto select = eo::Select{*closed, *idle, eo::CaseDefault{}};
-  auto index = co_await select.index();
+  auto select = eo::Select{*closed, *idle};
+  auto index = select.try_index();
   check(index == 0, "closed receive should be ready");
 
-  auto value = co_await select.process<0>();
+  auto value = select.recv<0>();
   check(value == 0, "closed receive should yield the zero value");
+  co_return;
 }
 
 auto select_ready_send_over_default(eo::chan<int> ch) -> eo::func<> {
-  auto select = eo::Select{ch << 7, eo::CaseDefault{}};
-  auto index = co_await select.index();
+  auto select = eo::Select{ch << 7};
+  auto index = select.try_index();
   check(index == 0, "ready send should win over default");
-
-  auto sent = co_await select.process<0>();
-  check(sent, "selected ready send should report success");
   check(co_await *ch == 7, "selected ready send should enqueue its value");
 }
 
@@ -76,8 +75,8 @@ auto select_default_over_blocked_send(eo::chan<int> ch) -> eo::func<> {
   auto sent = co_await (ch << 1);
   check(sent, "initial buffered send should succeed");
 
-  auto select = eo::Select{ch << 2, eo::CaseDefault{}};
-  auto index = co_await select.index();
+  auto select = eo::Select{ch << 2};
+  auto index = select.try_index();
   check(index == -1, "default should win while send is blocked");
 
   check(co_await *ch == 1, "blocked send should not replace the buffered value");
@@ -88,12 +87,9 @@ auto select_default_over_blocked_send(eo::chan<int> ch) -> eo::func<> {
 }
 
 auto select_closed_send(eo::chan<int> ch) -> eo::func<> {
-  auto select = eo::Select{ch << 1, eo::CaseDefault{}};
-  auto index = co_await select.index();
-  check(index == 0, "closed send should be immediately selectable");
-
+  auto select = eo::Select{ch << 1};
   try {
-    co_await select.process<0>();
+    select.try_index();
   } catch (const std::runtime_error& error) {
     check(std::string{error.what()} == "panic: send on closed channel", "closed send returned wrong error");
     co_return;
@@ -103,17 +99,15 @@ auto select_closed_send(eo::chan<int> ch) -> eo::func<> {
 }
 
 auto select_commits_only_winning_send(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {
-  auto select = eo::Select{first << 11, second << 22, eo::CaseDefault{}};
-  auto index = co_await select.index();
+  auto select = eo::Select{first << 11, second << 22};
+  auto index = select.try_index();
   check(index == 0 || index == 1, "one ready send should be selected");
   check(first.raw().ready() == (index == 0), "first send readiness did not match selection");
   check(second.raw().ready() == (index == 1), "second send readiness did not match selection");
 
   if (index == 0) {
-    check(co_await select.process<0>(), "selected first send should report success");
     check(co_await *first == 11, "selected first send should preserve its value");
   } else {
-    check(co_await select.process<1>(), "selected second send should report success");
     check(co_await *second == 22, "selected second send should preserve its value");
   }
 }
@@ -134,7 +128,7 @@ auto select_blocking_winner_and_reuse_loser(eo::chan<int> first, eo::chan<int> s
   auto index = co_await select.index();
   check(index == 1, "later second send should wake blocking select");
 
-  auto selected = co_await select.process<1>();
+  auto selected = select.recv<1>();
   check(selected == 22, "selected receive should preserve the winning value");
 
   auto sent = co_await (first << 11);
@@ -149,7 +143,7 @@ auto select_receive_wins_over_blocked_send(eo::chan<int> send_channel, eo::chan<
   auto index = co_await select.index();
   check(index == 1, "receive should win while send remains blocked");
 
-  auto selected = co_await select.process<1>();
+  auto selected = select.recv<1>();
   check(selected == 22, "selected receive should preserve its value");
 }
 
@@ -158,7 +152,7 @@ auto select_receive_wakes_on_close(eo::chan<int> ch) -> eo::func<> {
   auto index = co_await select.index();
   check(index == 0, "closing a blocked receive should wake the selected case");
 
-  auto value = co_await select.process<0>();
+  auto value = select.recv<0>();
   check(value == 0, "receive awakened by close should yield the zero value");
 }
 
