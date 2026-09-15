@@ -38,7 +38,16 @@ struct Select {
 private:
   static constexpr bool has_default = one_of<CaseDefault, std::remove_cvref_t<T>, std::remove_cvref_t<Ts>...>;
 
+  bool executed = false;
+  bool receive_consumed = false;
   std::optional<size_t> selected_index;
+
+  void begin_selection() {
+    if (executed) {
+      throw std::runtime_error("Select can only be executed once");
+    }
+    executed = true;
+  }
 
   template<size_t I = 0>
   auto ready(size_t index) -> bool {
@@ -91,6 +100,7 @@ private:
 
 public:
   auto try_index() -> int {
+    begin_selection();
     for (auto index : randomized_indices()) {
       if (ready(index)) {
         commit(index);
@@ -109,6 +119,7 @@ public:
   auto index() -> boost::asio::awaitable<int>
     requires(has_default)
   {
+    begin_selection();
     for (auto index : randomized_indices()) {
       if (ready(index)) {
         selected_index = index;
@@ -122,6 +133,7 @@ public:
   auto index() -> boost::asio::awaitable<int>
     requires(!has_default)
   {
+    begin_selection();
     for (auto index : randomized_indices()) {
       if (ready(index)) {
         commit(index);
@@ -150,7 +162,11 @@ public:
     if (!selected_index || *selected_index != I) {
       throw std::runtime_error("Select receive accessor does not match selected case");
     }
+    if (receive_consumed) {
+      throw std::runtime_error("Select receive result already consumed");
+    }
     if constexpr (requires { std::get<I>(cases).get(); }) {
+      receive_consumed = true;
       return std::get<I>(cases).get();
     } else {
       static_assert(I != I, "Select receive accessor requires a receive case");
