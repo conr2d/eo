@@ -18,6 +18,7 @@ public:
   boost::asio::steady_timer timer;
   chan<time_point> c = make_chan<time_point>(1);
   bool expired;
+  size_t generation = 0;
 
   template<typename Executor>
   static auto create_with_executor(Executor& ex,
@@ -39,10 +40,11 @@ public:
     timer.cancel();
     timer.expires_after(d);
     expired = false;
-    timer.async_wait([=, self{shared_from_this()}](boost::system::error_code ec) {
-      self->expired = true;
-      if (ec)
+    const auto current_generation = ++generation;
+    timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
+      if (ec || current_generation != self->generation)
         return;
+      self->expired = true;
       self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
     });
   }
@@ -51,6 +53,7 @@ public:
     if (expired) {
       return false;
     }
+    ++generation;
     timer.cancel();
     return !std::exchange(expired, true);
   }
