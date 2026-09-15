@@ -85,10 +85,64 @@ void test_recv_rejects_unselected_case() {
   throw std::runtime_error("recv should reject an accessor for an unselected case");
 }
 
+void test_recv_rejects_double_consume() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 1};
+  check(ch.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+
+  auto select = eo::Select{*ch};
+  check(select.try_index() == 0, "receive should be selected");
+  check(select.recv<0>() == 7, "first recv should return the selected value");
+
+  try {
+    select.recv<0>();
+  } catch (const std::runtime_error&) {
+    return;
+  }
+
+  throw std::runtime_error("recv should reject consuming the selected result twice");
+}
+
+void test_select_rejects_reexecution_after_selection() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 1};
+  check(ch.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+
+  auto select = eo::Select{*ch};
+  check(select.try_index() == 0, "receive should be selected");
+
+  try {
+    select.try_index();
+  } catch (const std::runtime_error&) {
+    return;
+  }
+
+  throw std::runtime_error("Select should reject repeated execution after selecting a case");
+}
+
+void test_select_rejects_reexecution_after_default() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 1};
+
+  auto select = eo::Select{*ch};
+  check(select.try_index() == -1, "idle select should return the default sentinel");
+
+  try {
+    select.try_index();
+  } catch (const std::runtime_error&) {
+    return;
+  }
+
+  throw std::runtime_error("Select should reject repeated execution after returning default");
+}
+
 int main() {
   test_try_index_commits_receive();
   test_try_index_returns_default_sentinel_when_idle();
   test_recv_returns_zero_value_for_closed_channel();
   test_selected_closed_send_panics_before_case_body();
   test_recv_rejects_unselected_case();
+  test_recv_rejects_double_consume();
+  test_select_rejects_reexecution_after_selection();
+  test_select_rejects_reexecution_after_default();
 }
