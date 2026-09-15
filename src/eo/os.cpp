@@ -64,7 +64,7 @@ namespace {
 
 } // namespace
 
-auto expand_env(const std::string& s) -> std::string {
+auto ExpandEnv(const std::string& s) -> std::string {
   std::string result;
   std::size_t start = 0;
   bool expanded = false;
