@@ -16,13 +16,15 @@ The roadmap focuses on making that translation model predictable, testable, and 
 Prioritize language and runtime behavior that strongly affects mechanical translation:
 
 - goroutine-style execution
-- channels, including buffering and close semantics
-- `select`, including ready-case selection and default behavior
+- channels, including buffering, nil, and close semantics
+- `select`, including ready-case selection, default behavior, and exactly-one communication
 - cancellation and context propagation
-- `defer`-style scope cleanup
+- function-scoped `defer` semantics
 - error and result handling patterns
 
 Semantic compatibility matters more than making these APIs look idiomatic in C++.
+
+Eo targets observable behavior defined by the Go language specification and memory model for supported, data-race-free programs. It does not attempt to reproduce implementation details of a particular Go runtime version.
 
 ## 3. Harden public translation primitives
 
@@ -50,7 +52,22 @@ Build a translation model that can be applied consistently by humans and tooling
 
 The goal is not source compatibility. The goal is a small, stable set of rules that makes structural translation fast and reviewable.
 
-See [Translation Principles](./TRANSLATION.md) for the identifier-preservation policy and related translation rules.
+See [Translation Principles](./TRANSLATION.md) for the compatibility and identifier-preservation policies, and [Select Translation Design](./SELECT.md) for the canonical `select` mapping.
+
+## Translation-ready baseline
+
+Before beginning a large real-world port, translation-facing syntax and the most disruptive semantic mappings should be stable enough that the port does not need repeated repository-wide rewrites.
+
+The current path to that baseline is:
+
+1. **Freeze Select translation syntax.** Adopt one-shot `Select`, `index()` for blocking selects, `try_index()` for selects with `default`, synchronous receive accessors, and switch-scoped lifetime.
+2. **Close channel/select edge-semantic gaps.** Cover nil channels, closed receive status, closed-send panic timing, two-value receive plumbing, and explicit zero-value behavior.
+3. **Guarantee exactly-one blocking Select communication.** Strengthen the underlying channel/select arbitration without tying the public syntax to one runtime algorithm.
+4. **Fix `defer` semantics.** Replace lexical-scope cleanup with function-scoped registration and preserve evaluation timing, LIFO execution, loops, early return, and coroutine return. Named-result interaction may require explicit return machinery.
+5. **Audit adjacent translation rules.** Verify goroutine launch evaluation, labeled control flow, zero values, and other panic-producing operations that can silently diverge under naive C++ translation.
+6. **Declare the translation-ready baseline.** Document the supported semantic surface and known boundaries, then begin real-world porting and evolve Eo demand-first from concrete failures.
+
+This is a readiness milestone, not a claim of Go runtime completeness. The goal is to stabilize translation rules and specification-level behavior that would otherwise be expensive to change after a large port begins.
 
 ## 5. Validate against real-world Go codebases
 
@@ -63,6 +80,8 @@ Exercise Eo on progressively larger and more concurrency-heavy programs:
 
 The validation set should span multiple application domains so that Eo does not evolve around one specific workload.
 
+After the translation-ready baseline, real ports should become a primary source of new Eo work rather than continuing to expand the compatibility layer speculatively.
+
 ## 6. Support behavioral parity testing
 
 Make it practical to compare translated C++ implementations with their Go references:
@@ -72,7 +91,7 @@ Make it practical to compare translated C++ implementations with their Go refere
 - add differential tests for edge cases discovered during ports
 - distinguish deliberate implementation differences from semantic regressions
 
-Reference-implementation parity is a key signal that mechanical translation remains trustworthy as the project grows.
+Reference-implementation parity is a useful validation signal, but the compatibility contract remains the behavior guaranteed by the Go language specification and memory model rather than implementation details of one Go runtime.
 
 ## 7. Optimize only where it is valuable
 
@@ -89,6 +108,7 @@ This allows Eo to serve as a fast path from Go to working C++, while still leavi
 
 ## Guiding principles
 
+- Specification-level semantic compatibility over runtime implementation cloning.
 - Semantic compatibility over idiomatic C++.
 - Mechanical translation over redesign.
 - Identifier preservation over stylistic renaming.
