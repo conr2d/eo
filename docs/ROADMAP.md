@@ -52,7 +52,7 @@ Build a translation model that can be applied consistently by humans and tooling
 
 The goal is not source compatibility. The goal is a small, stable set of rules that makes structural translation fast and reviewable.
 
-See [Translation Principles](./TRANSLATION.md) for the compatibility and identifier-preservation policies, and [Select Translation Design](./SELECT.md) for the canonical `select` mapping.
+See [Translation Principles](./TRANSLATION.md) for compatibility and structural-fidelity policy, [Deterministic Translation Rules](./TRANSLATION_RULES.md) for the mechanical translation contract, and [Select Translation Design](./SELECT.md) for the canonical `select` mapping.
 
 ## Translation-ready baseline
 
