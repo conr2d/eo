@@ -90,6 +90,13 @@ CancelContext::CancelContext(Context* parent): context(parent) {
   }
 }
 
+CancelContext::CancelContext(std::shared_ptr<Context> parent): CancelContext(parent.get()) {
+  if (!has_managed_parent_) {
+    owned_parent_ = std::move(parent);
+    context = owned_parent_.get();
+  }
+}
+
 auto CancelContext::done() -> std::optional<chan<>> {
   std::unique_lock _{mtx};
   if (!done_) {
@@ -198,18 +205,31 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
   }
 }
 
+auto cancel_func(const std::shared_ptr<CancelContext>& context) -> CancelFunc {
+  return [cw{std::weak_ptr<CancelContext>(context)}]() {
+    if (cw.expired())
+      return;
+    auto c = cw.lock();
+    c->cancel(true, canceled);
+  };
+}
+
 auto with_cancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
   if (!parent) {
     throw std::runtime_error("cannot create context from nil parent");
   }
   auto c = std::make_shared<CancelContext>(parent);
   propagate_cancel(parent, c);
-  return {c, [cw{std::weak_ptr<CancelContext>(c)}]() {
-            if (cw.expired())
-              return;
-            auto c = cw.lock();
-            c->cancel(true, canceled);
-          }};
+  return {c, cancel_func(c)};
+}
+
+auto with_cancel(std::shared_ptr<Context> parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
+  if (!parent) {
+    throw std::runtime_error("cannot create context from nil parent");
+  }
+  auto c = std::make_shared<CancelContext>(parent);
+  propagate_cancel(parent.get(), c);
+  return {c, cancel_func(c)};
 }
 
 } // namespace eo::context

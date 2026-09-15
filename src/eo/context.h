@@ -41,6 +41,7 @@ struct Canceler {
 
 struct CancelContext : public Context, public Canceler, public std::enable_shared_from_this<CancelContext> {
   CancelContext(Context*);
+  CancelContext(std::shared_ptr<Context>);
 
   auto done() -> std::optional<chan<>> override;
   auto err() -> Error override;
@@ -55,6 +56,7 @@ struct CancelContext : public Context, public Canceler, public std::enable_share
   std::map<Canceler*, std::shared_ptr<Canceler>> children;
 
 private:
+  std::shared_ptr<Context> owned_parent_;
   std::weak_ptr<CancelContext> parent_;
   bool has_managed_parent_{};
   std::optional<chan<>> done_;
@@ -65,5 +67,6 @@ using CancelFunc = std::function<void()>;
 
 auto background() -> Context*;
 auto with_cancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc>;
+auto with_cancel(std::shared_ptr<Context> parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc>;
 
 } // namespace eo::context
