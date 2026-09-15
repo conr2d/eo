@@ -21,6 +21,19 @@ void check(bool condition, const char* message) {
   }
 }
 
+struct ReadyProbeCase {
+  int* waits;
+
+  auto ready() -> bool {
+    return true;
+  }
+
+  auto wait() -> asio::awaitable<bool> {
+    ++*waits;
+    co_return true;
+  }
+};
+
 auto select_ready_over_default(eo::chan<int> ready, eo::chan<int> idle) -> eo::func<> {
   auto sent = co_await (ready << 7);
   check(sent, "buffered send should succeed");
@@ -102,6 +115,17 @@ auto select_commits_only_winning_send(eo::chan<int> first, eo::chan<int> second)
     check(co_await select.process<1>(), "selected second send should report success");
     check(co_await *second == 22, "selected second send should preserve its value");
   }
+}
+
+auto select_ready_without_default_skips_wait() -> eo::func<> {
+  int first_waits = 0;
+  int second_waits = 0;
+  auto select = eo::Select{ReadyProbeCase{&first_waits}, ReadyProbeCase{&second_waits}};
+
+  auto index = co_await select.index();
+
+  check(index == 0 || index == 1, "ready blocking select should choose a ready case");
+  check(first_waits == 0 && second_waits == 0, "ready blocking select should not enter the wait path");
 }
 
 auto select_blocking_winner_and_reuse_loser(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {
@@ -203,6 +227,14 @@ void test_select_commits_only_winning_send() {
   result.get();
 }
 
+void test_ready_blocking_select_skips_wait() {
+  asio::io_context io;
+
+  auto result = asio::co_spawn(io, select_ready_without_default_skips_wait(), asio::use_future);
+  io.run();
+  result.get();
+}
+
 void test_blocking_select_cancels_loser_cleanly() {
   asio::io_context io;
   eo::chan<int> first{io.get_executor(), 1};
@@ -238,6 +270,7 @@ int main() {
   test_default_when_send_is_blocked();
   test_closed_send_is_selected_then_panics();
   test_select_commits_only_winning_send();
+  test_ready_blocking_select_skips_wait();
   test_blocking_select_cancels_loser_cleanly();
   test_blocking_select_cancels_losing_send_cleanly();
 }
