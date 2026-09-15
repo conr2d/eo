@@ -4,6 +4,7 @@
 #include <any>
 #include <concepts>
 #include <map>
+#include <memory>
 
 namespace eo::context {
 
@@ -38,7 +39,7 @@ struct Canceler {
   virtual auto done() -> std::optional<chan<>> = 0;
 };
 
-struct CancelContext : public Context, public Canceler {
+struct CancelContext : public Context, public Canceler, public std::enable_shared_from_this<CancelContext> {
   CancelContext(Context*);
 
   auto done() -> std::optional<chan<>> override;
@@ -54,6 +55,8 @@ struct CancelContext : public Context, public Canceler {
   std::map<Canceler*, std::shared_ptr<Canceler>> children;
 
 private:
+  std::weak_ptr<CancelContext> parent_;
+  bool has_managed_parent_{};
   std::optional<chan<>> done_;
   Error err_;
 };

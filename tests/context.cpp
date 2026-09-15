@@ -86,6 +86,24 @@ void test_child_cancel_releases_parent_reference() {
   cancel_parent();
 }
 
+void test_child_survives_released_parent() {
+  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
+  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
+  auto child_done = child->done();
+  std::weak_ptr<eo::context::Context> parent_ref = parent;
+
+  parent.reset();
+
+  check(parent_ref.expired(), "child should not retain its parent through an ownership cycle");
+  check(!child->value(eo::context::Context::Custom).has_value(),
+    "child value lookup should tolerate a released parent");
+
+  cancel_child();
+
+  check(child->err() == eo::context::canceled, "child cancel should survive a released parent");
+  check(!child_done->raw().is_open(), "child cancel should still close done after parent release");
+}
+
 void test_child_of_canceled_parent_is_canceled_immediately() {
   auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
   cancel_parent();
@@ -148,6 +166,7 @@ int main() {
   test_parent_cancel_propagates_to_child();
   test_parent_retains_uncanceled_child();
   test_child_cancel_releases_parent_reference();
+  test_child_survives_released_parent();
   test_child_of_canceled_parent_is_canceled_immediately();
   test_concurrent_state_access_during_cancel();
   test_nil_parent_is_rejected();
