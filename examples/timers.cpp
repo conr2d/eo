@@ -33,16 +33,16 @@ func<> eo_main() {
   auto timer1 = time::NewTimer(std::chrono::seconds(2));
 
   co_await *timer1->C;
-  fmt::println("Timer 1 fired");
+  fmt::Println("Timer 1 fired");
 
   auto timer2 = time::NewTimer(std::chrono::seconds(1));
   go([=]() -> func<> {
     co_await *timer2->C;
-    fmt::println("Timer 2 fired");
+    fmt::Println("Timer 2 fired");
   });
   auto stop2 = timer2->Stop();
   if (stop2) {
-    fmt::println("Timer 2 stopped");
+    fmt::Println("Timer 2 stopped");
   }
 
   co_await time::Sleep(std::chrono::seconds(2));
