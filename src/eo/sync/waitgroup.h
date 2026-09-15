@@ -11,19 +11,21 @@ namespace eo::sync {
 
 struct WaitGroup {
   std::shared_mutex mtx;
-  std::atomic<int> state;
+  std::atomic<int> state{0};
   std::condition_variable_any cv;
 
   void add(int delta) {
-    state.fetch_add(delta);
-    if (state < 0) {
+    auto current = state.fetch_add(delta) + delta;
+    if (current < 0) {
       throw std::runtime_error("sync: negative WaitGroup counter");
+    }
+    if (current == 0) {
+      cv.notify_all();
     }
   }
 
   void done() {
-    state.fetch_sub(1);
-    cv.notify_all();
+    add(-1);
   }
 
   void wait() {
