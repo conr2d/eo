@@ -33,6 +33,7 @@ Remove contracts that make direct translation fragile or surprising:
 - make cancellation, runtime, and registration APIs safe under expected concurrent use
 - propagate failures instead of silently changing program behavior
 - keep translation-facing APIs small and mechanically recognizable
+- preserve Go identifier spelling for translation-facing APIs whenever C++ permits it
 
 APIs remain unstable while this layer is being refined.
 
@@ -43,10 +44,13 @@ Build a translation model that can be applied consistently by humans and tooling
 - document common syntax and control-flow mappings
 - identify patterns that can be translated mechanically
 - identify cases that require semantic adaptation
+- preserve source identifiers unless C++ syntax, semantics, or an explicit Eo mapping requires a change
 - minimize transformations that obscure the structure of the source Go code
 - keep unsupported or intentionally different behavior explicit
 
 The goal is not source compatibility. The goal is a small, stable set of rules that makes structural translation fast and reviewable.
+
+See [Translation Principles](./TRANSLATION.md) for the identifier-preservation policy and related translation rules.
 
 ## 5. Validate against real-world Go codebases
 
@@ -87,6 +91,7 @@ This allows Eo to serve as a fast path from Go to working C++, while still leavi
 
 - Semantic compatibility over idiomatic C++.
 - Mechanical translation over redesign.
+- Identifier preservation over stylistic renaming.
 - Explicit differences over implicit surprises.
 - Conformance tests over assumptions.
 - Real-world validation over synthetic completeness.
