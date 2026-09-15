@@ -12,19 +12,19 @@
 namespace fmt {
 namespace detail {
 
-template<typename... T>
-void print_line(std::FILE* f, T&&... args) {
-  bool first = true;
-  auto print_arg = [&](auto&& arg) {
-    if (!first) {
-      fmt::print(f, " ");
-    }
-    fmt::print(f, "{}", std::forward<decltype(arg)>(arg));
-    first = false;
-  };
-  (print_arg(std::forward<T>(args)), ...);
-  fmt::print(f, "\n");
-}
+  template<typename... T>
+  void print_line(std::FILE* f, T&&... args) {
+    bool first = true;
+    auto print_arg = [&](auto&& arg) {
+      if (!first) {
+        fmt::print(f, " ");
+      }
+      fmt::print(f, "{}", std::forward<decltype(arg)>(arg));
+      first = false;
+    };
+    (print_arg(std::forward<T>(args)), ...);
+    fmt::print(f, "\n");
+  }
 
 } // namespace detail
 
