@@ -8,6 +8,11 @@ target_link_libraries(eo_channel PRIVATE eo::eo)
 
 add_test(NAME eo.channel COMMAND eo_channel)
 
+add_executable(eo_channel_status channel_status.cpp)
+target_link_libraries(eo_channel_status PRIVATE eo::eo)
+
+add_test(NAME eo.channel_status COMMAND eo_channel_status)
+
 add_executable(eo_select select.cpp)
 target_link_libraries(eo_select PRIVATE eo::eo)
 
