@@ -90,19 +90,24 @@ public:
     co_return -1;
   }
 
-  auto index()
+  auto index() -> boost::asio::awaitable<int>
     requires(!has_default)
   {
+    for (auto index : randomized_indices()) {
+      if (ready(index)) {
+        co_return index;
+      }
+    }
+
     if constexpr (!sizeof...(Ts)) {
-      return [this]() -> func<int> {
-        co_await std::get<0>(cases).wait();
-        co_return 0;
-      }();
+      co_await std::get<0>(cases).wait();
+      co_return 0;
     } else {
-      return [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
+      auto index = co_await [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
         auto res = co_await (std::get<I>(cases).wait() || ...);
         co_return res.index();
       }(std::make_index_sequence<sizeof...(Ts) + 1>());
+      co_return index;
     }
   }
 
