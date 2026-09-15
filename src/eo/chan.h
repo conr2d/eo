@@ -4,6 +4,8 @@
 #pragma once
 #include <eo/go.h>
 #include <boost/asio/experimental/concurrent_channel.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <boost/asio/this_coro.hpp>
 
 #include <atomic>
 
@@ -19,6 +21,8 @@ template<typename T = std::monostate>
 class chan {
 public:
   using channel_type = boost::asio::experimental::concurrent_channel<void(boost::system::error_code, T)>;
+
+  chan() = default;
 
   template<typename Executor>
     requires(!std::is_same_v<std::remove_cvref_t<Executor>, chan>)
@@ -47,6 +51,9 @@ public:
   }
 
   void close() {
+    if (!impl) {
+      throw std::runtime_error("panic: close of nil channel");
+    }
     bool expected = false;
     if (!closed->compare_exchange_strong(expected, true)) {
       throw std::runtime_error("panic: close of closed channel");
@@ -78,6 +85,13 @@ struct send_t : public boost::asio::awaitable<bool> {
 private:
   using super = boost::asio::awaitable<bool>;
 
+  auto wait_nil() -> boost::asio::awaitable<void> {
+    auto executor = co_await boost::asio::this_coro::executor;
+    boost::asio::steady_timer timer{executor};
+    timer.expires_at((boost::asio::steady_timer::time_point::max)());
+    co_await timer.async_wait(use_awaitable);
+  }
+
 public:
   using super::super;
 
@@ -93,6 +107,9 @@ public:
   // FIXME: there is no way to check whether a message can be sent via channel
   // try_send() in ready stage, but turn off sent flag during process().
   auto ready() -> bool {
+    if (!c) {
+      return false;
+    }
     if (!sent && !c->is_open()) {
       return true;
     }
@@ -100,12 +117,19 @@ public:
   }
 
   void commit() {
+    if (!c) {
+      return;
+    }
     if (!sent && !c->is_open()) {
       throw std::runtime_error("panic: send on closed channel");
     }
   }
 
   auto wait() -> boost::asio::awaitable<bool> {
+    if (!c) {
+      co_await wait_nil();
+      co_return false;
+    }
     if (!c->is_open()) {
       throw std::runtime_error("panic: send on closed channel");
     }
@@ -120,6 +144,10 @@ public:
   }
 
   auto process() -> boost::asio::awaitable<bool> {
+    if (!c) {
+      co_await wait_nil();
+      co_return false;
+    }
     if (!sent && !c->is_open()) {
       throw std::runtime_error("panic: send on closed channel");
     }
@@ -132,6 +160,13 @@ struct recv_t : public boost::asio::awaitable<T> {
 private:
   using super = boost::asio::awaitable<T>;
 
+  auto wait_nil() -> boost::asio::awaitable<void> {
+    auto executor = co_await boost::asio::this_coro::executor;
+    boost::asio::steady_timer timer{executor};
+    timer.expires_at((boost::asio::steady_timer::time_point::max)());
+    co_await timer.async_wait(use_awaitable);
+  }
+
 public:
   using super::super;
 
@@ -141,47 +176,74 @@ public:
   }
 
   std::shared_ptr<typename chan<T>::channel_type> c;
-  std::optional<T> processed;
+  std::optional<std::pair<T, bool>> processed;
 
   auto ready() -> bool {
     if (processed) {
       return true;
     }
+    if (!c) {
+      return false;
+    }
     if (c->try_receive([this](boost::system::error_code ec, T value) {
           if (!ec) {
-            processed = std::move(value);
+            processed.emplace(std::move(value), true);
           }
         })) {
       return true;
     }
-    return !c->is_open();
+    if (!c->is_open()) {
+      processed.emplace(T{}, false);
+      return true;
+    }
+    return false;
   }
 
   auto wait() -> boost::asio::awaitable<bool> {
-    if (processed || !c->is_open()) {
+    if (processed) {
+      co_return true;
+    }
+    if (!c) {
+      co_await wait_nil();
+      co_return false;
+    }
+    if (!c->is_open()) {
+      processed.emplace(T{}, false);
       co_return true;
     }
     // XXX: caching received value not to lose by coroutine cancellation
     auto res = co_await c->async_receive(eoroutine);
     if (!std::get<0>(res)) {
-      processed = std::move(std::get<1>(res));
+      processed.emplace(std::move(std::get<1>(res)), true);
       co_return true;
     }
-    co_return !c->is_open();
+    if (!c->is_open()) {
+      processed.emplace(T{}, false);
+      co_return true;
+    }
+    co_return false;
+  }
+
+  auto get2() -> std::pair<T, bool> {
+    if (!processed) {
+      return {T{}, false};
+    }
+    auto result = std::move(*processed);
+    processed.reset();
+    return result;
   }
 
   auto get() -> T {
-    if (!processed) {
-      return T{};
-    }
-    std::optional<T> ret{};
-    std::swap(ret, processed);
-    return std::move(*ret);
+    return get2().first;
   }
 
   auto process() -> boost::asio::awaitable<T> {
     if (processed) {
       co_return get();
+    }
+    if (!c) {
+      co_await wait_nil();
+      co_return T{};
     }
     auto res = co_await c->async_receive(eoroutine);
     co_return !std::get<0>(res).value() ? std::get<1>(res) : T{};
