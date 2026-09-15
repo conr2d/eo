@@ -41,51 +41,44 @@ func<> eo_main() {
   auto messages = make_chan<std::string>();
   auto signals = make_chan<bool>();
 
-  {
-    auto select = Select{*messages, CaseDefault{}};
-    switch (co_await select.index()) {
-    case 0: {
-      auto msg = co_await select.process<0>();
-      fmt::Println("received message", msg);
-      break;
-    }
-    default:
-      fmt::Println("no message received");
-      break;
-    }
+  switch (auto select = Select{*messages}; select.try_index()) {
+  case 0: {
+    auto msg = select.recv<0>();
+    fmt::Println("received message", msg);
+    break;
+  }
+  default: {
+    fmt::Println("no message received");
+    break;
+  }
   }
 
-  {
-    auto msg = "hi";
-    auto select = Select{(messages << msg), CaseDefault{}};
-    switch (co_await select.index()) {
-    case 0: {
-      co_await select.process<0>();
-      fmt::Println("sent message", msg);
-      break;
-    }
-    default:
-      fmt::Println("no message sent");
-      break;
-    }
+  auto msg = "hi";
+  switch (auto select = Select{messages << msg}; select.try_index()) {
+  case 0: {
+    fmt::Println("sent message", msg);
+    break;
+  }
+  default: {
+    fmt::Println("no message sent");
+    break;
+  }
   }
 
-  {
-    auto select = Select{*messages, *signals, CaseDefault{}};
-    switch (co_await select.index()) {
-    case 0: {
-      auto msg = co_await select.process<0>();
-      fmt::Println("received message", msg);
-      break;
-    }
-    case 1: {
-      auto signal = co_await select.process<1>();
-      fmt::Println("received signal", signal);
-      break;
-    }
-    default:
-      fmt::Println("no activity");
-      break;
-    }
+  switch (auto select = Select{*messages, *signals}; select.try_index()) {
+  case 0: {
+    auto received = select.recv<0>();
+    fmt::Println("received message", received);
+    break;
+  }
+  case 1: {
+    auto signal = select.recv<1>();
+    fmt::Println("received signal", signal);
+    break;
+  }
+  default: {
+    fmt::Println("no activity");
+    break;
+  }
   }
 }
