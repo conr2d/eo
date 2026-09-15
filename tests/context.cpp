@@ -96,7 +96,7 @@ void test_child_survives_released_parent() {
 
   check(parent_ref.expired(), "child should not retain its parent through an ownership cycle");
   check(!child->value(eo::context::Context::Custom).has_value(),
-        "child value lookup should tolerate a released parent");
+    "child value lookup should tolerate a released parent");
 
   cancel_child();
 
