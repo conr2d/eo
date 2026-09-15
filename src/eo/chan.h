@@ -156,8 +156,12 @@ public:
       co_return true;
     }
     // XXX: caching received value not to lose by coroutine cancellation
-    processed = co_await c->async_receive(use_awaitable);
-    co_return true;
+    auto res = co_await c->async_receive(eoroutine);
+    if (!std::get<0>(res)) {
+      processed = std::move(std::get<1>(res));
+      co_return true;
+    }
+    co_return !c->is_open();
   }
 
   auto process() -> boost::asio::awaitable<T> {
