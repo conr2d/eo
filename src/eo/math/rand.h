@@ -6,8 +6,8 @@
 
 namespace eo::math::rand {
 
-auto int_n(int n) -> int;
+auto Intn(int n) -> int;
 
-auto int63_n(int64_t n) -> int64_t;
+auto Int63n(int64_t n) -> int64_t;
 
 } // namespace eo::math::rand

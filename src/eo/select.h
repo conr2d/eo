@@ -8,7 +8,7 @@
 namespace eo {
 
 namespace math::rand {
-  extern auto int63_n(int64_t n) -> int64_t;
+  extern auto Int63n(int64_t n) -> int64_t;
 } // namespace math::rand
 
 struct CaseDefault {
@@ -68,7 +68,7 @@ private:
   auto randomized_indices() -> std::vector<size_t> {
     auto indices = communication_indices(std::make_index_sequence<sizeof...(Ts) + 1>());
     for (size_t i = indices.size(); i > 1; --i) {
-      auto j = static_cast<size_t>(math::rand::int63_n(i));
+      auto j = static_cast<size_t>(math::rand::Int63n(i));
       std::swap(indices[i - 1], indices[j]);
     }
     return indices;
