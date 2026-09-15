@@ -29,12 +29,12 @@ namespace detail {
 } // namespace detail
 
 template<typename... T>
-void println(T&&... args) {
+void Println(T&&... args) {
   detail::print_line(stdout, std::forward<T>(args)...);
 }
 
 template<typename... T>
-void fprintln(std::FILE* f, T&&... args) {
+void Fprintln(std::FILE* f, T&&... args) {
   detail::print_line(f, std::forward<T>(args)...);
 }
 
