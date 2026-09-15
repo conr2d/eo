@@ -25,10 +25,10 @@ void test_reset_ignores_stale_cancel_completion() {
   auto executor = io.get_executor();
   auto timer = eo::time::Timer::create_with_executor(executor, 1h);
 
-  timer->reset(1h);
+  timer->Reset(1h);
   io.poll();
 
-  check(timer->stop(), "stale reset cancellation should not expire the replacement timer");
+  check(timer->Stop(), "stale reset cancellation should not expire the replacement timer");
 }
 
 void test_reset_reports_active_timer() {
@@ -36,7 +36,7 @@ void test_reset_reports_active_timer() {
   auto executor = io.get_executor();
   auto timer = eo::time::Timer::create_with_executor(executor, 1h);
 
-  check(timer->reset(1h), "reset should report an active timer");
+  check(timer->Reset(1h), "reset should report an active timer");
 }
 
 void test_reset_reports_stopped_timer() {
@@ -44,8 +44,8 @@ void test_reset_reports_stopped_timer() {
   auto executor = io.get_executor();
   auto timer = eo::time::Timer::create_with_executor(executor, 1h);
 
-  check(timer->stop(), "timer should be active before stop");
-  check(!timer->reset(1h), "reset should report a stopped timer as inactive");
+  check(timer->Stop(), "timer should be active before stop");
+  check(!timer->Reset(1h), "reset should report a stopped timer as inactive");
 }
 
 void test_reset_reports_expired_timer() {
@@ -55,7 +55,7 @@ void test_reset_reports_expired_timer() {
 
   io.run();
 
-  check(!timer->reset(1h), "reset should report an expired timer as inactive");
+  check(!timer->Reset(1h), "reset should report an expired timer as inactive");
 }
 
 void test_reset_discards_stale_expired_value() {
@@ -64,9 +64,9 @@ void test_reset_discards_stale_expired_value() {
   auto timer = eo::time::Timer::create_with_executor(executor, 0ms);
 
   io.run();
-  timer->reset(1h);
+  timer->Reset(1h);
 
-  const auto received = timer->c.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  const auto received = timer->C.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
   check(!received, "reset should discard a stale value from the previous timer configuration");
 }
 
@@ -77,8 +77,8 @@ void test_stop_discards_pending_expired_value() {
 
   io.run();
 
-  check(timer->stop(), "stop should report a pending unread timer delivery as stopped");
-  const auto received = timer->c.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  check(timer->Stop(), "stop should report a pending unread timer delivery as stopped");
+  const auto received = timer->C.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
   check(!received, "stop should prevent stale timer values from being received afterward");
 }
 
@@ -88,9 +88,9 @@ void test_stop_reports_consumed_expired_timer() {
   auto timer = eo::time::Timer::create_with_executor(executor, 0ms);
 
   io.run();
-  const auto received = timer->c.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  const auto received = timer->C.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
   check(received, "expired timer should have a pending value before it is consumed");
-  check(!timer->stop(), "stop should report false after the expired value was already received");
+  check(!timer->Stop(), "stop should report false after the expired value was already received");
 }
 
 void test_timer_state_is_safe_across_worker_threads() {
@@ -102,13 +102,13 @@ void test_timer_state_is_safe_across_worker_threads() {
 
   for (int i = 0; i < reset_count; ++i) {
     asio::post(pool, [timer, &resets] {
-      timer->reset(1h);
+      timer->Reset(1h);
       resets.count_down();
     });
   }
 
   resets.wait();
-  check(timer->stop(), "concurrent resets should leave the latest timer active");
+  check(timer->Stop(), "concurrent resets should leave the latest timer active");
   pool.stop();
   pool.join();
 }
