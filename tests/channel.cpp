@@ -9,11 +9,14 @@
 #include <boost/asio/use_awaitable.hpp>
 #include <boost/asio/use_future.hpp>
 
+#include <atomic>
 #include <future>
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <type_traits>
+#include <vector>
 
 namespace asio = boost::asio;
 
@@ -178,6 +181,39 @@ void test_double_close_panics() {
   throw std::runtime_error("double close did not panic");
 }
 
+void test_concurrent_close_has_single_winner() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor()};
+  std::atomic_int successes{0};
+  std::atomic_int panics{0};
+  std::atomic_bool wrong_error{false};
+  std::vector<std::thread> closers;
+
+  for (int i = 0; i < 8; ++i) {
+    auto copy = ch;
+    closers.emplace_back([copy, &successes, &panics, &wrong_error]() mutable {
+      try {
+        copy.close();
+        ++successes;
+      } catch (const std::runtime_error& error) {
+        if (std::string{error.what()} == "panic: close of closed channel") {
+          ++panics;
+        } else {
+          wrong_error = true;
+        }
+      }
+    });
+  }
+
+  for (auto& closer : closers) {
+    closer.join();
+  }
+
+  check(successes == 1, "concurrent close should have exactly one successful closer");
+  check(panics == 7, "all losing concurrent close calls should panic");
+  check(!wrong_error, "concurrent close returned the wrong panic");
+}
+
 void test_channel_copy_shares_identity() {
   asio::io_context io;
   eo::chan<int> original{io.get_executor(), 1};
@@ -214,6 +250,7 @@ int main() {
   test_close_releases_pending_send_with_panic();
   test_send_on_closed_channel_panics();
   test_double_close_panics();
+  test_concurrent_close_has_single_winner();
   test_channel_copy_shares_identity();
   test_channel_const_copy_shares_identity();
   test_channel_copy_assignment_shares_identity();
