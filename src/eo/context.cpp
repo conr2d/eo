@@ -15,40 +15,40 @@ auto closed_chan() -> chan<> {
   return c;
 }
 
-auto background() -> Context* {
+auto Background() -> Context* {
   static EmptyContext ctx{};
   return &ctx;
 }
 
-auto EmptyContext::done() -> std::optional<chan<>> {
+auto EmptyContext::Done() -> std::optional<chan<>> {
   return {};
 }
 
-auto EmptyContext::err() -> Error {
+auto EmptyContext::Err() -> Error {
   return {};
 }
 
-auto EmptyContext::value(Type key) -> std::any {
+auto EmptyContext::Value(Type key) -> std::any {
   return {};
 }
 
 auto EmptyContext::type() -> Type {
-  return Empty;
+  return Type::Empty;
 }
 
 auto parent_cancel_ctx(Context* parent) -> std::tuple<CancelContext*, bool> {
-  auto done = parent->done();
+  auto done = parent->Done();
   if (done == closed_chan()) {
     return {nullptr, false};
   }
   CancelContext* p;
   try {
-    auto pv = parent->value(Context::Type::Cancel);
+    auto pv = parent->Value(Context::Type::Cancel);
     p = std::any_cast<CancelContext*>(pv);
   } catch (const std::bad_any_cast& e) {
     return {nullptr, false};
   }
-  auto pdone = p->done();
+  auto pdone = p->Done();
   if (pdone != done) {
     return {nullptr, false};
   }
@@ -78,7 +78,7 @@ auto value(Context* c, Context::Type key) -> std::any {
     case Context::Type::Empty:
       return {};
     default:
-      return c->value(key);
+      return c->Value(key);
     }
   }
 }
@@ -97,7 +97,7 @@ CancelContext::CancelContext(std::shared_ptr<Context> parent): CancelContext(par
   }
 }
 
-auto CancelContext::done() -> std::optional<chan<>> {
+auto CancelContext::Done() -> std::optional<chan<>> {
   std::unique_lock _{mtx};
   if (!done_) {
     done_ = make_chan();
@@ -105,7 +105,7 @@ auto CancelContext::done() -> std::optional<chan<>> {
   return *done_;
 }
 
-auto CancelContext::err() -> Error {
+auto CancelContext::Err() -> Error {
   std::unique_lock _{mtx};
   return err_;
 }
@@ -151,8 +151,8 @@ void CancelContext::cancel(bool remove_from_parent, Error err) {
   }
 }
 
-auto CancelContext::value(Type key) -> std::any {
-  if (key == Cancel) {
+auto CancelContext::Value(Type key) -> std::any {
+  if (key == Type::Cancel) {
     return this;
   }
   if (has_managed_parent_) {
@@ -160,26 +160,26 @@ auto CancelContext::value(Type key) -> std::any {
     if (!parent) {
       return {};
     }
-    return parent->value(key);
+    return parent->Value(key);
   }
   return context::value(context, key);
 }
 
 auto CancelContext::type() -> Type {
-  return Cancel;
+  return Type::Cancel;
 }
 
 void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
-  auto done = parent->done();
+  auto done = parent->Done();
   if (!done) {
     return; // parent is never canceled
   }
   invoke([parent, child]() -> func<> {
-    auto select = Select{**parent->done(), CaseDefault()};
+    auto select = Select{**parent->Done(), CaseDefault()};
     switch (co_await select.index()) {
     case 0:
       co_await select.process<0>();
-      child->cancel(false, parent->err());
+      child->cancel(false, parent->Err());
       break;
     default:
       break;
@@ -191,11 +191,11 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
     }
   } else {
     go([parent, child = std::move(child)]() mutable -> func<> {
-      auto select = Select{**parent->done(), **child->done()};
+      auto select = Select{**parent->Done(), **child->Done()};
       switch (co_await select.index()) {
       case 0:
         co_await select.process<0>();
-        child->cancel(false, parent->err());
+        child->cancel(false, parent->Err());
         break;
       case 1:
         co_await select.process<1>();
@@ -214,7 +214,7 @@ auto cancel_func(const std::shared_ptr<CancelContext>& context) -> CancelFunc {
   };
 }
 
-auto with_cancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
+auto WithCancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
   if (!parent) {
     throw std::runtime_error("cannot create context from nil parent");
   }
@@ -223,7 +223,7 @@ auto with_cancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, Cancel
   return {c, cancel_func(c)};
 }
 
-auto with_cancel(std::shared_ptr<Context> parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
+auto WithCancel(std::shared_ptr<Context> parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
   if (!parent) {
     throw std::runtime_error("cannot create context from nil parent");
   }

@@ -21,17 +21,17 @@ void check(bool condition, const char* message) {
 struct CustomContext : eo::context::Context {
   CustomContext(): done_(eo::make_chan()) {}
 
-  auto done() -> std::optional<eo::chan<>> override {
+  auto Done() -> std::optional<eo::chan<>> override {
     return done_;
   }
 
-  auto err() -> eo::Error override {
+  auto Err() -> eo::Error override {
     std::lock_guard _{mutex_};
     return err_;
   }
 
-  auto value(Type key) -> std::any override {
-    if (key == Custom) {
+  auto Value(Type key) -> std::any override {
+    if (key == Type::Custom) {
       return 42;
     }
     return {};
@@ -52,54 +52,54 @@ private:
 };
 
 void test_background_context_is_never_canceled() {
-  auto* ctx = eo::context::background();
+  auto* ctx = eo::context::Background();
 
-  check(!ctx->done(), "background context should not have a done channel");
-  check(!ctx->err(), "background context should not have an error");
+  check(!ctx->Done(), "background context should not have a done channel");
+  check(!ctx->Err(), "background context should not have an error");
 }
 
 void test_cancel_closes_done_and_sets_error() {
-  auto [ctx, cancel] = eo::context::with_cancel(eo::context::background());
-  auto done = ctx->done();
+  auto [ctx, cancel] = eo::context::WithCancel(eo::context::Background());
+  auto done = ctx->Done();
 
   check(done.has_value(), "cancelable context should have a done channel");
   check(done->raw().is_open(), "done channel should start open");
-  check(!ctx->err(), "cancelable context should start without an error");
+  check(!ctx->Err(), "cancelable context should start without an error");
 
   cancel();
 
   check(!done->raw().is_open(), "cancel should close the done channel");
-  check(ctx->err() == eo::context::canceled, "cancel should set context canceled error");
+  check(ctx->Err() == eo::context::canceled, "cancel should set context canceled error");
 }
 
 void test_cancel_is_idempotent() {
-  auto [ctx, cancel] = eo::context::with_cancel(eo::context::background());
+  auto [ctx, cancel] = eo::context::WithCancel(eo::context::Background());
 
   cancel();
   cancel();
 
-  check(ctx->err() == eo::context::canceled, "repeated cancel should preserve the first error");
+  check(ctx->Err() == eo::context::canceled, "repeated cancel should preserve the first error");
 }
 
 void test_parent_cancel_propagates_to_child() {
-  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
-  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
-  auto child_done = child->done();
+  auto [parent, cancel_parent] = eo::context::WithCancel(eo::context::Background());
+  auto [child, cancel_child] = eo::context::WithCancel(parent.get());
+  auto child_done = child->Done();
 
   cancel_parent();
 
-  check(child->err() == eo::context::canceled, "parent cancel should propagate the cancellation error");
+  check(child->Err() == eo::context::canceled, "parent cancel should propagate the cancellation error");
   check(!child_done->raw().is_open(), "parent cancel should close the child done channel");
 
   cancel_child();
 }
 
 void test_parent_retains_uncanceled_child() {
-  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
+  auto [parent, cancel_parent] = eo::context::WithCancel(eo::context::Background());
   std::weak_ptr<eo::context::Context> child_ref;
 
   {
-    auto [child, cancel_child] = eo::context::with_cancel(parent.get());
+    auto [child, cancel_child] = eo::context::WithCancel(parent.get());
     child_ref = child;
   }
 
@@ -111,8 +111,8 @@ void test_parent_retains_uncanceled_child() {
 }
 
 void test_child_cancel_releases_parent_reference() {
-  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
-  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
+  auto [parent, cancel_parent] = eo::context::WithCancel(eo::context::Background());
+  auto [child, cancel_child] = eo::context::WithCancel(parent.get());
   std::weak_ptr<eo::context::Context> child_ref = child;
 
   cancel_child();
@@ -123,40 +123,40 @@ void test_child_cancel_releases_parent_reference() {
 }
 
 void test_child_survives_released_parent() {
-  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
-  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
-  auto child_done = child->done();
+  auto [parent, cancel_parent] = eo::context::WithCancel(eo::context::Background());
+  auto [child, cancel_child] = eo::context::WithCancel(parent.get());
+  auto child_done = child->Done();
   std::weak_ptr<eo::context::Context> parent_ref = parent;
 
   parent.reset();
 
   check(parent_ref.expired(), "child should not retain its parent through an ownership cycle");
-  check(!child->value(eo::context::Context::Custom).has_value(),
+  check(!child->Value(eo::context::Context::Type::Custom).has_value(),
     "child value lookup should tolerate a released parent");
 
   cancel_child();
 
-  check(child->err() == eo::context::canceled, "child cancel should survive a released parent");
+  check(child->Err() == eo::context::canceled, "child cancel should survive a released parent");
   check(!child_done->raw().is_open(), "child cancel should still close done after parent release");
 }
 
 void test_shared_custom_parent_survives_external_release() {
   auto parent = std::make_shared<CustomContext>();
   std::weak_ptr<CustomContext> parent_ref = parent;
-  auto [child, cancel_child] = eo::context::with_cancel(std::shared_ptr<eo::context::Context>{parent});
+  auto [child, cancel_child] = eo::context::WithCancel(std::shared_ptr<eo::context::Context>{parent});
 
   parent.reset();
 
   check(!parent_ref.expired(), "child should retain a shared custom parent");
-  check(std::any_cast<int>(child->value(eo::context::Context::Custom)) == 42,
+  check(std::any_cast<int>(child->Value(eo::context::Context::Type::Custom)) == 42,
     "child should preserve value lookup through a shared custom parent");
 
   parent_ref.lock()->cancel();
-  for (int i = 0; i < 100 && !child->err(); ++i) {
+  for (int i = 0; i < 100 && !child->Err(); ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
-  check(child->err() == eo::context::canceled, "shared custom parent cancellation should propagate to child");
+  check(child->Err() == eo::context::canceled, "shared custom parent cancellation should propagate to child");
   cancel_child();
   child.reset();
 
@@ -167,30 +167,30 @@ void test_shared_custom_parent_survives_external_release() {
 }
 
 void test_child_of_canceled_parent_is_canceled_immediately() {
-  auto [parent, cancel_parent] = eo::context::with_cancel(eo::context::background());
+  auto [parent, cancel_parent] = eo::context::WithCancel(eo::context::Background());
   cancel_parent();
 
-  auto [child, cancel_child] = eo::context::with_cancel(parent.get());
-  auto done = child->done();
+  auto [child, cancel_child] = eo::context::WithCancel(parent.get());
+  auto done = child->Done();
 
-  check(child->err() == eo::context::canceled, "child should inherit an already canceled parent error");
+  check(child->Err() == eo::context::canceled, "child should inherit an already canceled parent error");
   check(!done->raw().is_open(), "child of canceled parent should start with closed done channel");
 
   cancel_child();
 }
 
 void test_concurrent_state_access_during_cancel() {
-  auto [ctx, cancel] = eo::context::with_cancel(eo::context::background());
+  auto [ctx, cancel] = eo::context::WithCancel(eo::context::Background());
   std::atomic_bool valid{true};
   std::vector<std::thread> readers;
 
   for (int i = 0; i < 8; ++i) {
     readers.emplace_back([&] {
       for (int j = 0; j < 1000; ++j) {
-        if (!ctx->done().has_value()) {
+        if (!ctx->Done().has_value()) {
           valid = false;
         }
-        auto err = ctx->err();
+        auto err = ctx->Err();
         if (err && err != eo::context::canceled) {
           valid = false;
         }
@@ -206,13 +206,13 @@ void test_concurrent_state_access_during_cancel() {
   canceler.join();
 
   check(valid, "concurrent context access observed invalid state");
-  check(ctx->err() == eo::context::canceled, "concurrent cancel should preserve cancellation error");
-  check(!ctx->done()->raw().is_open(), "concurrent cancel should close the done channel");
+  check(ctx->Err() == eo::context::canceled, "concurrent cancel should preserve cancellation error");
+  check(!ctx->Done()->raw().is_open(), "concurrent cancel should close the done channel");
 }
 
 void test_nil_parent_is_rejected() {
   try {
-    eo::context::with_cancel(nullptr);
+    eo::context::WithCancel(nullptr);
   } catch (const std::runtime_error& error) {
     check(std::string{error.what()} == "cannot create context from nil parent", "nil parent returned wrong error");
     return;
