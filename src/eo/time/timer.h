@@ -18,7 +18,7 @@ public:
 
   boost::asio::steady_timer timer;
   chan<time_point> c = make_chan<time_point>(1);
-  bool expired;
+  bool expired = true;
   size_t generation = 0;
 
 private:
@@ -41,12 +41,14 @@ public:
     timer.cancel();
   }
 
-  void reset(const std::chrono::steady_clock::duration& d) {
+  auto reset(const std::chrono::steady_clock::duration& d) -> bool {
     std::lock_guard lock(state_mutex);
+    const auto was_active = !expired;
     timer.cancel();
+    const auto current_generation = ++generation;
+    c.raw().try_receive([](boost::system::error_code, time_point) {});
     timer.expires_after(d);
     expired = false;
-    const auto current_generation = ++generation;
     timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
       std::lock_guard lock(self->state_mutex);
       if (ec || current_generation != self->generation)
@@ -54,6 +56,7 @@ public:
       self->expired = true;
       self->c.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
     });
+    return was_active;
   }
 
   auto stop() -> bool {
