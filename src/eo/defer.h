@@ -48,8 +48,9 @@ public:
     using function_type = std::decay_t<F>;
     using args_type = std::tuple<std::decay_t<Args>...>;
 
-    auto deferred = [function = function_type(std::forward<F>(function)),
-                     args = args_type(std::forward<Args>(args)...)]() mutable {
+    auto stored_function = function_type(std::forward<F>(function));
+    auto stored_args = args_type(std::forward<Args>(args)...);
+    auto deferred = [function = std::move(stored_function), args = std::move(stored_args)]() mutable {
       std::apply(std::move(function), std::move(args));
     };
     calls.emplace_back(std::make_unique<call<decltype(deferred)>>(std::move(deferred)));
