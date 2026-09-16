@@ -8,6 +8,7 @@
 #include <boost/asio/use_future.hpp>
 
 #include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
