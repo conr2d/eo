@@ -59,6 +59,15 @@ auto evaluate_receiver(std::vector<int>& order, std::vector<int>& values) -> rec
   return receiver{&values};
 }
 
+struct pointer_receiver {
+  int value;
+  std::vector<int>* values;
+
+  void AddCurrent() {
+    values->push_back(value);
+  }
+};
+
 struct lifetime_probe {
   explicit lifetime_probe(bool& alive): alive(alive) {
     alive = true;
@@ -111,6 +120,16 @@ void method_receiver_is_saved_at_registration(std::vector<int>& order, std::vect
   eo_defer([=]() mutable { _eo_defer_receiver_0.Add(_eo_defer_arg_0_0); });
 
   check(order == std::vector<int>({0, 1}), "method receiver and argument were not evaluated in source order");
+  eo_defer_run;
+}
+
+void pointer_receiver_preserves_addressable_binding(std::vector<int>& values) {
+  eo_defer_scope;
+  pointer_receiver value{1, &values};
+  auto* _eo_defer_receiver_0 = &value;
+  eo_defer([=] { _eo_defer_receiver_0->AddCurrent(); });
+
+  value.value = 9;
   eo_defer_run;
 }
 
@@ -171,6 +190,10 @@ int main() {
   order.clear();
   method_receiver_is_saved_at_registration(order, values);
   check(values == std::vector<int>{7}, "deferred method call did not preserve its saved receiver");
+
+  values.clear();
+  pointer_receiver_preserves_addressable_binding(values);
+  check(values == std::vector<int>{9}, "deferred pointer receiver did not preserve addressable binding");
 
   values.clear();
   closure_observes_later_variable_value(values);
