@@ -76,7 +76,9 @@ Do not use an alternate Select shape merely because it is equivalent for a parti
 
 ### Defer
 
-A translated function that contains at least one Go `defer` statement declares one function-scoped defer stack at the beginning of the C++ function body:
+The following mapping is canonical for defer registration and normal function returns. Named-result mutation and panic/recover remain unfrozen as described below.
+
+A translated function containing at least one Go `defer` statement declares one function-scoped defer stack at the beginning of the C++ function body:
 
 ```cpp
 func<> f() {
@@ -85,19 +87,45 @@ func<> f() {
 }
 ```
 
-Each direct Go defer call preserves the source call shape through `eo_defer`:
+The stack stores deferred calls but does not execute them from its destructor. Every translated normal exit explicitly executes `eo_defer_run` before leaving the function. This keeps later C++ locals alive while deferred calls execute.
+
+A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal:
 
 ```go
-defer cleanup(x())
+defer cleanup(x(), y())
 ```
 
 ```cpp
-eo_defer(cleanup, x());
+auto _eo_defer_arg_0_0 = x();
+auto _eo_defer_arg_0_1 = y();
+eo_defer([=] { cleanup(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 ```
 
-The deferred function value and direct-call arguments are evaluated when `eo_defer(...)` executes. The call itself executes when the surrounding function exits. Repeated execution, including inside loops, registers a new call each time, and registered calls execute in LIFO order.
+If the deferred callee is itself a function-valued expression, evaluate and save it before the arguments:
 
-A deferred closure is registered as a callable value:
+```go
+defer next()(x())
+```
+
+```cpp
+auto _eo_defer_fn_0 = next();
+auto _eo_defer_arg_0_0 = x();
+eo_defer([=]() mutable { _eo_defer_fn_0(_eo_defer_arg_0_0); });
+```
+
+A deferred method call saves the receiver before its arguments. The invocation syntax follows the translated receiver type, but the saved receiver is the one used when the deferred call runs:
+
+```go
+defer x.M(y())
+```
+
+```cpp
+auto _eo_defer_receiver_0 = x;
+auto _eo_defer_arg_0_0 = y();
+eo_defer([=]() mutable { _eo_defer_receiver_0.M(_eo_defer_arg_0_0); });
+```
+
+A deferred closure is registered as a callable value and may continue to observe surrounding variables through reference capture:
 
 ```go
 defer func() { use(x) }()
@@ -107,9 +135,37 @@ defer func() { use(x) }()
 eo_defer([&] { use(x); });
 ```
 
-The `eo_defer_scope` declaration belongs to the surrounding translated function, not to a nested block containing the defer statement. Do not introduce block-local defer stacks for Go block scopes.
+Repeated execution, including inside loops, registers a new callable each time. Registered calls execute in LIFO order when `eo_defer_run` executes. The `eo_defer_scope` declaration belongs to the surrounding translated function, not to a nested block containing the defer statement.
 
-Named-result mutation by deferred calls and full panic/recover interaction require additional return and panic machinery and are not yet part of the frozen mapping.
+For a void normal return, drain immediately before the return:
+
+```cpp
+eo_defer_run;
+return;
+```
+
+For a value return, evaluate the return expression first, then drain, then return the saved value:
+
+```go
+return result()
+```
+
+```cpp
+auto _eo_return_0 = result();
+eo_defer_run;
+return _eo_return_0;
+```
+
+Coroutine returns follow the same rule:
+
+```cpp
+eo_defer_run;
+co_return;
+```
+
+A function that reaches its end without an explicit return inserts `eo_defer_run` at the natural function exit. Every early normal return must have its own corresponding drain sequence.
+
+Named-result mutation by deferred calls requires explicit result storage that remains mutable until after defer execution and is not yet part of the frozen mapping. Panic/recover and exception-driven exits likewise require separate panic machinery; `eo_defer_run` currently defines the supported normal-return path only.
 
 ## Unfrozen constructs
 
