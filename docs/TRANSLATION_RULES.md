@@ -4,7 +4,7 @@ This document defines the contract for mechanically translating Go source into E
 
 The goal is not merely to produce semantically equivalent C++. The translated result should remain structurally aligned with the Go source so that humans and tooling can compare the implementations and reapply upstream Go changes with minimal semantic interpretation.
 
-For translation principles and compatibility scope, see [Translation Principles](./TRANSLATION.md). Construct-specific documents may define additional canonical mappings, such as [Select Translation Design](./SELECT.md).
+For translation principles and compatibility scope, see [Translation Principles](./TRANSLATION.md). Construct-specific documents may define additional canonical mappings, such as [Goroutine Translation Design](./GOROUTINE.md) and [Select Translation Design](./SELECT.md).
 
 ## Deterministic output
 
@@ -57,6 +57,21 @@ A translator must not rename identifiers merely to follow a C++ naming conventio
 ## Canonical construct mappings
 
 Only mappings that have been explicitly frozen are canonical.
+
+### Goroutine
+
+Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
+
+In particular:
+
+- evaluate and save a function-valued callee before its arguments;
+- evaluate call arguments in source order in the launching goroutine;
+- preserve Go value- vs pointer-receiver binding for method calls;
+- keep generated evaluation temporaries adjacent to the source `go` statement;
+- use `go(...)` only after the call inputs that belong to the launching goroutine have been prepared;
+- do not move source call expressions into a launched wrapper merely to make the C++ shorter.
+
+The launched function body begins only after the source `go` statement's function and argument evaluation is complete.
 
 ### Select
 
@@ -191,7 +206,6 @@ Translation-facing mappings with broad source impact should be frozen before lar
 
 Examples currently requiring additional canonical rules include:
 
-- goroutine call evaluation and launch shape;
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
