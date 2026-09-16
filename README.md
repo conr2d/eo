@@ -126,7 +126,7 @@ func<> f() {
 
 ### Defer
 
-`defer` is represented by the `eo_defer` macro, which uses Eo's lightweight internal RAII scope guard to run the deferred callable when the surrounding scope exits.
+A function containing Go `defer` declares one `eo_defer_scope` at function scope. Each `eo_defer(...)` registers a call on that function-scoped stack. Direct-call arguments are evaluated when the defer statement executes, and registered calls run in LIFO order when the surrounding function exits.
 
 ```go
 // Go
@@ -139,10 +139,14 @@ func f() {
 ```cpp
 // C++
 func<> f() {
-  eo_defer([]() { fmt::Println("world"); });
+  eo_defer_scope;
+  eo_defer(fmt::Println, "world");
   fmt::Println("hello");
+  co_return;
 }
 ```
+
+A deferred closure can be registered directly with `eo_defer([&] { ... });`. Defer statements inside loops and nested blocks still register on the surrounding function's single defer stack.
 
 ### Libraries
 
