@@ -5,6 +5,7 @@
 void register_defer(bool& deferred) {
   eo_defer_scope;
   eo_defer([&] { deferred = true; });
+  eo_defer_run;
 }
 
 int main() {
