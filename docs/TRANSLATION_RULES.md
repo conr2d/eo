@@ -76,7 +76,7 @@ Do not use an alternate Select shape merely because it is equivalent for a parti
 
 ### Defer
 
-The following mapping is canonical for defer registration and normal function returns. Named-result mutation and panic/recover remain unfrozen as described below.
+The following mapping is canonical for defer registration and normal function returns. Named-result mutation, panic/recover, and deferred closures whose captured variables require lifetime extension beyond their translated C++ lexical scope remain unfrozen as described below.
 
 A translated function containing at least one Go `defer` statement declares one function-scoped defer stack at the beginning of the C++ function body:
 
@@ -87,7 +87,7 @@ func<> f() {
 }
 ```
 
-The stack stores deferred calls but does not execute them from its destructor. Every translated normal exit explicitly executes `eo_defer_run` before leaving the function. This keeps later C++ locals alive while deferred calls execute.
+The stack stores deferred calls but does not execute them from its destructor. Every translated normal exit explicitly executes `eo_defer_run` before leaving the function. This keeps function-scope C++ locals alive while deferred calls execute.
 
 A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal:
 
@@ -113,11 +113,9 @@ auto _eo_defer_arg_0_0 = x();
 eo_defer([=]() mutable { _eo_defer_fn_0(_eo_defer_arg_0_0); });
 ```
 
-A deferred method call saves the receiver before its arguments. The invocation syntax follows the translated receiver type, but the saved receiver is the one used when the deferred call runs:
+A deferred method call saves the receiver binding before its arguments. The receiver temporary must reflect the Go method receiver kind, including Go's implicit address/dereference rules.
 
-```go
-defer x.M(y())
-```
+For a value-receiver method, save the receiver value that Go would pass to the method. This includes dereferencing a pointer receiver expression when Go selects a value-receiver method through a pointer:
 
 ```cpp
 auto _eo_defer_receiver_0 = x;
@@ -125,7 +123,21 @@ auto _eo_defer_arg_0_0 = y();
 eo_defer([=]() mutable { _eo_defer_receiver_0.M(_eo_defer_arg_0_0); });
 ```
 
-A deferred closure is registered as a callable value and may continue to observe surrounding variables through reference capture:
+For a pointer-receiver method invoked on an addressable value, preserve Go's implicit `&x` binding by saving a pointer to the original value rather than copying it:
+
+```go
+defer x.M(y()) // M has receiver *T
+```
+
+```cpp
+auto* _eo_defer_receiver_0 = &x;
+auto _eo_defer_arg_0_0 = y();
+eo_defer([=] { _eo_defer_receiver_0->M(_eo_defer_arg_0_0); });
+```
+
+If the source receiver expression already evaluates to a pointer for a pointer-receiver method, evaluate and save that pointer value directly. Translators must resolve the Go receiver kind from the method declaration instead of inferring it from convenient C++ syntax.
+
+A deferred closure may use a direct reference capture only when every referenced translated object remains alive until the function-level `eo_defer_run`:
 
 ```go
 defer func() { use(x) }()
@@ -134,6 +146,8 @@ defer func() { use(x) }()
 ```cpp
 eo_defer([&] { use(x); });
 ```
+
+This shape is not valid when the Go closure captures a variable whose translated C++ lexical lifetime ends before the function-level drain, such as a variable declared inside an inner block or a loop iteration. Go may keep such captured variables alive, while a C++ reference capture would dangle. Until Eo defines a canonical escape/capture-cell mapping, translators must leave that case explicitly unsupported or unfrozen rather than emit `[&]` and silently change semantics.
 
 Repeated execution, including inside loops, registers a new callable each time. Registered calls execute in LIFO order when `eo_defer_run` executes. The `eo_defer_scope` declaration belongs to the surrounding translated function, not to a nested block containing the defer statement.
 
@@ -178,6 +192,7 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine call evaluation and launch shape;
+- deferred closures whose captured variables outlive their translated C++ lexical scope;
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
