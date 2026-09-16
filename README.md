@@ -126,7 +126,7 @@ func<> f() {
 
 ### Defer
 
-A function containing Go `defer` declares one `eo_defer_scope` at function scope. Each `eo_defer(...)` registers a call on that function-scoped stack. Direct-call arguments are evaluated when the defer statement executes, and registered calls run in LIFO order when the surrounding function exits.
+A function containing Go `defer` declares one `eo_defer_scope` at function scope. Deferred callees, receivers, and arguments are saved in source order before `eo_defer(...)` registers a nullary callable. Translated normal exits call `eo_defer_run` before `return` or `co_return`, so deferred calls run in LIFO order while function locals are still alive.
 
 ```go
 // Go
@@ -140,13 +140,15 @@ func f() {
 // C++
 func<> f() {
   eo_defer_scope;
-  eo_defer(fmt::Println, "world");
+  auto _eo_defer_arg_0_0 = std::string{"world"};
+  eo_defer([=] { fmt::Println(_eo_defer_arg_0_0); });
   fmt::Println("hello");
+  eo_defer_run;
   co_return;
 }
 ```
 
-A deferred closure can be registered directly with `eo_defer([&] { ... });`. Defer statements inside loops and nested blocks still register on the surrounding function's single defer stack.
+A deferred closure can still be registered directly with `eo_defer([&] { ... });`. Defer statements inside loops and nested blocks register on the surrounding function's single defer stack. See `docs/TRANSLATION_RULES.md` for the canonical source-order and return translation shapes.
 
 ### Libraries
 
