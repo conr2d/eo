@@ -52,6 +52,7 @@ func<> eo_main() {
     wg->Add(1);
 
     go([wg, i]() -> func<> {
+      eo_defer_scope;
       eo_defer([&]() { wg->Done(); });
       co_await worker(i);
     });
