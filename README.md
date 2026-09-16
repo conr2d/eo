@@ -148,7 +148,7 @@ func<> f() {
 }
 ```
 
-A deferred closure can still be registered directly with `eo_defer([&] { ... });`. Defer statements inside loops and nested blocks register on the surrounding function's single defer stack. See `docs/TRANSLATION_RULES.md` for the canonical source-order and return translation shapes.
+Deferred method receivers follow Go's receiver binding: value receivers save a value, while pointer receivers on addressable values save the corresponding address. A deferred closure may use `eo_defer([&] { ... });` only when every referenced translated object remains alive until the function-level drain; captures that require Go-style lifetime extension across a nested C++ scope are not yet frozen. See `docs/TRANSLATION_RULES.md` for the canonical source-order, receiver, and return translation shapes.
 
 ### Libraries
 
