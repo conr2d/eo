@@ -64,6 +64,18 @@ private:
     return indices;
   }
 
+  template<size_t I>
+  void validate_receive() {
+    static_assert(I < sizeof...(Ts) + 1, "Select receive index out of range");
+    if (!selected_index || *selected_index != I) {
+      throw std::runtime_error("Select receive accessor does not match selected case");
+    }
+    if (receive_consumed) {
+      throw std::runtime_error("Select receive result already consumed");
+    }
+    receive_consumed = true;
+  }
+
 public:
   Select(const Select&) = delete;
   Select(Select&&) = delete;
@@ -109,16 +121,19 @@ public:
 
   template<size_t I>
   auto recv() {
-    static_assert(I < sizeof...(Ts) + 1, "Select receive index out of range");
-    if (!selected_index || *selected_index != I) {
-      throw std::runtime_error("Select receive accessor does not match selected case");
-    }
-    if (receive_consumed) {
-      throw std::runtime_error("Select receive result already consumed");
-    }
     if constexpr (requires { std::get<I>(cases).get(); }) {
-      receive_consumed = true;
+      validate_receive<I>();
       return std::get<I>(cases).get();
+    } else {
+      static_assert(I != I, "Select receive accessor requires a receive case");
+    }
+  }
+
+  template<size_t I>
+  auto recv2() {
+    if constexpr (requires { std::get<I>(cases).get2(); }) {
+      validate_receive<I>();
+      return std::get<I>(cases).get2();
     } else {
       static_assert(I != I, "Select receive accessor requires a receive case");
     }
