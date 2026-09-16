@@ -23,6 +23,14 @@ void check(bool condition, const char* message) {
   }
 }
 
+eo::func<> await_nil_send(eo::chan<int>& nil) {
+  co_await (nil << 1);
+}
+
+eo::func<> await_nil_receive(eo::chan<int>& nil) {
+  (void)co_await *nil;
+}
+
 void test_default_constructed_channel_is_nil() {
   eo::chan<int> first;
   eo::chan<int> second;
@@ -50,14 +58,8 @@ void test_awaited_nil_operations_stay_suspended() {
   eo::chan<int> nil;
   bool progressed = false;
 
-  auto send = [&]() -> eo::func<> {
-    co_await (nil << 1);
-  };
-  auto receive = [&]() -> eo::func<> {
-    (void)co_await *nil;
-  };
-  auto sender = asio::co_spawn(io, send(), asio::use_future);
-  auto receiver = asio::co_spawn(io, receive(), asio::use_future);
+  auto sender = asio::co_spawn(io, await_nil_send(nil), asio::use_future);
+  auto receiver = asio::co_spawn(io, await_nil_receive(nil), asio::use_future);
 
   asio::post(io, [&] { progressed = true; });
   io.poll();
