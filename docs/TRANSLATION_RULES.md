@@ -74,6 +74,43 @@ In particular:
 
 Do not use an alternate Select shape merely because it is equivalent for a particular program.
 
+### Defer
+
+A translated function that contains at least one Go `defer` statement declares one function-scoped defer stack at the beginning of the C++ function body:
+
+```cpp
+func<> f() {
+  eo_defer_scope;
+  // ...
+}
+```
+
+Each direct Go defer call preserves the source call shape through `eo_defer`:
+
+```go
+defer cleanup(x())
+```
+
+```cpp
+eo_defer(cleanup, x());
+```
+
+The deferred function value and direct-call arguments are evaluated when `eo_defer(...)` executes. The call itself executes when the surrounding function exits. Repeated execution, including inside loops, registers a new call each time, and registered calls execute in LIFO order.
+
+A deferred closure is registered as a callable value:
+
+```go
+defer func() { use(x) }()
+```
+
+```cpp
+eo_defer([&] { use(x); });
+```
+
+The `eo_defer_scope` declaration belongs to the surrounding translated function, not to a nested block containing the defer statement. Do not introduce block-local defer stacks for Go block scopes.
+
+Named-result mutation by deferred calls and full panic/recover interaction require additional return and panic machinery and are not yet part of the frozen mapping.
+
 ## Unfrozen constructs
 
 If no canonical translation rule exists for a Go construct, do not silently invent a project-wide convention and treat it as stable.
@@ -85,7 +122,6 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine call evaluation and launch shape;
-- function-scoped `defer` registration;
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
