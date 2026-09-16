@@ -45,13 +45,12 @@ public:
 
   template<typename F, typename... Args>
   void push(F&& function, Args&&... args) {
-    auto deferred = [function = std::decay_t<F>(std::forward<F>(function)),
-                     args = std::tuple<std::decay_t<Args>...>(std::forward<Args>(args)...)]() mutable {
-      std::apply(
-        [&function](auto&&... stored) {
-          std::invoke(std::move(function), std::forward<decltype(stored)>(stored)...);
-        },
-        std::move(args));
+    using function_type = std::decay_t<F>;
+    using args_type = std::tuple<std::decay_t<Args>...>;
+
+    auto deferred = [function = function_type(std::forward<F>(function)),
+                     args = args_type(std::forward<Args>(args)...)]() mutable {
+      std::apply(std::move(function), std::move(args));
     };
     calls.emplace_back(std::make_unique<call<decltype(deferred)>>(std::move(deferred)));
   }
