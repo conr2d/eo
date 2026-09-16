@@ -23,6 +23,11 @@ target_link_libraries(eo_select_canonical PRIVATE eo::eo)
 
 add_test(NAME eo.select_canonical COMMAND eo_select_canonical)
 
+add_executable(eo_defer defer.cpp)
+target_link_libraries(eo_defer PRIVATE eo::eo)
+
+add_test(NAME eo.defer COMMAND eo_defer)
+
 add_executable(eo_context context.cpp)
 target_link_libraries(eo_context PRIVATE eo::eo)
 
