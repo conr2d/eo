@@ -126,7 +126,7 @@ func<> f() {
 
 ### Defer
 
-`defer` is represented by the `eo_defer` macro, which uses Eo's lightweight internal RAII scope guard to run the deferred callable when the surrounding scope exits.
+A function containing Go `defer` declares one `eo_defer_scope` at function scope. Deferred callees, receivers, and arguments are saved in source order before `eo_defer(...)` registers a nullary callable. Translated normal exits call `eo_defer_run` before `return` or `co_return`, so deferred calls run in LIFO order while function locals are still alive.
 
 ```go
 // Go
@@ -139,10 +139,16 @@ func f() {
 ```cpp
 // C++
 func<> f() {
-  eo_defer([]() { fmt::Println("world"); });
+  eo_defer_scope;
+  auto _eo_defer_arg_0_0 = std::string{"world"};
+  eo_defer([=] { fmt::Println(_eo_defer_arg_0_0); });
   fmt::Println("hello");
+  eo_defer_run;
+  co_return;
 }
 ```
+
+Deferred method receivers follow Go's receiver binding: value receivers save a value, while pointer receivers on addressable values save the corresponding address. A deferred closure may use `eo_defer([&] { ... });` only when every referenced translated object remains alive until the function-level drain; captures that require Go-style lifetime extension across a nested C++ scope are not yet frozen. See `docs/TRANSLATION_RULES.md` for the canonical source-order, receiver, and return translation shapes.
 
 ### Libraries
 

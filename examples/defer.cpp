@@ -64,9 +64,12 @@ void close_file(std::FILE* f) {
 }
 
 func<> eo_main() {
+  eo_defer_scope;
   auto f = create_file("/tmp/defer.txt");
-  eo_defer([&]() { close_file(f); });
+  auto _eo_defer_arg_0_0 = f;
+  eo_defer([=] { close_file(_eo_defer_arg_0_0); });
   write_file(f);
 
+  eo_defer_run;
   co_return;
 }
