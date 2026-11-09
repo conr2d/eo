@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 #pragma once
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <map>
 #include <mutex>
 #include <optional>

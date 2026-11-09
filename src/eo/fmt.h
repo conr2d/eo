@@ -56,7 +56,16 @@ struct formatter<std::map<K, V>> {
   }
   template<typename FormatContext>
   auto format(const std::map<K, V>& p, FormatContext& ctx) const {
-    return fmt::format_to(ctx.out(), "map[{}]", fmt::join(p, " "));
+    auto out = fmt::format_to(ctx.out(), "map[");
+    bool first = true;
+    for (const auto& entry : p) {
+      if (!first) {
+        out = fmt::format_to(out, " ");
+      }
+      out = fmt::format_to(out, "{}", entry);
+      first = false;
+    }
+    return fmt::format_to(out, "]");
   }
 };
 
