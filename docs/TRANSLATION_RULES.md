@@ -68,10 +68,13 @@ In particular:
 - evaluate call arguments in source order in the launching goroutine;
 - preserve Go value- vs pointer-receiver binding for method calls;
 - keep generated evaluation temporaries adjacent to the source `go` statement;
+- declare each argument temporary with the translated parameter type, not `auto`;
 - launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
+- pass a function literal called without arguments to `go(...)` directly, since its body is the callee body, and save a function literal called with arguments as the function value;
 - do not move any other source expression into the launched thunk;
 - do not take the address of, or capture by reference, a local variable or parameter of the launching function;
-- do not translate a function-literal capture of a local that either side writes after the `go` statement as a by-value capture; escaping and shared locals are not frozen.
+- do not capture by value, in a launched function literal, a local that is written after the `go` statement as defined in [By-value captures](./GOROUTINE.md#by-value-captures); escaping and shared locals are not frozen;
+- apply Go 1.22 and later per-iteration loop-variable semantics; a loop's own post statement or `range` update is not a write to the variable captured in the current iteration.
 
 `go(...)` returns without running the launched call, including when it is called from a running goroutine.
 
@@ -108,7 +111,7 @@ func<> f() {
 
 The stack stores deferred calls but does not execute them from its destructor. Every translated normal exit explicitly executes `eo_defer_run` before leaving the function. This keeps function-scope C++ locals alive while deferred calls execute.
 
-A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal:
+A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal. Defer statements are counted like `go` statements, as described in [Temporary names](./GOROUTINE.md#temporary-names), with a separate count:
 
 ```go
 defer cleanup(x(), y())
@@ -119,6 +122,8 @@ auto _eo_defer_arg_0_0 = x();
 auto _eo_defer_arg_0_1 = y();
 eo_defer([=] { cleanup(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 ```
+
+Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). Until the defer shape is aligned, a defer argument whose Go conversion changes its type, such as `nil` or a value passed to an interface parameter, is provisional.
 
 If the deferred callee is itself a function-valued expression, evaluate and save it before the arguments:
 
@@ -212,7 +217,8 @@ Examples currently requiring additional canonical rules include:
 
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
 - goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function;
-- goroutine launches of method expressions and interface method calls, and panics in launched goroutines;
+- goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
+- panics in launched goroutines, which are currently discarded or propagate out of the executor instead of terminating the program (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
