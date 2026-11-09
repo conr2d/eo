@@ -222,6 +222,8 @@ Review should ask:
 
 A translation that is semantically correct but unnecessarily restructures the source is not the preferred Eo translation.
 
+Structural review is complemented by behavioral checks. A [parity case](../tests/parity/README.md) runs a Go program and its canonical translation against the same expected output, and records a known divergence as a reproducible test rather than leaving it to review.
+
 ## Upstream synchronization
 
 Upstream Go changes should normally be applied by locating the corresponding translated region and reproducing the same structural change under the canonical Eo mappings.

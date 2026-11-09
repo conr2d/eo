@@ -1,0 +1,3 @@
+exitcode
+An uncaught panic is reported on stderr, but the process exits with status 0.
+Go exits with status 2.

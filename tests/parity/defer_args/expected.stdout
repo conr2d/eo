@@ -1,0 +1,3 @@
+x = 30
+second deferred, x = 20
+first deferred, x = 10
