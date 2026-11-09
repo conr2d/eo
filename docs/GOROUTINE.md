@@ -41,18 +41,16 @@ A call without arguments still uses the thunk: `go([=]() mutable { return f(); }
 
 Declare each argument temporary with the value type of the translated parameter it is passed to, not `auto`. The value type is the translated parameter type with reference and `const`/`volatile` qualifiers removed, so the temporary always holds its own copy: a parameter translated as `const std::string&` gives a `std::string` temporary. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call.
 
-An untyped constant argument takes the parameter type in Go. Write the constant expression so that it is evaluated in that type, by writing its first untyped operand as a value of that type:
+An untyped constant argument, including a named untyped constant, is written as its folded value, as defined in [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments):
 
 ```go
 go f(1 << 40) // func f(n int64)
 ```
 
 ```cpp
-int64_t _eo_go_arg_0_0 = int64_t{1} << 40;
+int64_t _eo_go_arg_0_0 = int64_t{1099511627776};
 go([=]() mutable { return f(_eo_go_arg_0_0); });
 ```
-
-If the parameter has an interface type, the constant takes its Go default type instead (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), and the expression is written in that type before the conversion to the interface. A constant expression whose exact Go value cannot be computed in that C++ type, for example because an intermediate value overflows it, is not frozen.
 
 Function-value and receiver temporaries are declared with `auto`, because Go does not convert them.
 
@@ -122,6 +120,10 @@ Until Eo defines a canonical mapping for escaping and shared locals, a translato
 Saving a pointer value that the source already holds, as in the `p` example above, takes no new address at the `go` statement, but it does not keep the target alive either. If the target is a local variable or parameter, of the launching function or of a caller, the goroutine can outlive it exactly as in the first case above. This applies to a pointer passed as a receiver, as an argument, or through a by-value capture.
 
 Such a pointer is frozen only when its source can be checked in the launching function: the expression is `new(T)`, `&T{...}`, or the address of package-level storage, or it is a local variable of the launching function whose declaration and every assignment are such expressions and whose address is not taken. A pointer from any other source, such as a parameter, a field, a package-level pointer variable, or a function result, cannot be checked locally. The translator uses the same shape and marks the launch as provisional, because its soundness depends on where the pointer came from.
+
+For example, `func (s *T) Start() { go s.loop() }` is provisional: a caller may run `var t T; t.Start()` and pass the address of its own stack local, which the current contract allows.
+
+This boundary is incomplete. Any value that refers to storage has the same hazard as a pointer: a slice of a caller's local array, an interface holding such a pointer, or a struct or array containing one. This contract does not check those values. The real boundary is on the caller side, where the address of a local is taken. Freezing these launches, and dropping the provisional marking above, needs a caller-side rule that allocates a local on the heap whenever Go's escape analysis moves it there; that rule is not defined yet.
 
 ## Function literals
 

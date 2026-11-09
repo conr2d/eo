@@ -58,6 +58,34 @@ A translator must not rename identifiers merely to follow a C++ naming conventio
 
 Only mappings that have been explicitly frozen are canonical.
 
+### Untyped constant arguments
+
+Go evaluates an untyped constant expression exactly, in its own kind, and only then converts its value to the type the context requires. For a call argument, that type is the parameter type, or, for an interface parameter, the constant's default type (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), which is then converted to the interface.
+
+Do not translate the source expression of an untyped constant argument. C++ would evaluate it in a fixed-width type with its own operator precedence. Instead, write the folded constant value that the Go type checker reports for the argument (`go/types` `TypeAndValue.Value`) as a C++ literal of the target type `T`:
+
+- an integer type: `T{N}`, where `N` is the decimal value, with a `u` suffix when `T` is unsigned; the minimum value of a signed type is written `T{-M - 1}`, where `M` is the type's maximum;
+- a floating-point type: when `T` represents the value exactly (`constant.Float64Val` or `constant.Float32Val` reports it exact), its exact decimal value with a decimal point; otherwise the hexadecimal floating literal of the value rounded to `T` (`strconv.FormatFloat(v, 'x', -1, bits)`). Add an `f` suffix when the Go type is `float32`;
+- a boolean: `true` or `false`.
+
+String and complex constants are not frozen yet, because their translated types are not.
+
+```go
+go f(1 / 3)       // func f(x float64); Go value 0
+go f(1.0 / 3)     // func f(x float64)
+go f(7 / 2 * 2.0) // func f(x float64); Go value 6
+go g(1<<2 + 1)    // func g(n int64); Go value 5
+```
+
+```cpp
+double _eo_go_arg_0_0 = 0.0;
+double _eo_go_arg_1_0 = 0x1.5555555555555p-02;
+double _eo_go_arg_2_0 = 6.0;
+int64_t _eo_go_arg_3_0 = int64_t{5};
+```
+
+The literal's C++ type is always `T`. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
+
 ### Goroutine
 
 Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
@@ -123,7 +151,7 @@ auto _eo_defer_arg_0_1 = y();
 eo_defer([=] { cleanup(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 ```
 
-Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). Until the defer shape is aligned, a defer argument whose Go conversion changes its type, such as `nil`, an untyped constant, or a value passed to an interface parameter, is provisional.
+Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). An untyped constant argument follows [Untyped constant arguments](#untyped-constant-arguments). Until the defer shape is aligned, any other defer argument whose Go conversion changes its type, such as `nil` or a non-constant value passed to an interface parameter, is provisional.
 
 If the deferred callee is itself a function-valued expression, evaluate and save it before the arguments:
 
