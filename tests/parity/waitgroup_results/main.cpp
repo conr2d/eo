@@ -1,3 +1,4 @@
+// Provisional: goroutine launch and closure capture are not frozen; wg is boxed, so the defer receiver is wg, not &wg.
 #include <eo/fmt.h>
 #include <eo/sync.h>
 

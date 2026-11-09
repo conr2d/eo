@@ -1,3 +1,4 @@
+// Provisional: the panic form is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <stdexcept>

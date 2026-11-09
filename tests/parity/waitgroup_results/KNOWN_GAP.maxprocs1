@@ -2,3 +2,4 @@ timeout
 sync::WaitGroup::Wait blocks the calling OS thread. With a single runtime
 worker (EOMAXPROCS=1) the goroutines it waits for never run, so the program
 deadlocks. Go completes with GOMAXPROCS=1.
+Nothing is printed before the deadlock, so KNOWN_GAP.maxprocs1.stdout is empty.

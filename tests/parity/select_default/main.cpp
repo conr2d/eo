@@ -1,5 +1,7 @@
 #include <eo/fmt.h>
 
+#include <string>
+
 using namespace eo;
 
 func<> eo_main() {

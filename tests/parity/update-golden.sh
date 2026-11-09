@@ -6,13 +6,22 @@ set -euo pipefail
 cd "$(dirname "$0")"
 go=${GO:-go}
 export GOTOOLCHAIN=local
+# Run with a 60s limit when timeout or gtimeout exists. A function rather than
+# an array, because bash 3.2 with set -u rejects an empty array expansion.
 if command -v timeout >/dev/null; then
-  run_limited=(timeout 60)
+  limit=timeout
 elif command -v gtimeout >/dev/null; then
-  run_limited=(gtimeout 60)
+  limit=gtimeout
 else
-  run_limited=()
+  limit=
 fi
+run_limited() {
+  if [[ -n $limit ]]; then
+    "$limit" 60 "$@"
+  else
+    "$@"
+  fi
+}
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
 
@@ -25,10 +34,10 @@ fi
 for name in "$@"; do
   "$go" build -o "$out/$name" "./$name/main.go"
   set +e
-  "${run_limited[@]}" "$out/$name" >"$out/$name.stdout"
+  run_limited "$out/$name" >"$out/$name.stdout"
   rc=$?
   set -e
-  if [[ ${#run_limited[@]} -gt 0 && $rc -eq 124 ]]; then
+  if [[ -n $limit && $rc -eq 124 ]]; then
     echo "$name: timed out; golden files left unchanged" >&2
     exit 1
   fi

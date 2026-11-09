@@ -1,3 +1,4 @@
+// Provisional: the goroutine launch shape and the panic form are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 #include <stdexcept>
