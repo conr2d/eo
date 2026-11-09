@@ -39,7 +39,20 @@ A call without arguments still uses the thunk: `go([=]() mutable { return f(); }
 
 ### Argument temporary types
 
-Declare each argument temporary with the translated type of the parameter it is passed to, not `auto`. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call. An untyped constant argument has the parameter type in Go and is translated as a constant of that type.
+Declare each argument temporary with the value type of the translated parameter it is passed to, not `auto`. The value type is the translated parameter type with reference and `const`/`volatile` qualifiers removed, so the temporary always holds its own copy: a parameter translated as `const std::string&` gives a `std::string` temporary. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call.
+
+An untyped constant argument takes the parameter type in Go. Write the constant expression so that it is evaluated in that type, by writing its first untyped operand as a value of that type:
+
+```go
+go f(1 << 40) // func f(n int64)
+```
+
+```cpp
+int64_t _eo_go_arg_0_0 = int64_t{1} << 40;
+go([=]() mutable { return f(_eo_go_arg_0_0); });
+```
+
+If the parameter has an interface type, the constant takes its Go default type instead (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), and the expression is written in that type before the conversion to the interface. A constant expression whose exact Go value cannot be computed in that C++ type, for example because an intermediate value overflows it, is not frozen.
 
 Function-value and receiver temporaries are declared with `auto`, because Go does not convert them.
 
@@ -106,13 +119,15 @@ The following are not frozen:
 
 Until Eo defines a canonical mapping for escaping and shared locals, a translator must leave these cases explicitly unsupported or provisional rather than emit `&x`, `[&]`, or a by-value copy that silently changes semantics.
 
-Saving a pointer value that the source already holds, as in the `p` example above, takes no new address at the `go` statement and is allowed. It does not keep the target alive. If `p` points into a local variable or parameter, of the launching function or of a caller, the goroutine can outlive that storage exactly as in the first case above, and the launch is unsupported for the same reason.
+Saving a pointer value that the source already holds, as in the `p` example above, takes no new address at the `go` statement, but it does not keep the target alive either. If the target is a local variable or parameter, of the launching function or of a caller, the goroutine can outlive it exactly as in the first case above. This applies to a pointer passed as a receiver, as an argument, or through a by-value capture.
+
+Such a pointer is frozen only when its source can be checked in the launching function: the expression is `new(T)`, `&T{...}`, or the address of package-level storage, or it is a local variable of the launching function whose declaration and every assignment are such expressions and whose address is not taken. A pointer from any other source, such as a parameter, a field, a package-level pointer variable, or a function result, cannot be checked locally. The translator uses the same shape and marks the launch as provisional, because its soundness depends on where the pointer came from.
 
 ## Function literals
 
 A function literal is a function value. Its closure is created in the launching goroutine, when the `go` statement evaluates the function value. The literal's body is the callee body, so it begins only after launch.
 
-A literal called without arguments is passed to `go(...)` directly. The lambda is both the function value and the launch thunk:
+A literal with no parameters, called without arguments, is passed to `go(...)` directly. The lambda is both the function value and the launch thunk:
 
 ```go
 go func() {
@@ -129,7 +144,7 @@ go([=]() mutable -> func<> {
 
 The rule that the thunk contains only the call applies to the call, which here has no arguments to prepare. The lambda body is the translated body of the literal, not a source expression moved across the launch.
 
-A literal called with arguments is a function-valued call. Save the literal in `_eo_go_fn_N`, prepare its arguments, and launch the usual thunk:
+Any other literal is a function-valued call. Save the literal in `_eo_go_fn_N`, prepare its arguments, and launch the usual thunk:
 
 ```go
 go func(a int64) {
@@ -159,7 +174,8 @@ Each of the following is a write to `v`:
 - an assignment or compound assignment whose target is `v` or a part of `v`, including one target of a multiple assignment, a receive assignment such as `v, ok = <-ch` or a `select` case `case v = <-ch:`, and a short variable declaration that redeclares `v`;
 - `++` or `--` applied to `v` or a part of `v`;
 - `v` or a part of `v` used as an iteration variable of a `range` clause with `=`;
-- taking the address of `v` or a part of `v`, explicitly or implicitly: `&v`, `&v.f`, `&v[i]`, a call or method value of a pointer-receiver method on `v` or a part of `v` (`v.Lock()`, `v.f.Add(1)`, `v.M`), or slicing an array `v[:]`.
+- a `return` statement with operands, which writes every named result parameter of the function it returns from;
+- taking the address of `v` or a part of `v`, explicitly or implicitly: `&v`, `&v.f`, `&v[i]`, a call or method value of a pointer-receiver method on `v` or a part of `v` (`v.Lock()`, `v.f.Add(1)`, `v.M`), or any slice expression (`v[:]`, `v[a:b]`, `v[a:b:c]`) on `v` or a part of `v` that is an array.
 
 Reading `v`, passing it by value, and calling a value-receiver method on it are not writes.
 
@@ -167,7 +183,7 @@ A write counts if it is:
 
 - anywhere in the body of the launched literal;
 - anywhere in another function literal that captures `v`, because it can run at any time;
-- in the launching function, at a statement in `v`'s scope that can run after the `go` statement: any statement after it in source order, and any statement in the body of a loop that encloses the `go` statement and is itself inside `v`'s scope. If a `goto` can jump backward over the `go` statement inside `v`'s scope, every statement in `v`'s scope counts.
+- in the launching function, anywhere in `v`'s scope that can run after the `go` statement: any statement after it in source order, and every part of a loop that encloses the `go` statement and is itself inside `v`'s scope, including its body, condition, post statement, and `range` clause. If a `goto` can jump backward over the `go` statement inside `v`'s scope, every statement in `v`'s scope counts.
 
 Taking the address of `v` counts wherever it appears in `v`'s scope, including before the `go` statement, because writes through the resulting pointer cannot be checked.
 
@@ -176,6 +192,17 @@ Taking the address of `v` counts wherever it appears in `v`'s scope, including b
 Eo follows Go 1.22 and later loop-variable semantics. Each iteration of a `for` loop whose clause declares variables with `:=`, in the three-clause or `range` form, has its own copy of those variables. Code from a module whose Go language version is earlier than 1.22 is not covered when a launched literal captures a loop variable.
 
 For the write check, each iteration's loop variable is a separate variable whose scope is that iteration. The loop's own updates, the post statement of a three-clause loop and the assignment of the next `range` values, act on the next iteration's variable and are not writes to the variable captured in the current iteration. A write to the loop variable inside the loop body is a write to the current iteration's variable, and it counts if it can run after the `go` statement.
+
+The exception for the loop's own updates covers only the variables that the loop's own clause declares with `:=`. A post statement or `range ... =` clause of an enclosing loop that writes any other variable, including the loop variable of an outer loop, counts as above:
+
+```go
+x := 0
+for ; x < n; x++ { // x++ writes the x that every launched literal shares
+	go func() {
+		use(x)
+	}()
+}
+```
 
 The canonical C++ shape keeps the Go clauses in a C++ `for` and declares the loop variables in its init clause:
 

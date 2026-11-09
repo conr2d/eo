@@ -68,13 +68,13 @@ In particular:
 - evaluate call arguments in source order in the launching goroutine;
 - preserve Go value- vs pointer-receiver binding for method calls;
 - keep generated evaluation temporaries adjacent to the source `go` statement;
-- declare each argument temporary with the translated parameter type, not `auto`;
+- declare each argument temporary with the translated parameter's value type (reference and `const`/`volatile` removed), not `auto`;
 - launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
-- pass a function literal called without arguments to `go(...)` directly, since its body is the callee body, and save a function literal called with arguments as the function value;
+- pass a function literal with no parameters, called without arguments, to `go(...)` directly, since its body is the callee body, and save any other function literal as the function value;
 - do not move any other source expression into the launched thunk;
 - do not take the address of, or capture by reference, a local variable or parameter of the launching function;
 - do not capture by value, in a launched function literal, a local that is written after the `go` statement as defined in [By-value captures](./GOROUTINE.md#by-value-captures); escaping and shared locals are not frozen;
-- apply Go 1.22 and later per-iteration loop-variable semantics; a loop's own post statement or `range` update is not a write to the variable captured in the current iteration.
+- apply Go 1.22 and later per-iteration loop-variable semantics; a loop's own post statement or `range` update is not a write to the variables that its clause declares with `:=`, but it is a write to any other variable.
 
 `go(...)` returns without running the launched call, including when it is called from a running goroutine.
 
@@ -123,7 +123,7 @@ auto _eo_defer_arg_0_1 = y();
 eo_defer([=] { cleanup(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 ```
 
-Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). Until the defer shape is aligned, a defer argument whose Go conversion changes its type, such as `nil` or a value passed to an interface parameter, is provisional.
+Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). Until the defer shape is aligned, a defer argument whose Go conversion changes its type, such as `nil`, an untyped constant, or a value passed to an interface parameter, is provisional.
 
 If the deferred callee is itself a function-valued expression, evaluate and save it before the arguments:
 
