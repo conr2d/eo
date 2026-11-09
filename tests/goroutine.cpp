@@ -6,7 +6,10 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/strand.hpp>
+#include <boost/asio/this_coro.hpp>
+#include <boost/asio/use_awaitable.hpp>
 
 #include <chrono>
 #include <future>
@@ -191,6 +194,49 @@ void launch_executor_may_go_out_of_scope() {
   check(order == std::vector<int>({30, 3, 31, 32}), "goroutine launched through a local strand did not run");
 }
 
+void direct_literal_runs_after_launch() {
+  asio::io_context io;
+  std::vector<int> order;
+  auto* o = &order;
+  auto label = std::string{"literal"};
+
+  eo::go(io, [=]() mutable -> eo::func<> {
+    o->push_back(static_cast<int>(label.size()));
+    co_await asio::post(co_await asio::this_coro::executor, asio::use_awaitable);
+    o->push_back(1);
+  });
+
+  check(order.empty(), "function literal body ran in the launching goroutine");
+
+  io.run();
+
+  check(order == std::vector<int>({7, 1}), "function literal body did not run after launch");
+}
+
+// Each iteration's capture is copied into the launched lambda, which must stay valid across a
+// suspension after the launching function has returned.
+void launch_per_iteration(asio::io_context& io, std::vector<std::string>* out) {
+  for (int i = 0; i < 3; i++) {
+    auto name = std::string(32, static_cast<char>('a' + i));
+    eo::go(io, [=]() mutable -> eo::func<> {
+      co_await asio::post(co_await asio::this_coro::executor, asio::use_awaitable);
+      out->push_back(name + std::to_string(i));
+    });
+  }
+}
+
+void per_iteration_capture_outlives_launcher() {
+  asio::io_context io;
+  std::vector<std::string> out;
+
+  launch_per_iteration(io, &out);
+  io.run();
+
+  check(out ==
+      std::vector<std::string>({std::string(32, 'a') + "0", std::string(32, 'b') + "1", std::string(32, 'c') + "2"}),
+    "per-iteration captures did not survive the launching function");
+}
+
 auto send_value(eo::chan<int> ch, int value) -> eo::func<> {
   co_await (ch << value);
 }
@@ -199,8 +245,9 @@ void fulfill(std::promise<int>* done, int value) {
   done->set_value(value);
 }
 
-// Translated code calls the default go(F&&), which launches on runtime::execution_context. With
-// EOMAXPROCS=1 the launcher and the launched goroutines share one worker thread.
+// Translated code calls the default go(F&&), which launches on runtime::execution_context. The
+// outer launches come from the main thread. The nested launch inside _eo_go_fn_1 runs on a runtime
+// worker, which with EOMAXPROCS=1 it shares with the goroutine it launches.
 void default_runtime_launch_and_wait() {
   std::promise<int> plain_done;
   auto plain_result = plain_done.get_future();
@@ -238,5 +285,7 @@ int main() {
   value_receiver_is_copied_at_launch();
   launch_from_running_goroutine_does_not_wait();
   launch_executor_may_go_out_of_scope();
+  direct_literal_runs_after_launch();
+  per_iteration_capture_outlives_launcher();
   default_runtime_launch_and_wait();
 }
