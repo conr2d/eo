@@ -17,9 +17,8 @@ jobs:
         uses: actions/checkout@v4
       - name: Install formatters
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang-format
-          python3 -m pip install --disable-pip-version-check 'cmakefmt==1.7.0'
+          python3 -m pip install --disable-pip-version-check 'clang-format==18.1.8' 'cmakefmt==1.7.0'
+          clang-format --version
       - name: Check C++ formatting
         run: |
           find src examples tests -type f \
