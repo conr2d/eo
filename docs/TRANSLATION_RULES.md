@@ -62,11 +62,11 @@ Only mappings that have been explicitly frozen are canonical.
 
 Go evaluates an untyped constant expression exactly, in its own kind, and only then converts its value to the type the context requires. For a call argument, that type is the parameter type, or, for an interface parameter, the constant's default type (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), which is then converted to the interface.
 
-Do not translate the source expression of an untyped constant argument. C++ would evaluate it in a fixed-width type with its own operator precedence. Instead, write the folded constant value that the Go type checker reports for the argument (`go/types` `TypeAndValue.Value`) as a C++ literal of the target type `T`:
+Do not translate the source expression of an untyped constant argument. C++ would evaluate it in a fixed-width type with its own operator precedence. Instead, write the folded constant value that the Go type checker reports for the argument (`go/types` `TypeAndValue.Value`) as `T{L}`, where `T` is the translated target type, including a translated defined type such as `type Celsius float64`, and `L` is a C++ literal of the value:
 
-- an integer type: `T{N}`, where `N` is the decimal value, with a `u` suffix when `T` is unsigned; the minimum value of a signed type is written `T{-M - 1}`, where `M` is the type's maximum;
-- a floating-point type: when `T` represents the value exactly (`constant.Float64Val` or `constant.Float32Val` reports it exact), its exact decimal value with a decimal point; otherwise the hexadecimal floating literal of the value rounded to `T` (`strconv.FormatFloat(v, 'x', -1, bits)`). Add an `f` suffix when the Go type is `float32`;
-- a boolean: `true` or `false`.
+- integer: `L` is the decimal value, with a `u` suffix when the type is unsigned; the minimum value of a signed type is written `-M - 1`, where `M` is the type's maximum;
+- floating-point: when the type represents the value exactly (`constant.Float64Val` or `constant.Float32Val` reports it exact), `L` is `strconv.FormatFloat(v, 'g', -1, bits)`, with `.0` appended when the result contains neither `.` nor `e`; otherwise `L` is the hexadecimal floating literal of the value rounded to the type, `strconv.FormatFloat(v, 'x', -1, bits)`. Add an `f` suffix when the underlying Go type is `float32`;
+- boolean: `L` is `true` or `false`.
 
 String and complex constants are not frozen yet, because their translated types are not.
 
@@ -75,16 +75,18 @@ go f(1 / 3)       // func f(x float64); Go value 0
 go f(1.0 / 3)     // func f(x float64)
 go f(7 / 2 * 2.0) // func f(x float64); Go value 6
 go g(1<<2 + 1)    // func g(n int64); Go value 5
+go h(37.5)        // func h(c Celsius); type Celsius float64
 ```
 
 ```cpp
-double _eo_go_arg_0_0 = 0.0;
-double _eo_go_arg_1_0 = 0x1.5555555555555p-02;
-double _eo_go_arg_2_0 = 6.0;
+double _eo_go_arg_0_0 = double{0.0};
+double _eo_go_arg_1_0 = double{0x1.5555555555555p-02};
+double _eo_go_arg_2_0 = double{6.0};
 int64_t _eo_go_arg_3_0 = int64_t{5};
+Celsius _eo_go_arg_4_0 = Celsius{37.5};
 ```
 
-The literal's C++ type is always `T`. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
+Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type. The C++ mapping of Go defined types is not frozen; `T{L}` applies to whatever type it produces. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
 
 ### Goroutine
 
