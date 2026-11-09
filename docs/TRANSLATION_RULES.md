@@ -68,8 +68,9 @@ In particular:
 - evaluate call arguments in source order in the launching goroutine;
 - preserve Go value- vs pointer-receiver binding for method calls;
 - keep generated evaluation temporaries adjacent to the source `go` statement;
-- use `go(...)` only after the call inputs that belong to the launching goroutine have been prepared;
-- do not move source call expressions into a launched wrapper merely to make the C++ shorter.
+- launch a nullary `[=]` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
+- do not move any other source expression into the launched thunk;
+- do not save a raw address of a launching-scope local for a goroutine; escaping locals are not frozen.
 
 The launched function body begins only after the source `go` statement's function and argument evaluation is complete.
 
@@ -207,6 +208,7 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
+- goroutine calls and function literals that take the address of, or capture by reference, a local of the launching scope;
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
