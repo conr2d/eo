@@ -68,9 +68,11 @@ In particular:
 - evaluate call arguments in source order in the launching goroutine;
 - preserve Go value- vs pointer-receiver binding for method calls;
 - keep generated evaluation temporaries adjacent to the source `go` statement;
-- launch a nullary `[=]` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
+- launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
 - do not move any other source expression into the launched thunk;
-- do not save a raw address of a launching-scope local for a goroutine; escaping locals are not frozen.
+- do not take the address of, capture by reference, or copy a written-after-launch local variable or parameter of the launching function; escaping and shared locals are not frozen.
+
+`go(...)` returns without running the launched call, including when it is called from a running goroutine.
 
 The launched function body begins only after the source `go` statement's function and argument evaluation is complete.
 
@@ -208,7 +210,8 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
-- goroutine calls and function literals that take the address of, or capture by reference, a local of the launching scope;
+- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function;
+- goroutine launches of method expressions and interface method calls, and panics in launched goroutines;
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.

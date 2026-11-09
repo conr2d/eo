@@ -3,6 +3,8 @@
 //
 #include <eo/core.h>
 
+#include <boost/asio/co_spawn.hpp>
+#include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
 
 #include <stdexcept>
@@ -47,6 +49,15 @@ void plain_function(std::vector<int>* order, int value) {
   order->push_back(value);
 }
 
+struct account {
+  int balance = 0;
+
+  auto Report(std::vector<int>* order) -> eo::func<> {
+    order->push_back(balance);
+    co_return;
+  }
+};
+
 struct counter {
   std::vector<int>* order;
   int calls = 0;
@@ -55,6 +66,9 @@ struct counter {
     order->push_back(++calls);
   }
 };
+
+// These tests pass the address of a test-local vector. That is only safe because io.run() drains
+// every goroutine before the vector goes out of scope; it is not the canonical goroutine mapping.
 
 void function_and_arguments_are_evaluated_before_launch() {
   asio::io_context io;
@@ -79,7 +93,7 @@ void non_coroutine_callee_runs_after_launch() {
 
   auto _eo_go_arg_0_0 = &order;
   auto _eo_go_arg_0_1 = 100;
-  eo::go(io, [=] { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
+  eo::go(io, [=]() mutable { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
 
   check(order.empty(), "non-coroutine callee ran in the launching goroutine");
 
@@ -94,7 +108,7 @@ void plain_callee_runs_after_launch() {
 
   auto _eo_go_arg_0_0 = &order;
   auto _eo_go_arg_0_1 = 7;
-  eo::go(io, [=] { return plain_function(_eo_go_arg_0_0, _eo_go_arg_0_1); });
+  eo::go(io, [=]() mutable { return plain_function(_eo_go_arg_0_0, _eo_go_arg_0_1); });
 
   check(order.empty(), "plain callee ran in the launching goroutine");
 
@@ -117,9 +131,51 @@ void function_value_is_copied_at_launch() {
   check(order == std::vector<int>({1, 1}), "launched goroutine did not call its own copy of the function value");
 }
 
+void value_receiver_is_copied_at_launch() {
+  asio::io_context io;
+  std::vector<int> order;
+
+  auto a = account{1};
+  auto _eo_go_receiver_0 = a;
+  auto _eo_go_arg_0_0 = &order;
+  eo::go(io, [=]() mutable { return _eo_go_receiver_0.Report(_eo_go_arg_0_0); });
+  a.balance = 2;
+
+  io.run();
+
+  check(order == std::vector<int>({1}), "value receiver was not copied at the go statement");
+}
+
+void launch_from_running_goroutine_does_not_wait() {
+  asio::io_context io;
+  std::vector<int> order;
+
+  asio::co_spawn(
+    io,
+    [&]() -> eo::func<> {
+      auto _eo_go_arg_0_0 = &order;
+      auto _eo_go_arg_0_1 = 10;
+      eo::go(io, [=]() mutable { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
+      order.push_back(1);
+
+      auto _eo_go_arg_1_0 = &order;
+      auto _eo_go_arg_1_1 = 20;
+      eo::go(io, [=]() mutable { return plain_function(_eo_go_arg_1_0, _eo_go_arg_1_1); });
+      order.push_back(2);
+      co_return;
+    },
+    asio::detached);
+
+  io.run();
+
+  check(order == std::vector<int>({1, 2, 10, 3, 11, 12, 20}), "go statement waited for the launched goroutine");
+}
+
 int main() {
   function_and_arguments_are_evaluated_before_launch();
   non_coroutine_callee_runs_after_launch();
   plain_callee_runs_after_launch();
   function_value_is_copied_at_launch();
+  value_receiver_is_copied_at_launch();
+  launch_from_running_goroutine_does_not_wait();
 }
