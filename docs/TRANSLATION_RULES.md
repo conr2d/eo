@@ -254,7 +254,6 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
-- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function, or capture by value a variable of an enclosing function;
 - goroutine launches that pass a held pointer whose source the launching function cannot check, an address that is neither local nor package-level storage, a non-owning view argument, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - untyped string and complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
@@ -272,6 +271,10 @@ A translator should not replace an unsupported Go construct with a convenient C+
 When a translation cannot be completed under the current Eo contract, the unresolved construct should remain easy to locate and should identify the missing translation rule.
 
 The purpose of this rule is to keep translation gaps explicit so they can drive Eo development instead of becoming hidden semantic drift.
+
+Currently unsupported:
+
+- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary)).
 
 ## Translation review
 

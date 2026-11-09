@@ -113,7 +113,7 @@ go([=]() mutable { return _eo_go_receiver_0->M(); });
 
 The following are unsupported:
 
-- an address whose storage is, or is a part of, a local variable or parameter of the launching function, whether taken explicitly, by slicing an array, or implied by a pointer-receiver call;
+- an address whose storage is, or is a part of, a local variable or parameter of the launching function or an enclosing function, whether taken explicitly, by slicing an array, or implied by a pointer-receiver call;
 - a function literal that captures a local variable or parameter by reference;
 - a function literal that captures by value a local variable or parameter that is written after the `go` statement, as defined in [By-value captures](#by-value-captures), because a by-value capture would not share it;
 - a function literal that captures by value a local variable or parameter declared in an enclosing function, when the `go` statement is itself inside a function literal.
