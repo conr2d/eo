@@ -56,6 +56,7 @@ struct formatter<std::map<K, V>> {
   }
   template<typename FormatContext>
   auto format(const std::map<K, V>& p, FormatContext& ctx) const {
+    // fmt::join needs <fmt/ranges.h> since fmt 11, whose tuple formatter conflicts with formatter<std::pair> above.
     auto out = fmt::format_to(ctx.out(), "map[");
     bool first = true;
     for (const auto& entry : p) {
