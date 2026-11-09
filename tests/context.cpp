@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #include <eo/context.h>
+#include <eo/invoke.h>
 
 #include <atomic>
 #include <chrono>
@@ -221,6 +222,44 @@ void test_nil_parent_is_rejected() {
   throw std::runtime_error("nil parent did not panic");
 }
 
+void test_with_cancel_inside_goroutine() {
+  // With EOMAXPROCS=1 this goroutine holds the only runtime worker, so WithCancel must not block it.
+  eo::invoke([]() -> eo::func<> {
+    auto [parent, cancel_parent] = eo::context::WithCancel(eo::context::Background());
+    auto [child, cancel_child] = eo::context::WithCancel(parent.get());
+
+    cancel_parent();
+
+    check(child->Err() == eo::context::Canceled, "cancel inside a goroutine should propagate to the child");
+    cancel_child();
+    co_return;
+  }());
+}
+
+void test_child_of_canceled_custom_parent_starts_no_goroutine() {
+  // Run inside a goroutine so that, with EOMAXPROCS=1, a goroutine started by WithCancel could not have run
+  // and released the child before the checks below. With more workers the check depends on that timing.
+  eo::invoke([]() -> eo::func<> {
+    auto parent = std::make_shared<CustomContext>();
+    parent->cancel();
+    std::weak_ptr<CustomContext> parent_ref = parent;
+
+    auto [child, cancel_child] = eo::context::WithCancel(std::shared_ptr<eo::context::Context>{parent});
+    std::weak_ptr<eo::context::Context> child_ref = child;
+
+    check(child->Err() == eo::context::Canceled, "child should inherit a canceled custom parent error");
+
+    parent.reset();
+    child.reset();
+
+    // Go returns from propagateCancel without starting a goroutine when the parent is already done,
+    // so nothing else holds the child or its parent.
+    check(child_ref.expired(), "child of a canceled parent should not be retained by a goroutine");
+    check(parent_ref.expired(), "canceled custom parent should be released with its child");
+    co_return;
+  }());
+}
+
 int main() {
   test_background_context_is_never_canceled();
   test_cancel_closes_done_and_sets_error();
@@ -233,4 +272,6 @@ int main() {
   test_child_of_canceled_parent_is_canceled_immediately();
   test_concurrent_state_access_during_cancel();
   test_nil_parent_is_rejected();
+  test_with_cancel_inside_goroutine();
+  test_child_of_canceled_custom_parent_starts_no_goroutine();
 }
