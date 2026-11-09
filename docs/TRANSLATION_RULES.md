@@ -70,7 +70,7 @@ Do not translate the source expression of an untyped constant argument. C++ woul
 - floating-point: the recorded value `v` is already rounded to the type. Let `x` be `v` as a Go float (`constant.Float64Val` or `constant.Float32Val`) and `s` be `strconv.FormatFloat(x, 'g', -1, bits)`. If `constant.Compare(constant.MakeFromLiteral(s, token.FLOAT, 0), token.EQL, v)` holds, the decimal `s` is exactly `v`, and `L` is `s`, with `.0` appended when it contains neither `.` nor `e`. Otherwise `L` is the hexadecimal floating literal `strconv.FormatFloat(x, 'x', -1, bits)`, which is always exact. Add an `f` suffix when the underlying Go type is `float32`;
 - boolean: `L` is `true` or `false`.
 
-An untyped string constant argument is not folded by this rule. It keeps its ordinary translation as a C++ string literal, and its temporary is declared as for any other argument. A string constant passed to an interface parameter, and any untyped complex constant argument, are not frozen, because the translated string and complex types are not.
+Untyped string and complex constant arguments are not frozen, because no translation of string or complex values is frozen yet. A `go` or `defer` statement with such an argument is provisional. The defer contract never froze a string form, so this does not narrow it.
 
 ```go
 go f(1 / 3)       // func f(x float64); Go value 0
@@ -104,13 +104,13 @@ In particular:
 - evaluate call arguments in source order in the launching goroutine;
 - preserve Go value- vs pointer-receiver binding for method calls;
 - keep generated evaluation temporaries adjacent to the source `go` statement;
-- declare each argument temporary with the translated parameter's value type (reference and `const`/`volatile` removed), not `auto`;
+- declare each argument temporary with the translated parameter's value type (reference and `const`/`volatile` removed), not `auto`; a launch whose translated parameter is a non-owning view type is provisional;
 - launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
 - pass a function literal with no parameters, called without arguments, to `go(...)` directly, since its body is the callee body, and save any other function literal as the function value;
 - do not move any other source expression into the launched thunk;
-- do not take the address of a local variable or parameter of the launching function or a part of one, including by slicing an array, and do not capture one by reference;
+- do not take the address of a local variable or parameter, of the launching function or an enclosing function, or a part of one, including by slicing an array, and do not capture one by reference; any other address that is not a part of a package-level variable is provisional;
 - do not capture by value, in a launched function literal, a local that is written after the `go` statement as defined in [By-value captures](./GOROUTINE.md#by-value-captures); escaping and shared locals are not frozen;
-- do not capture by value a variable declared outside the launching function when the `go` statement is inside a function literal;
+- do not capture by value a local variable or parameter declared in an enclosing function when the `go` statement is inside a function literal;
 - treat a held pointer whose source the launching function cannot check, such as a parameter, as provisional (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - apply Go 1.22 and later per-iteration loop-variable semantics; a loop's own post statement or `range` update is not a write to the variables that its clause declares with `:=`, but it is a write to any other variable.
 
@@ -255,8 +255,8 @@ Examples currently requiring additional canonical rules include:
 
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
 - goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function, or capture by value a variable of an enclosing function;
-- goroutine launches that pass a held pointer whose source the launching function cannot check, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- untyped string constant arguments of `go` and `defer` passed to interface parameters, and untyped complex constant arguments;
+- goroutine launches that pass a held pointer whose source the launching function cannot check, an address that is neither local nor package-level storage, a non-owning view argument, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- untyped string and complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - panics in launched goroutines, which are currently discarded or propagate out of the executor instead of terminating the program (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - labeled `break` and `continue`;

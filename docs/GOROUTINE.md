@@ -15,6 +15,8 @@ The translation therefore has two parts:
 
 Go-to-C++ type mapping is outside this contract. The C++ types in the examples are illustrative.
 
+Two outcomes are used for cases this contract does not freeze. An **unsupported** case has no translation: the translator emits none and leaves the construct failing visibly, as described under [Unsupported constructs](./TRANSLATION_RULES.md#unsupported-constructs). A **provisional** case uses the shape given here, but the translator marks the launch provisional, as described under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs).
+
 ## Why the call goes inside the thunk
 
 Launching a call expression directly, as in `go(f(args...))`, invokes the C++ function `f` before `go(...)` runs. That is only correct if every translated callee is a lazy coroutine whose body cannot run during invocation. A translated function that returns `eo::func<>` without being a coroutine, for example a wrapper that does some work and then returns another coroutine, would run that work in the launching goroutine.
@@ -39,9 +41,9 @@ A call without arguments still uses the thunk: `go([=]() mutable { return f(); }
 
 ### Argument temporary types
 
-Declare each argument temporary with the value type of the translated parameter it is passed to, not `auto`. The value type is the translated parameter type with reference and `const`/`volatile` qualifiers removed, so the temporary always holds its own copy: a parameter translated as `const std::string&` gives a `std::string` temporary. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call.
+Declare each argument temporary with the value type of the translated parameter it is passed to, not `auto`. The value type is the translated parameter type with reference and `const`/`volatile` qualifiers removed, so the temporary holds its own copy whenever that type owns its value: a parameter translated as `const std::string&` gives a `std::string` temporary. If the translated parameter type is a non-owning view, such as `std::string_view` or `std::span`, the temporary would refer to storage that may not outlive the launch, and the launch is provisional until the string and slice mappings are frozen. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call.
 
-An untyped constant argument, including a named untyped constant, is written as its folded value, as defined in [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments):
+An untyped boolean, integer, or floating-point constant argument, including a named untyped constant, is written as its folded value, as defined in [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments), which also covers string and complex constants:
 
 ```go
 go f(1 << 40) // func f(n int64)
@@ -109,14 +111,16 @@ auto* _eo_go_receiver_0 = &g; // g is a package-level variable; M has receiver *
 go([=]() mutable { return _eo_go_receiver_0->M(); });
 ```
 
-The following are not frozen:
+The following are unsupported:
 
 - an address whose storage is, or is a part of, a local variable or parameter of the launching function, whether taken explicitly, by slicing an array, or implied by a pointer-receiver call;
 - a function literal that captures a local variable or parameter by reference;
 - a function literal that captures by value a local variable or parameter that is written after the `go` statement, as defined in [By-value captures](#by-value-captures), because a by-value capture would not share it;
-- a function literal that captures by value a variable declared outside the launching function, when the `go` statement is itself inside a function literal.
+- a function literal that captures by value a local variable or parameter declared in an enclosing function, when the `go` statement is itself inside a function literal.
 
-Until Eo defines a canonical mapping for escaping and shared locals, a translator must leave these cases explicitly unsupported or provisional rather than emit `&x`, `[&]`, or a by-value copy that silently changes semantics.
+Until Eo defines a canonical mapping for escaping and shared locals, a translator must not emit `&x`, `[&]`, or a by-value copy for these cases, because each silently changes semantics.
+
+Any other address taken at a `go` statement, whose storage is neither a part of a package-level variable nor a part of a local variable or parameter, such as `&g.s[i]` through a package-level slice, `&p.f` through a pointer, or `&s[i]` on a slice, is provisional, like a held pointer whose source cannot be checked.
 
 Saving a pointer value that the source already holds, as in the `p` example above, takes no new address at the `go` statement, but it does not keep the target alive either. If the target is a local variable or parameter, of the launching function or of a caller, the goroutine can outlive it exactly as in the first case above. This applies to a pointer passed as a receiver, as an argument, or through a by-value capture.
 
@@ -174,11 +178,15 @@ The check below covers only variables declared in the launching function. When t
 
 ```go
 x := 0
+done := make(chan struct{})
+res := make(chan int)
 start := func() {
-	go func() { use(x) }() // x belongs to the enclosing function
+	go func() { <-done; res <- x }() // x is declared in the enclosing function
 }
 start()
-x = 1 // Go: the goroutine may see 1
+x = 1
+close(done)
+fmt.Println(<-res) // Go prints 1; a by-value copy would give 0
 ```
 
 Such a by-value capture is unsupported until captures of ordinary closures are frozen.
@@ -249,7 +257,7 @@ The following are not covered by this contract yet:
 - method calls on interface values, where Go evaluates the method value, and panics on a nil interface, in the launching goroutine;
 - calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, because Eo has no frozen mapping for the variadic slice that Go builds or passes in the launching goroutine;
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
-- an untyped string constant passed to an interface parameter, and any untyped complex constant argument (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
+- untyped string and complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
 - a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`;
 - a nil pointer `p` in `go p.M()` where `M` has a value receiver. Go panics in the launching goroutine. The prepare step dereferences `p` at the same point, but dereferencing a null C++ pointer is undefined behavior rather than a panic;
 - panics in the launched goroutine. A panic is currently discarded when the callee returns an awaitable and propagates out of the executor when it does not; Go terminates the program in both cases.
