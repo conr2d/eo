@@ -70,7 +70,8 @@ In particular:
 - keep generated evaluation temporaries adjacent to the source `go` statement;
 - launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
 - do not move any other source expression into the launched thunk;
-- do not take the address of, capture by reference, or copy a written-after-launch local variable or parameter of the launching function; escaping and shared locals are not frozen.
+- do not take the address of, or capture by reference, a local variable or parameter of the launching function;
+- do not translate a function-literal capture of a local that either side writes after the `go` statement as a by-value capture; escaping and shared locals are not frozen.
 
 `go(...)` returns without running the launched call, including when it is called from a running goroutine.
 

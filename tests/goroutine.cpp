@@ -6,6 +6,7 @@
 #include <boost/asio/co_spawn.hpp>
 #include <boost/asio/detached.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/strand.hpp>
 
 #include <stdexcept>
 #include <string>
@@ -171,6 +172,23 @@ void launch_from_running_goroutine_does_not_wait() {
   check(order == std::vector<int>({1, 2, 10, 3, 11, 12, 20}), "go statement waited for the launched goroutine");
 }
 
+void launch_through_local_strand(asio::io_context& io, std::vector<int>* order) {
+  auto ex = asio::make_strand(io);
+  auto _eo_go_arg_0_0 = order;
+  auto _eo_go_arg_0_1 = 30;
+  eo::go(ex, [=]() mutable { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
+}
+
+void launch_executor_may_go_out_of_scope() {
+  asio::io_context io;
+  std::vector<int> order;
+
+  launch_through_local_strand(io, &order);
+  io.run();
+
+  check(order == std::vector<int>({30, 3, 31, 32}), "goroutine launched through a local strand did not run");
+}
+
 int main() {
   function_and_arguments_are_evaluated_before_launch();
   non_coroutine_callee_runs_after_launch();
@@ -178,4 +196,5 @@ int main() {
   function_value_is_copied_at_launch();
   value_receiver_is_copied_at_launch();
   launch_from_running_goroutine_does_not_wait();
+  launch_executor_may_go_out_of_scope();
 }

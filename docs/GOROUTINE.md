@@ -75,7 +75,14 @@ A launched goroutine can outlive the C++ function that launched it. Go keeps any
 
 This differs from defer. A deferred call runs at the function-level `eo_defer_run`, while the function's locals are still alive, so the defer contract may save `&x` for a pointer receiver on any addressable value. A goroutine has no such bound.
 
-Taking an address at a `go` statement (`&x`, `&s.f`, `&a[i]`, or the implicit `&x` of a pointer-receiver call on an addressable value) is frozen only when the storage is a package-level variable or a subobject of one. The following are not frozen:
+Taking an address at a `go` statement (`&x`, `&s.f`, `&a[i]`, or the implicit `&x` of a pointer-receiver call on an addressable value) is frozen only when the storage is a package-level variable or a subobject of one. That case saves the address like the defer pointer-receiver shape:
+
+```cpp
+auto* _eo_go_receiver_0 = &g; // g is a package-level variable; M has receiver *T
+go([=]() mutable { return _eo_go_receiver_0->M(); });
+```
+
+The following are not frozen:
 
 - an address whose storage is, or is a subobject of, a local variable or parameter of the launching function, whether taken explicitly or implied by a pointer-receiver call;
 - a function literal that captures a local variable or parameter by reference;

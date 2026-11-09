@@ -33,8 +33,16 @@ concept Awaitable =
 // the launcher continues first, and the callee starts on a later turn of the executor.
 template<typename Executor, Awaitable F, typename CompletionToken>
 void go(Executor& ex, F&& f, CompletionToken&& ct) {
-  boost::asio::post(ex, [&ex, f = std::forward<F>(f), ct = std::forward<CompletionToken>(ct)]() mutable {
-    boost::asio::co_spawn(ex, std::move(f), std::move(ct));
+  // Hold the executor by value: ex may be an executor object local to the caller, such as a strand.
+  auto exec = [&] {
+    if constexpr (requires { ex.get_executor(); }) {
+      return ex.get_executor();
+    } else {
+      return ex;
+    }
+  }();
+  boost::asio::post(exec, [exec, f = std::forward<F>(f), ct = std::forward<CompletionToken>(ct)]() mutable {
+    boost::asio::co_spawn(exec, std::move(f), std::move(ct));
   });
 }
 
