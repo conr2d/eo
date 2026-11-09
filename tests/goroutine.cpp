@@ -8,6 +8,8 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <chrono>
+#include <future>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -76,9 +78,9 @@ void function_and_arguments_are_evaluated_before_launch() {
   std::vector<int> order;
 
   auto _eo_go_fn_0 = evaluate_function(order);
-  auto _eo_go_arg_0_0 = &order;
-  auto _eo_go_arg_0_1 = evaluate_argument(order, 1, 10);
-  auto _eo_go_arg_0_2 = evaluate_argument(order, 2, 20);
+  std::vector<int>* _eo_go_arg_0_0 = &order;
+  int _eo_go_arg_0_1 = evaluate_argument(order, 1, 10);
+  int _eo_go_arg_0_2 = evaluate_argument(order, 2, 20);
   eo::go(io, [=]() mutable { return _eo_go_fn_0(_eo_go_arg_0_0, _eo_go_arg_0_1, _eo_go_arg_0_2); });
 
   check(order == std::vector<int>({0, 1, 2}), "goroutine expressions were not evaluated before launch");
@@ -92,8 +94,8 @@ void non_coroutine_callee_runs_after_launch() {
   asio::io_context io;
   std::vector<int> order;
 
-  auto _eo_go_arg_0_0 = &order;
-  auto _eo_go_arg_0_1 = 100;
+  std::vector<int>* _eo_go_arg_0_0 = &order;
+  int _eo_go_arg_0_1 = 100;
   eo::go(io, [=]() mutable { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
 
   check(order.empty(), "non-coroutine callee ran in the launching goroutine");
@@ -107,8 +109,8 @@ void plain_callee_runs_after_launch() {
   asio::io_context io;
   std::vector<int> order;
 
-  auto _eo_go_arg_0_0 = &order;
-  auto _eo_go_arg_0_1 = 7;
+  std::vector<int>* _eo_go_arg_0_0 = &order;
+  int _eo_go_arg_0_1 = 7;
   eo::go(io, [=]() mutable { return plain_function(_eo_go_arg_0_0, _eo_go_arg_0_1); });
 
   check(order.empty(), "plain callee ran in the launching goroutine");
@@ -138,7 +140,7 @@ void value_receiver_is_copied_at_launch() {
 
   auto a = account{1};
   auto _eo_go_receiver_0 = a;
-  auto _eo_go_arg_0_0 = &order;
+  std::vector<int>* _eo_go_arg_0_0 = &order;
   eo::go(io, [=]() mutable { return _eo_go_receiver_0.Report(_eo_go_arg_0_0); });
   a.balance = 2;
 
@@ -154,13 +156,13 @@ void launch_from_running_goroutine_does_not_wait() {
   asio::co_spawn(
     io,
     [&]() -> eo::func<> {
-      auto _eo_go_arg_0_0 = &order;
-      auto _eo_go_arg_0_1 = 10;
+      std::vector<int>* _eo_go_arg_0_0 = &order;
+      int _eo_go_arg_0_1 = 10;
       eo::go(io, [=]() mutable { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
       order.push_back(1);
 
-      auto _eo_go_arg_1_0 = &order;
-      auto _eo_go_arg_1_1 = 20;
+      std::vector<int>* _eo_go_arg_1_0 = &order;
+      int _eo_go_arg_1_1 = 20;
       eo::go(io, [=]() mutable { return plain_function(_eo_go_arg_1_0, _eo_go_arg_1_1); });
       order.push_back(2);
       co_return;
@@ -174,8 +176,8 @@ void launch_from_running_goroutine_does_not_wait() {
 
 void launch_through_local_strand(asio::io_context& io, std::vector<int>* order) {
   auto ex = asio::make_strand(io);
-  auto _eo_go_arg_0_0 = order;
-  auto _eo_go_arg_0_1 = 30;
+  std::vector<int>* _eo_go_arg_0_0 = order;
+  int _eo_go_arg_0_1 = 30;
   eo::go(ex, [=]() mutable { return eager_wrapper(_eo_go_arg_0_0, _eo_go_arg_0_1); });
 }
 
@@ -189,6 +191,45 @@ void launch_executor_may_go_out_of_scope() {
   check(order == std::vector<int>({30, 3, 31, 32}), "goroutine launched through a local strand did not run");
 }
 
+auto send_value(eo::chan<int> ch, int value) -> eo::func<> {
+  co_await (ch << value);
+}
+
+void fulfill(std::promise<int>* done, int value) {
+  done->set_value(value);
+}
+
+// Translated code calls the default go(F&&), which launches on runtime::execution_context. With
+// EOMAXPROCS=1 the launcher and the launched goroutines share one worker thread.
+void default_runtime_launch_and_wait() {
+  std::promise<int> plain_done;
+  auto plain_result = plain_done.get_future();
+  std::promise<int> waited_done;
+  auto waited_result = waited_done.get_future();
+
+  std::promise<int>* _eo_go_arg_0_0 = &plain_done;
+  int _eo_go_arg_0_1 = 7;
+  eo::go([=]() mutable { return fulfill(_eo_go_arg_0_0, _eo_go_arg_0_1); });
+
+  auto _eo_go_fn_1 = [=](std::promise<int>* done) mutable -> eo::func<> {
+    auto ch = eo::make_chan<int>();
+    eo::chan<int> _eo_go_arg_2_0 = ch;
+    int _eo_go_arg_2_1 = 42;
+    eo::go([=]() mutable { return send_value(_eo_go_arg_2_0, _eo_go_arg_2_1); });
+    auto value = co_await *ch;
+    done->set_value(value);
+  };
+  std::promise<int>* _eo_go_arg_1_0 = &waited_done;
+  eo::go([=]() mutable { return _eo_go_fn_1(_eo_go_arg_1_0); });
+
+  check(plain_result.wait_for(std::chrono::seconds(10)) == std::future_status::ready,
+    "plain goroutine on the runtime did not run");
+  check(plain_result.get() == 7, "plain goroutine on the runtime received the wrong argument");
+  check(waited_result.wait_for(std::chrono::seconds(10)) == std::future_status::ready,
+    "goroutine waiting on a goroutine it launched on the runtime did not finish");
+  check(waited_result.get() == 42, "goroutine launched on the runtime sent the wrong value");
+}
+
 int main() {
   function_and_arguments_are_evaluated_before_launch();
   non_coroutine_callee_runs_after_launch();
@@ -197,4 +238,5 @@ int main() {
   value_receiver_is_copied_at_launch();
   launch_from_running_goroutine_does_not_wait();
   launch_executor_may_go_out_of_scope();
+  default_runtime_launch_and_wait();
 }
