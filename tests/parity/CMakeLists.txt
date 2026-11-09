@@ -3,10 +3,12 @@
 find_program(EO_GO_EXECUTABLE go)
 if(EO_GO_EXECUTABLE)
   # Reject shims that cannot run and toolchains older than the go.mod version.
+  # Run outside the module, so an old toolchain reports its version instead of
+  # refusing go.mod.
   set(eo_go_local ${CMAKE_COMMAND} -E env GOTOOLCHAIN=local)
   execute_process(
     COMMAND ${eo_go_local} ${EO_GO_EXECUTABLE} env GOVERSION
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     RESULT_VARIABLE eo_go_result
     OUTPUT_VARIABLE eo_go_version ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
   set(eo_go_minor "")
@@ -33,7 +35,7 @@ function(eo_add_parity_test test name known_gap timeout environment)
   set(case_dir ${CMAKE_CURRENT_SOURCE_DIR}/${name})
   if(ARGN STREQUAL "GO")
     set(side -DGO=${EO_GO_EXECUTABLE} -DCASE_NAME=${name} -DPARITY_DIR=${CMAKE_CURRENT_SOURCE_DIR}
-        -DPROGRAM=${CMAKE_CURRENT_BINARY_DIR}/${test})
+        -DPROGRAM=${CMAKE_CURRENT_BINARY_DIR}/${test}-bin${CMAKE_EXECUTABLE_SUFFIX})
   else()
     set(side -DPROGRAM=$<TARGET_FILE:eo_parity_${name}> -DKNOWN_GAP=${case_dir}/${known_gap})
   endif()
@@ -96,12 +98,14 @@ eo_add_parity_case(shared_variable)
 eo_add_parity_case(waitgroup_results ENVIRONMENT EOMAXPROCS=4)
 eo_add_parity_variant(waitgroup_results maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPROCS=1 GO_ENVIRONMENT GOMAXPROCS=1)
 
-# Every case directory must be registered above.
+# A case directory missing from the list above gets a failing test, so CTest
+# reports it without breaking the build.
 file(GLOB eo_parity_sources RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*/main.go)
 get_property(eo_parity_cases GLOBAL PROPERTY EO_PARITY_CASES)
 foreach(source IN LISTS eo_parity_sources)
   get_filename_component(eo_parity_name ${source} DIRECTORY)
   if(NOT eo_parity_name IN_LIST eo_parity_cases)
-    message(FATAL_ERROR "tests/parity/${eo_parity_name} has no eo_add_parity_case() entry")
+    message(WARNING "tests/parity/${eo_parity_name} has no eo_add_parity_case() entry")
+    add_test(NAME parity.${eo_parity_name}.unregistered COMMAND ${CMAKE_COMMAND} -E false)
   endif()
 endforeach()

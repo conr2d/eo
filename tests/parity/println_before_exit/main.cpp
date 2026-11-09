@@ -1,4 +1,4 @@
-// Provisional: os.Exit is not a frozen mapping; std::_Exit ends the process at once, as Go does.
+// Provisional: os.Exit is not a frozen mapping; std::_Exit ends the process at once, as Go does (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdlib>

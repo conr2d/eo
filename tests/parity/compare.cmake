@@ -30,14 +30,8 @@ if(NOT EXISTS "${PROGRAM}")
   message(FATAL_ERROR "program not found: ${PROGRAM}")
 endif()
 
-# Disable core files for the child where a shell is available, so a crash is
-# not slowed by writing one. See README.md about pipe core handlers.
-set(run "${PROGRAM}")
-if(CMAKE_HOST_UNIX AND EXISTS /bin/sh)
-  set(run /bin/sh -c [[ulimit -c 0 && exec "$0"]] "${PROGRAM}")
-endif()
 execute_process(
-  COMMAND ${run}
+  COMMAND "${PROGRAM}"
   WORKING_DIRECTORY "${CASE_DIR}"
   RESULT_VARIABLE actual_exitcode
   OUTPUT_VARIABLE actual_stdout
@@ -86,26 +80,40 @@ if(DEFINED KNOWN_GAP AND EXISTS "${KNOWN_GAP}")
   if(NOT declared MATCHES "^(exitcode|stdout|timeout)$")
     message(FATAL_ERROR "${KNOWN_GAP}: first line must be exitcode, stdout, or timeout, got '${declared}'")
   endif()
-  # A timeout gap also declares the exact output written before the hang.
-  set(timeout_stdout_file "${KNOWN_GAP}.stdout")
-  if(declared STREQUAL "timeout" AND NOT EXISTS "${timeout_stdout_file}")
-    message(FATAL_ERROR "${KNOWN_GAP} declares timeout but ${timeout_stdout_file} is missing")
+  # A gap also pins what the C++ side actually does: <marker>.stdout is required
+  # for stdout and timeout gaps and compared whenever present; <marker>.exitcode
+  # is required for, and only allowed with, an exitcode gap.
+  set(gap_stdout_file "${KNOWN_GAP}.stdout")
+  set(gap_exitcode_file "${KNOWN_GAP}.exitcode")
+  if(declared MATCHES "^(stdout|timeout)$" AND NOT EXISTS "${gap_stdout_file}")
+    message(FATAL_ERROR "${KNOWN_GAP} declares ${declared} but ${gap_stdout_file} is missing")
   endif()
-  if(NOT declared STREQUAL "timeout" AND EXISTS "${timeout_stdout_file}")
-    message(FATAL_ERROR "${timeout_stdout_file} exists but ${KNOWN_GAP} does not declare timeout")
+  if(declared STREQUAL "exitcode" AND NOT EXISTS "${gap_exitcode_file}")
+    message(FATAL_ERROR "${KNOWN_GAP} declares exitcode but ${gap_exitcode_file} is missing")
+  endif()
+  if(NOT declared STREQUAL "exitcode" AND EXISTS "${gap_exitcode_file}")
+    message(FATAL_ERROR "${gap_exitcode_file} exists but ${KNOWN_GAP} does not declare exitcode")
   endif()
   if(mismatches STREQUAL "")
-    message(FATAL_ERROR "known gap closed: output now matches Go. Delete ${KNOWN_GAP}.")
+    message(FATAL_ERROR "known gap closed: output now matches Go. Delete ${KNOWN_GAP} and its .stdout/.exitcode files.")
   endif()
   if(NOT mismatches STREQUAL declared)
     message(FATAL_ERROR "known gap declares '${declared}' but got '${mismatches}'\n${details}")
   endif()
-  if(declared STREQUAL "timeout")
-    file(READ "${timeout_stdout_file}" timeout_stdout)
-    if(NOT actual_stdout STREQUAL timeout_stdout)
+  if(EXISTS "${gap_stdout_file}")
+    file(READ "${gap_stdout_file}" gap_stdout)
+    if(NOT actual_stdout STREQUAL gap_stdout)
       message(
         FATAL_ERROR
-          "stdout before timeout differs from ${timeout_stdout_file}\n--- expected\n${timeout_stdout}--- actual\n${actual_stdout}---\n${details}")
+          "stdout differs from ${gap_stdout_file}; update it if the new output is right\n--- expected\n${gap_stdout}--- actual\n${actual_stdout}---\n${details}")
+    endif()
+  endif()
+  if(EXISTS "${gap_exitcode_file}")
+    file(STRINGS "${gap_exitcode_file}" gap_exitcode LIMIT_COUNT 1)
+    if(NOT actual_exitcode STREQUAL gap_exitcode)
+      message(
+        FATAL_ERROR
+          "exit code ${actual_exitcode} differs from ${gap_exitcode_file} (${gap_exitcode}); update it if the new exit code is right\n${details}")
     endif()
   endif()
   message(STATUS "known gap reproduced (${declared})")
