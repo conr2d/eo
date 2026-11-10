@@ -28,9 +28,22 @@ template<typename F>
 concept Awaitable =
   requires(F&& f) { boost::asio::co_spawn(runtime::execution_context, std::forward<F>(f), boost::asio::detached); };
 
+// Starting a coroutine with co_spawn runs it inline when the caller is already on the target
+// executor. A Go `go` statement never waits for the new goroutine, so the spawn itself is posted:
+// the launcher continues first, and the callee starts on a later turn of the executor.
 template<typename Executor, Awaitable F, typename CompletionToken>
 void go(Executor& ex, F&& f, CompletionToken&& ct) {
-  boost::asio::co_spawn(ex, std::forward<F>(f), std::forward<CompletionToken>(ct));
+  // Hold the executor by value: ex may be an executor object local to the caller, such as a strand.
+  auto exec = [&] {
+    if constexpr (requires { ex.get_executor(); }) {
+      return ex.get_executor();
+    } else {
+      return ex;
+    }
+  }();
+  boost::asio::post(exec, [exec, f = std::forward<F>(f), ct = std::forward<CompletionToken>(ct)]() mutable {
+    boost::asio::co_spawn(exec, std::move(f), std::move(ct));
+  });
 }
 
 template<typename Executor, typename F>

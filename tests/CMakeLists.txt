@@ -28,6 +28,13 @@ target_link_libraries(eo_defer PRIVATE eo::eo)
 
 add_test(NAME eo.defer COMMAND eo_defer)
 
+add_executable(eo_goroutine goroutine.cpp)
+target_link_libraries(eo_goroutine PRIVATE eo::eo)
+
+add_test(NAME eo.goroutine COMMAND eo_goroutine)
+add_test(NAME eo.goroutine_one_worker COMMAND eo_goroutine)
+set_tests_properties(eo.goroutine_one_worker PROPERTIES ENVIRONMENT "EOMAXPROCS=1")
+
 add_executable(eo_context context.cpp)
 target_link_libraries(eo_context PRIVATE eo::eo)
 

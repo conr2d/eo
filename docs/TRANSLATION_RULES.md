@@ -4,7 +4,7 @@ This document defines the contract for mechanically translating Go source into E
 
 The goal is not merely to produce semantically equivalent C++. The translated result should remain structurally aligned with the Go source so that humans and tooling can compare the implementations and reapply upstream Go changes with minimal semantic interpretation.
 
-For translation principles and compatibility scope, see [Translation Principles](./TRANSLATION.md). Construct-specific documents may define additional canonical mappings, such as [Select Translation Design](./SELECT.md).
+For translation principles and compatibility scope, see [Translation Principles](./TRANSLATION.md). Construct-specific documents may define additional canonical mappings, such as [Goroutine Translation Design](./GOROUTINE.md) and [Select Translation Design](./SELECT.md).
 
 ## Deterministic output
 
@@ -58,6 +58,66 @@ A translator must not rename identifiers merely to follow a C++ naming conventio
 
 Only mappings that have been explicitly frozen are canonical.
 
+### Untyped constant arguments
+
+Go evaluates an untyped constant expression exactly, in its own kind, and only then converts its value to the type the context requires. For a call argument, that type is the parameter type, or, for an interface parameter, the constant's default type (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), which is then converted to the interface.
+
+This rule applies to the argument temporaries of `go` and `defer` statements. The same hazard exists for untyped constants in ordinary calls, assignments, and comparisons; a general rule for those is future work.
+
+Do not translate the source expression of an untyped constant argument. C++ would evaluate it in a fixed-width type with its own operator precedence. Instead, write the folded constant value that the Go type checker reports for the argument (`go/types` `TypeAndValue.Value`) as `T{L}`, where `T` is the translated target type, including a translated defined type such as `type Celsius float64`, and `L` is a C++ literal of the value:
+
+- integer: `L` is the decimal value, with a `u` suffix when the type is unsigned; the minimum value of a signed type is written `-M - 1`, where `M` is the type's maximum;
+- floating-point: the recorded value `v` is already rounded to the type. Let `x` be `v` as a Go float (`constant.Float64Val` or `constant.Float32Val`) and `s` be `strconv.FormatFloat(x, 'g', -1, bits)`. If `constant.Compare(constant.MakeFromLiteral(s, token.FLOAT, 0), token.EQL, v)` holds, the decimal `s` is exactly `v`, and `L` is `s`, with `.0` appended when it contains neither `.` nor `e`. Otherwise `L` is the hexadecimal floating literal `strconv.FormatFloat(x, 'x', -1, bits)`, which is always exact. Add an `f` suffix when the underlying Go type is `float32`;
+- boolean: `L` is `true` or `false`.
+
+Untyped string and complex constant arguments are not frozen, because no translation of string or complex values is frozen yet. A `go` or `defer` statement with such an argument is provisional. The defer contract never froze a string form, so this does not narrow it.
+
+```go
+go f(1 / 3)       // func f(x float64); Go value 0
+go f(1.0 / 3)     // func f(x float64)
+go f(7 / 2 * 2.0) // func f(x float64); Go value 6
+go g(1<<2 + 1)    // func g(n int64); Go value 5
+go h(37.5)        // func h(c Celsius); type Celsius float64
+go k(0.1)         // func k(x float32)
+go f(1e23)        // func f(x float64)
+```
+
+```cpp
+double _eo_go_arg_0_0 = double{0.0};
+double _eo_go_arg_1_0 = double{0x1.5555555555555p-02};
+double _eo_go_arg_2_0 = double{6.0};
+int64_t _eo_go_arg_3_0 = int64_t{5};
+Celsius _eo_go_arg_4_0 = Celsius{37.5};
+float _eo_go_arg_5_0 = float{0x1.99999ap-04f};
+double _eo_go_arg_6_0 = double{0x1.52d02c7e14af6p+76};
+```
+
+Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type. The C++ mapping of Go defined types is not frozen; `T{L}` applies to whatever type it produces. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
+
+### Goroutine
+
+Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
+
+In particular:
+
+- evaluate and save a function-valued callee before its arguments;
+- evaluate call arguments in source order in the launching goroutine;
+- preserve Go value- vs pointer-receiver binding for method calls;
+- keep generated evaluation temporaries adjacent to the source `go` statement;
+- declare each argument temporary with the translated parameter's value type (reference and `const`/`volatile` removed), not `auto`; a launch whose translated parameter is a non-owning view type is provisional;
+- launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
+- pass a function literal with no parameters, called without arguments, to `go(...)` directly, since its body is the callee body, and save any other function literal as the function value;
+- do not move any other source expression into the launched thunk;
+- do not take the address of a local variable or parameter, of the launching function or an enclosing function, or a part of one, including by slicing an array, and do not capture one by reference; any other address that is not a part of a package-level variable is provisional;
+- do not capture by value, in a launched function literal, a local that is written after the `go` statement as defined in [By-value captures](./GOROUTINE.md#by-value-captures); escaping and shared locals are not frozen;
+- do not capture by value a local variable or parameter declared in an enclosing function when the `go` statement is inside a function literal;
+- treat a held pointer whose source the launching function cannot check, such as a parameter, as provisional (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- apply Go 1.22 and later per-iteration loop-variable semantics; a loop's own post statement or `range` update is not a write to the variables that its clause declares with `:=`, but it is a write to any other variable.
+
+`go(...)` returns without running the launched call, including when it is called from a running goroutine.
+
+The launched function body begins only after the source `go` statement's function and argument evaluation is complete.
+
 ### Select
 
 Go `select` follows the canonical mapping defined in [Select Translation Design](./SELECT.md).
@@ -89,7 +149,7 @@ func<> f() {
 
 The stack stores deferred calls but does not execute them from its destructor. Every translated normal exit explicitly executes `eo_defer_run` before leaving the function. This keeps function-scope C++ locals alive while deferred calls execute.
 
-A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal:
+A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal. Defer statements are counted like `go` statements, as described in [Temporary names](./GOROUTINE.md#temporary-names), with a separate count:
 
 ```go
 defer cleanup(x(), y())
@@ -100,6 +160,8 @@ auto _eo_defer_arg_0_0 = x();
 auto _eo_defer_arg_0_1 = y();
 eo_defer([=] { cleanup(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 ```
+
+Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). An untyped constant argument follows [Untyped constant arguments](#untyped-constant-arguments). Until the defer shape is aligned, any other defer argument whose Go conversion changes its type, such as `nil` or a non-constant value passed to an interface parameter, is provisional.
 
 If the deferred callee is itself a function-valued expression, evaluate and save it before the arguments:
 
@@ -191,8 +253,11 @@ Translation-facing mappings with broad source impact should be frozen before lar
 
 Examples currently requiring additional canonical rules include:
 
-- goroutine call evaluation and launch shape;
 - deferred closures whose captured variables outlive their translated C++ lexical scope;
+- goroutine launches that pass a held pointer whose source the launching function cannot check, an address that is neither local nor package-level storage, a non-owning view argument, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- untyped string and complex constant arguments of `go` and `defer`;
+- goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
+- panics in launched goroutines, which are currently discarded or propagate out of the executor instead of terminating the program (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
@@ -206,6 +271,10 @@ A translator should not replace an unsupported Go construct with a convenient C+
 When a translation cannot be completed under the current Eo contract, the unresolved construct should remain easy to locate and should identify the missing translation rule.
 
 The purpose of this rule is to keep translation gaps explicit so they can drive Eo development instead of becoming hidden semantic drift.
+
+Currently unsupported:
+
+- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary)).
 
 ## Translation review
 
