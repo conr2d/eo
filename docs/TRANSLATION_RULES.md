@@ -257,11 +257,16 @@ A Go operation that blocks the calling goroutine translates to an awaitable that
 
 A Go function whose body contains a blocking operation, or a call to a function translated as a coroutine, is translated as a coroutine returning `func<T>`, and every call to it is `co_await`ed. Other functions stay plain C++ functions. Calls through function values and interface methods, whose target is not known statically, are provisional.
 
+Two call sites do not `co_await`:
+
+- the `go` thunk returns the call (`return f(...)`), and `go(...)` runs the returned awaitable as the goroutine body (see [Goroutine](#goroutine));
+- a deferred call runs synchronously at `eo_defer_run`, so it cannot suspend. A `defer` whose call is a blocking operation or a coroutine, such as `defer wg.Wait()`, is unsupported: the registered call would create an awaitable and drop it, and the deferred work would never run.
+
 `sync.Mutex` and `sync.RWMutex` have no mapping yet. `std::mutex` blocks the OS thread and is provisional (see [#72](https://github.com/conr2d/eo/issues/72)).
 
 Do not use `eo::invoke` in a translation. It blocks the calling OS thread until a coroutine finishes, and it exists for C++ code outside the runtime, such as tests.
 
-`sync.WaitGroup` maps to `sync::WaitGroup` from `<eo/sync.h>`. `Add` and `Done` are plain calls, and `Add` panics with `sync: negative WaitGroup counter` when the counter goes below zero.
+`sync.WaitGroup` maps to `sync::WaitGroup` from `<eo/sync.h>`. `Add` and `Done` are plain calls, and `Add` panics with `sync: negative WaitGroup counter` when the counter goes below zero. A WaitGroup shared with goroutines is held in a `std::shared_ptr` (`sync::WaitGroupPtr`) and used as `wg->Wait()`. That boxing follows the provisional mapping for shared variables.
 
 ### Program termination
 
@@ -307,7 +312,8 @@ The purpose of this rule is to keep translation gaps explicit so they can drive 
 
 Currently unsupported:
 
-- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary)).
+- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations)).
 
 ## Translation review
 
