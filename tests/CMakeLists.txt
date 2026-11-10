@@ -55,6 +55,15 @@ target_link_libraries(eo_exit_blocked_writer PRIVATE eo::eo)
 add_test(NAME eo.exit_blocked_writer COMMAND eo_exit_blocked_writer)
 set_tests_properties(eo.exit_blocked_writer PROPERTIES TIMEOUT 10)
 
+add_executable(eo_main_returns_during_panic main_returns_during_panic.cpp)
+target_link_libraries(eo_main_returns_during_panic PRIVATE eo::main)
+
+# Passes only on exit status 2: WILL_FAIL would also accept a crash.
+add_test(
+  NAME eo.main_returns_during_panic
+  COMMAND sh -c "\"$0\"; test $? -eq 2" $<TARGET_FILE:eo_main_returns_during_panic>)
+set_tests_properties(eo.main_returns_during_panic PROPERTIES TIMEOUT 10)
+
 add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 

@@ -30,6 +30,8 @@ namespace detail {
     (print_arg(std::forward<T>(args)), ...);
     buf.push_back('\n');
     std::fwrite(buf.data(), 1, buf.size(), f);
+    // runtime::exit skips stdout while another thread holds its lock, so this flush is what keeps a
+    // goroutine's last line before os::Exit.
     std::fflush(f);
   }
 
