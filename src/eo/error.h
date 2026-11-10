@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 #pragma once
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <map>
 #include <mutex>
 #include <optional>
@@ -180,8 +180,8 @@ struct formatter<eo::Error> {
   }
 
   template<typename FormatContext>
-  auto format(const eo::Error& err, FormatContext& ctx) -> decltype(ctx.out()) {
-    return format_to(ctx.out(), "{}", err.message());
+  auto format(const eo::Error& err, FormatContext& ctx) const -> decltype(ctx.out()) {
+    return fmt::format_to(ctx.out(), "{}", err.message());
   }
 };
 
