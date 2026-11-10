@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
     if (eptr) {
       runtime::fatal_panic(eptr);
     }
-    runtime::exit(0);
+    runtime::main_returned();
   });
   // Not reached: the pending eo_main keeps the pool's work count above zero, so join() returns only
   // after the handler above has ended the process. If every goroutine blocks forever, the program

@@ -49,6 +49,12 @@ target_link_libraries(eo_exit_blocked_reader PRIVATE eo::eo)
 add_test(NAME eo.exit_blocked_reader COMMAND eo_exit_blocked_reader)
 set_tests_properties(eo.exit_blocked_reader PROPERTIES TIMEOUT 10)
 
+add_executable(eo_exit_blocked_writer exit_blocked_writer.cpp)
+target_link_libraries(eo_exit_blocked_writer PRIVATE eo::eo)
+
+add_test(NAME eo.exit_blocked_writer COMMAND eo_exit_blocked_writer)
+set_tests_properties(eo.exit_blocked_writer PROPERTIES TIMEOUT 10)
+
 add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 

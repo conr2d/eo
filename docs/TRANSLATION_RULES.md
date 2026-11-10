@@ -247,12 +247,12 @@ Named-result mutation by deferred calls requires explicit result storage that re
 
 A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`. The runtime ends the process the way Go does:
 
-- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines;
+- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine is panicking at that moment, that panic ends the process with status 2 instead;
 - `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
 - an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The runtime reports it on stderr and exits with status 2. The panicking goroutine's deferred calls do not run yet, whereas Go runs them before the program ends, so a deferred call that writes output makes the translation diverge (see [Defer](#defer), the `panic_runs_defers` parity gap, and [#70](https://github.com/conr2d/eo/issues/70));
 - `fmt::Println` and `fmt::Fprintln` write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.
 
-Each exit flushes `std::cout`, `std::cerr`, `stdout` and `stderr`, then ends the process with `std::_Exit`. Other `FILE` streams are not flushed, and no static destructors run.
+Each exit flushes `std::cout`, `stdout` and `stderr`, then ends the process with `std::_Exit`. A stream whose lock another thread holds is skipped, for example while a goroutine is blocked writing to a pipe that nobody reads; that write is lost, as it would be in Go. Other `FILE` streams are not flushed, and no static destructors run.\n\nWith `EOMAXPROCS=1`, a goroutine blocked in a read or write occupies the only worker thread, so the goroutine that would call `os::Exit` or return from `eo_main` never runs. Go hands the processor to another thread during a blocking system call. See [#59](https://github.com/conr2d/eo/issues/59).
 
 ## Unfrozen constructs
 
