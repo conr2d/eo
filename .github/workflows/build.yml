@@ -19,6 +19,11 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build libboost-all-dev libfmt-dev
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
       - name: Configure
         run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON
       - name: Build

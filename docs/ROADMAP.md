@@ -84,12 +84,13 @@ After the translation-ready baseline, real ports should become a primary source 
 
 ## 6. Support behavioral parity testing
 
-Make it practical to compare translated C++ implementations with their Go references:
+Make it practical to compare translated C++ implementations with their Go references. The harness in [`tests/parity`](../tests/parity) is the starting point:
 
 - run equivalent inputs through both implementations
 - compare externally observable outputs and state transitions
 - add differential tests for edge cases discovered during ports
 - distinguish deliberate implementation differences from semantic regressions
+- record each known divergence as a parity case that reproduces it until it is fixed
 
 Reference-implementation parity is a useful validation signal, but the compatibility contract remains the behavior guaranteed by the Go language specification and memory model rather than implementation details of one Go runtime.
 

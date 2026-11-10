@@ -1,0 +1,7 @@
+loop 0
+loop 1
+loop 2
+end of main
+deferred 2
+deferred 1
+deferred 0
