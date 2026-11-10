@@ -243,6 +243,37 @@ A function that reaches its end without an explicit return inserts `eo_defer_run
 
 Named-result mutation by deferred calls requires explicit result storage that remains mutable until after defer execution and is not yet part of the frozen mapping. Panic/recover and exception-driven exits likewise require separate panic machinery; `eo_defer_run` currently defines the supported normal-return path only.
 
+### Blocking operations
+
+A Go operation that blocks the calling goroutine translates to an awaitable that the translation suspends on with `co_await`. It never blocks the OS thread. A blocked worker thread stops other goroutines from running, and with `EOMAXPROCS=1` it stops all of them, while Go parks only the goroutine.
+
+| Go | C++ | Status |
+| --- | --- | --- |
+| `select` without `default` | `co_await select.index()` | frozen, see [Select](#select) |
+| `wg.Wait()` | `co_await wg.Wait()` | frozen |
+| `ch <- v` | `co_await (ch << v)` | provisional |
+| `v := <-ch` | `auto v = co_await *ch` | provisional |
+| `time.Sleep(d)` | `co_await time::Sleep(d)` | provisional, including the duration |
+
+A Go function whose body contains a blocking operation, or a call to a function translated as a coroutine, is translated as a coroutine returning `func<T>`, and every call to it is `co_await`ed. Other functions stay plain C++ functions. Calls through function values and interface methods, whose target is not known statically, are provisional.
+
+Two call sites do not `co_await`:
+
+- the `go` thunk returns the call (`return f(...)`), and `go(...)` runs the returned awaitable as the goroutine body (see [Goroutine](#goroutine));
+- a deferred call runs synchronously at `eo_defer_run`, so it cannot suspend. A `defer` is unsupported when its call is a blocking operation or a coroutine, such as `defer wg.Wait()`, and when it defers a function literal whose body would be a coroutine, such as `defer func() { ch <- v }()`: the registered call would create an awaitable and drop it, and the deferred work would never run.
+
+`sync.Mutex` and `sync.RWMutex` have no mapping yet. `std::mutex` blocks the OS thread and is provisional (see [#72](https://github.com/conr2d/eo/issues/72)).
+
+Do not use `eo::invoke` in a translation. It blocks the calling OS thread until a coroutine finishes, and it exists for C++ code outside the runtime, such as tests.
+
+`sync.WaitGroup` maps to `sync::WaitGroup` from `<eo/sync.h>`. `Add` and `Done` are plain calls, and `Add` panics with `sync: negative WaitGroup counter` when the counter goes below zero.
+
+Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.md#lifetime-boundary):
+
+- a local `var wg sync.WaitGroup` that goroutines use through a capture or `&wg` is unsupported until Eo defines a mapping for escaping and shared locals;
+- a `*sync.WaitGroup` value passed to or captured by a goroutine is provisional, even when its source can be checked as described in the Lifetime boundary, because the C++ type of a Go pointer to a WaitGroup is not frozen;
+- the `std::shared_ptr<sync::WaitGroup>` (`sync::WaitGroupPtr`) used with `wg->Wait()` in the examples and in `tests/parity/waitgroup_results` is a provisional local adaptation, not a defined mapping.
+
 ### Program termination
 
 A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`. The runtime ends the process the way Go does:
@@ -254,7 +285,7 @@ A translated program links `eo::main` and defines `func<> eo_main()` in place of
 
 Each exit flushes `std::cout`, `stdout` and `stderr`, then ends the process with `std::_Exit`. A stream whose lock another thread holds is skipped, for example while a goroutine is blocked writing to a pipe that nobody reads; that write is lost, as it would be in Go. Other `FILE` streams are not flushed, and no static destructors run.
 
-With `EOMAXPROCS=1`, a goroutine blocked in a read or write occupies the only worker thread, so the goroutine that would call `os::Exit` or return from `eo_main` never runs. Go hands the processor to another thread during a blocking system call. See [#59](https://github.com/conr2d/eo/issues/59).
+With `EOMAXPROCS=1`, a goroutine blocked in a read or write occupies the only worker thread, so the goroutine that would call `os::Exit` or return from `eo_main` never runs. Go hands the processor to another thread during a blocking system call. See [#71](https://github.com/conr2d/eo/issues/71).
 
 ## Unfrozen constructs
 
@@ -287,7 +318,8 @@ The purpose of this rule is to keep translation gaps explicit so they can drive 
 
 Currently unsupported:
 
-- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary)).
+- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations)).
 
 ## Translation review
 

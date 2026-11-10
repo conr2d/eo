@@ -20,7 +20,7 @@ func<> eo_main() {
     });
   }
 
-  wg->Wait();
+  co_await wg->Wait();
   results.close();
 
   auto sum = 0;
