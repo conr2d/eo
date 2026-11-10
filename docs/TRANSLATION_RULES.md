@@ -260,13 +260,19 @@ A Go function whose body contains a blocking operation, or a call to a function 
 Two call sites do not `co_await`:
 
 - the `go` thunk returns the call (`return f(...)`), and `go(...)` runs the returned awaitable as the goroutine body (see [Goroutine](#goroutine));
-- a deferred call runs synchronously at `eo_defer_run`, so it cannot suspend. A `defer` whose call is a blocking operation or a coroutine, such as `defer wg.Wait()`, is unsupported: the registered call would create an awaitable and drop it, and the deferred work would never run.
+- a deferred call runs synchronously at `eo_defer_run`, so it cannot suspend. A `defer` whose call is a blocking operation or a coroutine is unsupported, such as `defer wg.Wait()`, or a deferred function literal that blocks, such as `defer func() { ch <- v }()`: the registered call would create an awaitable and drop it, and the deferred work would never run.
 
 `sync.Mutex` and `sync.RWMutex` have no mapping yet. `std::mutex` blocks the OS thread and is provisional (see [#72](https://github.com/conr2d/eo/issues/72)).
 
 Do not use `eo::invoke` in a translation. It blocks the calling OS thread until a coroutine finishes, and it exists for C++ code outside the runtime, such as tests.
 
-`sync.WaitGroup` maps to `sync::WaitGroup` from `<eo/sync.h>`. `Add` and `Done` are plain calls, and `Add` panics with `sync: negative WaitGroup counter` when the counter goes below zero. A WaitGroup shared with goroutines is held in a `std::shared_ptr` (`sync::WaitGroupPtr`) and used as `wg->Wait()`. That boxing follows the provisional mapping for shared variables.
+`sync.WaitGroup` maps to `sync::WaitGroup` from `<eo/sync.h>`. `Add` and `Done` are plain calls, and `Add` panics with `sync: negative WaitGroup counter` when the counter goes below zero.
+
+Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.md#lifetime-boundary):
+
+- a local `var wg sync.WaitGroup` that goroutines use through a capture or `&wg` is unsupported until Eo defines a mapping for escaping and shared locals;
+- a `*sync.WaitGroup` value passed to or captured by a goroutine is a held pointer and is provisional;
+- the `std::shared_ptr<sync::WaitGroup>` (`sync::WaitGroupPtr`) used with `wg->Wait()` in the examples and in `tests/parity/waitgroup_results` is a provisional local adaptation, not a defined mapping.
 
 ### Program termination
 
