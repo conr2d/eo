@@ -6,24 +6,31 @@
 
 #include <fmt/format.h>
 #include <cstdio>
+#include <iterator>
 #include <map>
 #include <utility>
 
 namespace fmt {
 namespace detail {
 
+  // Go's fmt.Println writes each call to the unbuffered os.Stdout with a single write. Format the
+  // whole line first, then write and flush it, so output is not held in a stdio buffer and lines
+  // from concurrent goroutines do not interleave.
   template<typename... T>
   void print_line(std::FILE* f, T&&... args) {
+    auto buf = fmt::memory_buffer{};
     bool first = true;
     auto print_arg = [&](auto&& arg) {
       if (!first) {
-        fmt::print(f, " ");
+        buf.push_back(' ');
       }
-      fmt::print(f, "{}", std::forward<decltype(arg)>(arg));
+      fmt::format_to(std::back_inserter(buf), "{}", std::forward<decltype(arg)>(arg));
       first = false;
     };
     (print_arg(std::forward<T>(args)), ...);
-    fmt::print(f, "\n");
+    buf.push_back('\n');
+    std::fwrite(buf.data(), 1, buf.size(), f);
+    std::fflush(f);
   }
 
 } // namespace detail

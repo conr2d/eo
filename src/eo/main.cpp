@@ -2,28 +2,20 @@
 // SPDX-License-Identifier: MIT
 //
 #include <eo/go.h>
-#include <boost/exception/diagnostic_information.hpp>
-#include <iostream>
 
 using namespace eo;
 
 extern func<> eo_main();
 
 int main(int argc, char** argv) {
-  try {
-    std::exception_ptr _eptr{};
-    boost::asio::co_spawn(runtime::execution_context, eo_main(), [&](std::exception_ptr eptr) {
-      _eptr = eptr;
-      runtime::execution_context.stop();
-    });
-    runtime::execution_context.join();
-    if (_eptr) {
-      std::rethrow_exception(_eptr);
+  // When main returns, a Go program exits at once without waiting for other goroutines. An uncaught
+  // panic exits with status 2.
+  boost::asio::co_spawn(runtime::execution_context, eo_main(), [](std::exception_ptr eptr) {
+    if (eptr) {
+      runtime::fatal_panic(eptr);
     }
-  } catch (const boost::exception& e) {
-    std::cerr << boost::diagnostic_information(e) << std::endl;
-  } catch (const std::exception& e) {
-    std::cerr << e.what() << std::endl;
-  } catch (...) {
-  }
+    runtime::exit(0);
+  });
+  runtime::execution_context.join();
+  runtime::exit(0);
 }

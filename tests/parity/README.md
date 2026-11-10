@@ -13,7 +13,7 @@ Each directory here is one behavioral parity case:
 | `KNOWN_GAP.stdout`, `KNOWN_GAP.<variant>.stdout` | The exact stdout the C++ side writes, before it is killed for a `timeout` gap. Required for `stdout` and `timeout` gaps, and compared whenever present. |
 | `KNOWN_GAP.exitcode`, `KNOWN_GAP.<variant>.exitcode` | The exact exit status the C++ side returns. Required for an `exitcode` gap, and allowed only for one. |
 
-Only the Select and Defer forms used here are frozen in the translation rules. Everything else in these translations is provisional, including goroutine launch, closure capture, boxed shared variables, panic, `os.Exit`, string literals as `std::string`, and `map` as `std::map`. Do not copy those forms as canonical. Cases that use goroutine launch, closure capture, boxing, panic, or `os.Exit` also say so in the first line of `main.cpp`.
+Only the Select, Defer, and program termination forms used here are frozen in the translation rules. Everything else in these translations is provisional, including goroutine launch, closure capture, boxed shared variables, panic, string literals as `std::string`, and `map` as `std::map`. Do not copy those forms as canonical. Cases that use goroutine launch, closure capture, boxing, or panic also say so in the first line of `main.cpp`.
 
 ## Tests
 
@@ -29,7 +29,7 @@ Only stdout and the exit status are compared. Stderr is shown when a test fails 
 
 A known-gap test passes only when the declared mismatch, and nothing else, occurs. It fails on a missing binary, a crash, or a different mismatch. Once the gap is fixed it fails with "known gap closed", which is the signal to delete the marker and its `.stdout` or `.exitcode` file. Markers are read when the test runs, so adding or removing one does not need a CMake reconfigure.
 
-A gap also pins what the C++ side actually does, so a different wrong behavior does not pass for the known one. A `stdout` gap must print exactly `KNOWN_GAP.stdout`, and an `exitcode` gap must exit with exactly `KNOWN_GAP.exitcode`. A `timeout` gap must print exactly `KNOWN_GAP.stdout` before it is killed, and that output must also be a prefix of `expected.stdout`. While `fmt::Println` output is buffered (see `println_before_exit`), a timeout gap cannot tell a hang after its first lines from a hang at startup.
+A gap also pins what the C++ side actually does, so a different wrong behavior does not pass for the known one. A `stdout` gap must print exactly `KNOWN_GAP.stdout`, and an `exitcode` gap must exit with exactly `KNOWN_GAP.exitcode`. A `timeout` gap must print exactly `KNOWN_GAP.stdout` before it is killed, and that output must also be a prefix of `expected.stdout`.
 
 A crash that takes longer than `TIMEOUT` to terminate is reported as a timeout. A core dump handler such as apport can take 1 to 2 seconds per crash, so timeout gaps use `TIMEOUT 10`.
 
@@ -51,7 +51,4 @@ The reason for each gap is in its marker file.
 
 | Case | Mismatch | Marker |
 | --- | --- | --- |
-| `goroutine_panic` | timeout | [`goroutine_panic/KNOWN_GAP`](goroutine_panic/KNOWN_GAP) |
-| `panic_exit` | exitcode | [`panic_exit/KNOWN_GAP`](panic_exit/KNOWN_GAP) |
-| `println_before_exit` | stdout | [`println_before_exit/KNOWN_GAP`](println_before_exit/KNOWN_GAP) |
 | `waitgroup_results`, variant `maxprocs1` | timeout | [`waitgroup_results/KNOWN_GAP.maxprocs1`](waitgroup_results/KNOWN_GAP.maxprocs1) |

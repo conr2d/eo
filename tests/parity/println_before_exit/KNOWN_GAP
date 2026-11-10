@@ -1,5 +1,0 @@
-stdout
-fmt::Println writes through C stdio, which is fully buffered when stdout is a
-pipe or file. Output still in the buffer is lost when the process ends without
-a normal exit: std::_Exit, a signal, or a kill after a hang. Go's fmt.Println
-writes to the file descriptor unbuffered, so Go prints "before exit".

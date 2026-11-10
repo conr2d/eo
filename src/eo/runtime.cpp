@@ -3,8 +3,14 @@
 //
 #include <eo/core.h>
 
+#include <boost/exception/diagnostic_information.hpp>
+
 #include <algorithm>
 #include <charconv>
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+#include <mutex>
 #include <string_view>
 #include <thread>
 
@@ -22,5 +28,30 @@ boost::asio::thread_pool execution_context = []() {
   }
   return boost::asio::thread_pool{maxprocs};
 }();
+
+void exit(int code) {
+  // std::exit would run static destructors, and the thread_pool destructor joins worker threads
+  // that may include the caller or be blocked in user code.
+  std::cout.flush();
+  std::cerr.flush();
+  std::fflush(nullptr);
+  std::_Exit(code);
+}
+
+void fatal_panic(std::exception_ptr eptr) {
+  // Never unlocked: a later panic on another thread waits here until the first one exits.
+  static std::mutex reporting;
+  reporting.lock();
+  try {
+    std::rethrow_exception(eptr);
+  } catch (const boost::exception& e) {
+    std::cerr << boost::diagnostic_information(e) << std::endl;
+  } catch (const std::exception& e) {
+    std::cerr << e.what() << std::endl;
+  } catch (...) {
+    std::cerr << "panic: unknown exception" << std::endl;
+  }
+  exit(2);
+}
 
 } // namespace eo::runtime

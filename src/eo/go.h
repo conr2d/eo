@@ -46,14 +46,21 @@ void go(Executor& ex, F&& f, CompletionToken&& ct) {
   });
 }
 
+// A panic that escapes a goroutine ends the program, as in Go.
 template<typename Executor, typename F>
 void go(Executor& ex, F&& f) {
-  boost::asio::post(ex, std::forward<F>(f));
+  boost::asio::post(ex, [f = std::forward<F>(f)]() mutable {
+    try {
+      f();
+    } catch (...) {
+      runtime::fatal_panic(std::current_exception());
+    }
+  });
 }
 
 template<typename Executor, Awaitable F>
 void go(Executor& ex, F&& f) {
-  go(ex, std::forward<F>(f), boost::asio::detached);
+  go(ex, std::forward<F>(f), runtime::detail::goroutine_completion{});
 }
 
 template<Awaitable F, typename CompletionToken>

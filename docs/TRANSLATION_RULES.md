@@ -243,6 +243,17 @@ A function that reaches its end without an explicit return inserts `eo_defer_run
 
 Named-result mutation by deferred calls requires explicit result storage that remains mutable until after defer execution and is not yet part of the frozen mapping. Panic/recover and exception-driven exits likewise require separate panic machinery; `eo_defer_run` currently defines the supported normal-return path only.
 
+### Program termination
+
+A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`. The runtime ends the process the way Go does:
+
+- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines;
+- `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
+- an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The runtime reports it on stderr and exits with status 2;
+- `fmt::Println` and `fmt::Fprintln` write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.
+
+Each exit flushes C++ stream and C stdio output, then ends the process with `std::_Exit`. No static destructors run.
+
 ## Unfrozen constructs
 
 If no canonical translation rule exists for a Go construct, do not silently invent a project-wide convention and treat it as stable.
@@ -257,7 +268,7 @@ Examples currently requiring additional canonical rules include:
 - goroutine launches that pass a held pointer whose source the launching function cannot check, an address that is neither local nor package-level storage, a non-owning view argument, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - untyped string and complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
-- panics in launched goroutines, which are currently discarded or propagate out of the executor instead of terminating the program (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
+- the C++ form of `panic` and `recover`, including the panic value; only what an unrecovered panic does is frozen (see [Program termination](#program-termination));
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
