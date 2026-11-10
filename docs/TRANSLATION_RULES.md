@@ -282,9 +282,14 @@ A panic in a deferred call during `eo_defer_run` leaves `eo_defer_run`, and the 
 - `r := recover()` translates to `auto r = recover();`;
 - `r == nil` and `r != nil` translate to `r == nullptr` and `r != nullptr`;
 - printing `r` with `fmt::Println` prints the panic value as Go does, and `<nil>` for nil;
-- `panic(r)` starts a new panic with the recovered value and message, and `panic(r)` with a nil `r` is `panic(nil)`.
+- `panic(r)` starts a new panic with the recovered value and message, and `panic(r)` with a nil `r` is `panic(nil)`. For a panic raised by a C++ exception other than `eo::Panic`, the new panic keeps the message, and its value is empty.
 
-`recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that. A `recover()` is frozen when it is directly in the body of a deferred function literal, `defer func() { ... recover() ... }()`, and not in a function literal nested in that body, or directly in a named function or method that the program calls only in `defer` statements. Any other `recover()` is unsupported, because a call from inside a deferred function would recover where Go returns nil.
+`recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that. A `recover()` is frozen when it is in one of these places:
+
+- directly in the body of a deferred function literal, `defer func() { ... recover() ... }()`, but not in a function literal nested in that body;
+- directly in the body of a named function or method that the program calls only in `defer` statements.
+
+Any other `recover()` is unsupported, because a call from inside a deferred function would recover where Go returns nil.
 
 The type of a recovered value is provisional beyond comparison with nil and printing: `r.value()` is a `std::any`, and a type assertion such as `r.(error)` has no mapping. `runtime.Goexit` has no mapping.
 
