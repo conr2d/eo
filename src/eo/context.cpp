@@ -1,5 +1,4 @@
 #include <eo/context.h>
-#include <eo/invoke.h>
 #include <eo/select.h>
 
 namespace eo::context {
@@ -174,18 +173,16 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
   if (!done) {
     return; // parent is never canceled
   }
-  invoke([parent, child]() -> func<> {
-    switch (auto select = Select{**parent->Done()}; select.try_index()) {
-    case 0: {
-      child->cancel(false, parent->Err());
-      break;
-    }
-    default: {
-      break;
-    }
-    }
-    co_return;
-  });
+  switch (auto select = Select{**done}; select.try_index()) {
+  case 0: {
+    // parent is already canceled
+    child->cancel(false, parent->Err());
+    return;
+  }
+  default: {
+    break;
+  }
+  }
   if (auto [p, ok] = parent_cancel_ctx(parent); ok) {
     if (auto err = p->add_child(child); err) {
       child->cancel(false, err);
