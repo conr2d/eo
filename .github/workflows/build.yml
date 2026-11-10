@@ -30,3 +30,42 @@ jobs:
         run: cmake --build build
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  sanitizers:
+    if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.label.name == 'ci:run'
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: address,undefined
+            sanitize: address,undefined
+          - name: thread
+            sanitize: thread
+    name: sanitizers (${{ matrix.name }})
+    env:
+      ASAN_OPTIONS: abort_on_error=0:detect_stack_use_after_return=1
+      UBSAN_OPTIONS: print_stacktrace=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libboost-all-dev libfmt-dev
+      # TSan cannot map its shadow memory with the kernel's default ASLR entropy.
+      - name: Lower ASLR entropy
+        if: matrix.sanitize == 'thread'
+        run: sudo sysctl vm.mmap_rnd_bits=28
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON -DCMAKE_BUILD_TYPE=RelWithDebInfo -DEO_SANITIZE=${{ matrix.sanitize }}
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      # Tests that set EOMAXPROCS themselves keep their own value.
+      - name: Test with one worker
+        run: ctest --test-dir build --output-on-failure
+        env:
+          EOMAXPROCS: 1
