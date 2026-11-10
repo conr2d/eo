@@ -1,0 +1,4 @@
+stdout
+A panic does not run the panicking goroutine's deferred calls: the C++ throw
+leaves eo_main without reaching eo_defer_run. Go runs them before the program
+ends, so it prints "deferred". Both exit with status 2.

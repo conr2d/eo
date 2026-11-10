@@ -1,6 +1,0 @@
-timeout
-A panic inside a goroutine is discarded by go(): the detached completion
-handler ignores the exception. The goroutine ends and main blocks forever.
-Go terminates the whole process with status 2.
-KNOWN_GAP.stdout is empty, not "start": the line is still in the stdio buffer
-when the hung process is killed. See println_before_exit/KNOWN_GAP.

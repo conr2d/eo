@@ -1,4 +1,5 @@
 #include <eo/os.h>
+#include <eo/runtime.h>
 
 #include <cstdlib>
 #include <string_view>
@@ -95,6 +96,10 @@ auto ExpandEnv(const std::string& s) -> std::string {
   }
   result.append(s, start, std::string::npos);
   return result;
+}
+
+void Exit(int code) {
+  runtime::exit(code);
 }
 
 } // namespace eo::os

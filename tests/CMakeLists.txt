@@ -43,6 +43,28 @@ set_tests_properties(eo.context PROPERTIES TIMEOUT 10)
 add_test(NAME eo.context_one_worker COMMAND eo_context)
 set_tests_properties(eo.context_one_worker PROPERTIES ENVIRONMENT "EOMAXPROCS=1" TIMEOUT 10)
 
+add_executable(eo_exit_blocked_reader exit_blocked_reader.cpp)
+target_link_libraries(eo_exit_blocked_reader PRIVATE eo::eo)
+
+add_test(NAME eo.exit_blocked_reader COMMAND eo_exit_blocked_reader)
+set_tests_properties(eo.exit_blocked_reader PROPERTIES TIMEOUT 10)
+
+add_executable(eo_exit_blocked_writer exit_blocked_writer.cpp)
+target_link_libraries(eo_exit_blocked_writer PRIVATE eo::eo)
+
+add_test(NAME eo.exit_blocked_writer COMMAND eo_exit_blocked_writer)
+set_tests_properties(eo.exit_blocked_writer PROPERTIES TIMEOUT 10)
+
+add_executable(eo_main_returns_during_panic main_returns_during_panic.cpp)
+target_link_libraries(eo_main_returns_during_panic PRIVATE eo::main)
+
+# Passes only on exit status 2: WILL_FAIL would also accept a crash.
+add_test(
+  NAME eo.main_returns_during_panic
+  COMMAND sh -c "\"$0\"; test $? -eq 2" $<TARGET_FILE:eo_main_returns_during_panic>)
+# Two workers, so eo_main can resume while the panic is in progress.
+set_tests_properties(eo.main_returns_during_panic PROPERTIES ENVIRONMENT "EOMAXPROCS=2" TIMEOUT 10)
+
 add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 

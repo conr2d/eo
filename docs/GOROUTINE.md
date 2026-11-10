@@ -259,10 +259,11 @@ The following are not covered by this contract yet:
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
 - untyped string and complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
 - a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`;
-- a nil pointer `p` in `go p.M()` where `M` has a value receiver. Go panics in the launching goroutine. The prepare step dereferences `p` at the same point, but dereferencing a null C++ pointer is undefined behavior rather than a panic;
-- panics in the launched goroutine. A panic is currently discarded when the callee returns an awaitable and propagates out of the executor when it does not; Go terminates the program in both cases.
+- a nil pointer `p` in `go p.M()` where `M` has a value receiver. Go panics in the launching goroutine. The prepare step dereferences `p` at the same point, but dereferencing a null C++ pointer is undefined behavior rather than a panic.
 
 The nil cases are instances of the panic-producing operations listed under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs). The shapes above remain canonical when the function value and receiver pointer are not nil.
+
+A panic that escapes the launched call ends the program with status 2, whether or not the callee is a coroutine, as in Go (see [Program termination](./TRANSLATION_RULES.md#program-termination)).
 
 ## Structural rule
 

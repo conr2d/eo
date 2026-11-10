@@ -1,12 +1,10 @@
-// Provisional: os.Exit is not a frozen mapping; std::_Exit ends the process at once, as Go does (see ../README.md).
 #include <eo/fmt.h>
-
-#include <cstdlib>
+#include <eo/os.h>
 
 using namespace eo;
 
 func<> eo_main() {
   fmt::Println("before exit");
-  std::_Exit(3);
+  os::Exit(3);
   co_return;
 }
