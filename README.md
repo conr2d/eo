@@ -21,6 +21,8 @@ Eo is under active development and its APIs are not stable.
 
 Dependencies are discovered through standard CMake `find_package` calls. Eo no longer downloads or configures a package manager during CMake configuration.
 
+To build with sanitizers, pass the `-fsanitize=` list as `EO_SANITIZE`, for example `-DEO_SANITIZE=address,undefined` or `-DEO_SANITIZE=thread`. CI runs the test suite both ways, once with the default worker count and once with `EOMAXPROCS=1`.
+
 ## Usage
 
 For more examples, refer [here](https://github.com/conr2d/eo/tree/main/examples).

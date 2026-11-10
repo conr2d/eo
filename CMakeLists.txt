@@ -13,6 +13,13 @@ find_package(Boost 1.81 REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
+# Builds everything with -fsanitize=<list>, e.g. address,undefined or thread.
+set(EO_SANITIZE "" CACHE STRING "Sanitizers to build with, passed to -fsanitize=")
+if(EO_SANITIZE)
+  add_compile_options(-fsanitize=${EO_SANITIZE} -fno-sanitize-recover=all -fno-omit-frame-pointer)
+  add_link_options(-fsanitize=${EO_SANITIZE})
+endif()
+
 include(CTest)
 
 add_subdirectory(src)
