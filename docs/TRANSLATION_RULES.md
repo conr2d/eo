@@ -249,10 +249,10 @@ A translated program links `eo::main` and defines `func<> eo_main()` in place of
 
 - when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines;
 - `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
-- an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The runtime reports it on stderr and exits with status 2;
+- an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The runtime reports it on stderr and exits with status 2. The panicking goroutine's deferred calls do not run yet, whereas Go runs them before the program ends, so a deferred call that writes output makes the translation diverge (see [Defer](#defer), the `panic_runs_defers` parity gap, and [#70](https://github.com/conr2d/eo/issues/70));
 - `fmt::Println` and `fmt::Fprintln` write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.
 
-Each exit flushes C++ stream and C stdio output, then ends the process with `std::_Exit`. No static destructors run.
+Each exit flushes `std::cout`, `std::cerr`, `stdout` and `stderr`, then ends the process with `std::_Exit`. Other `FILE` streams are not flushed, and no static destructors run.
 
 ## Unfrozen constructs
 

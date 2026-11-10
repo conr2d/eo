@@ -43,6 +43,12 @@ set_tests_properties(eo.context PROPERTIES TIMEOUT 10)
 add_test(NAME eo.context_one_worker COMMAND eo_context)
 set_tests_properties(eo.context_one_worker PROPERTIES ENVIRONMENT "EOMAXPROCS=1" TIMEOUT 10)
 
+add_executable(eo_exit_blocked_reader exit_blocked_reader.cpp)
+target_link_libraries(eo_exit_blocked_reader PRIVATE eo::eo)
+
+add_test(NAME eo.exit_blocked_reader COMMAND eo_exit_blocked_reader)
+set_tests_properties(eo.exit_blocked_reader PROPERTIES TIMEOUT 10)
+
 add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 

@@ -32,9 +32,12 @@ boost::asio::thread_pool execution_context = []() {
 void exit(int code) {
   // std::exit would run static destructors, and the thread_pool destructor joins worker threads
   // that may include the caller or be blocked in user code.
+  // Flush only the standard output streams: fflush(nullptr) locks every open FILE, including stdin
+  // while another goroutine is blocked reading it. Println and Fprintln flush their own writes.
   std::cout.flush();
   std::cerr.flush();
-  std::fflush(nullptr);
+  std::fflush(stdout);
+  std::fflush(stderr);
   std::_Exit(code);
 }
 

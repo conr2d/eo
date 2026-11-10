@@ -3,6 +3,8 @@
 //
 #include <eo/go.h>
 
+#include <cstdlib>
+
 using namespace eo;
 
 extern func<> eo_main();
@@ -16,6 +18,9 @@ int main(int argc, char** argv) {
     }
     runtime::exit(0);
   });
+  // Not reached: the pending eo_main keeps the pool's work count above zero, so join() returns only
+  // after the handler above has ended the process. If every goroutine blocks forever, the program
+  // hangs instead of reporting Go's "all goroutines are asleep" deadlock.
   runtime::execution_context.join();
-  runtime::exit(0);
+  std::abort();
 }
