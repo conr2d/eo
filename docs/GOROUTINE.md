@@ -102,7 +102,7 @@ This copies the pointer, not its target. It is sound only when the target outliv
 
 A launched goroutine can outlive the C++ function that launched it. Go keeps any variable that a goroutine can reach alive and shared for as long as it is reachable. A raw C++ pointer or reference into the launching function's storage does not, and a by-value capture copies a variable that Go would share.
 
-This differs from defer. A deferred call runs at the function-level `eo_defer_run`, while the function's locals are still alive, so the defer contract may save `&x` for a pointer receiver on any addressable value. A goroutine has no such bound.
+This differs from defer. A deferred call runs at the function-level `eo_defer_run` or `eo_defer_panic`, before the function returns, so the defer contract may save `&x` for a pointer receiver on an addressable value that is still alive at both points. That excludes a local declared inside the function's `try` block, which is destroyed before `eo_defer_panic` runs (see [Defer](./TRANSLATION_RULES.md#defer)). A goroutine has no such bound.
 
 Taking an address at a `go` statement (`&x`, `&s.f`, `&a[i]`, a slice expression on an array such as `a[:]`, or the implicit `&x` of a pointer-receiver call on an addressable value) is frozen only when the storage is a package-level variable or a part of one. A part is defined as in [By-value captures](#by-value-captures): field selectors and array indexes with no pointer, slice, or map indirection. `&g.s[i]` through a package-level slice `g.s` is therefore not package-level storage, because the backing array may belong to a caller's local. That case saves the address like the defer pointer-receiver shape:
 

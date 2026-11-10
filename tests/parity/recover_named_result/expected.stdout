@@ -1,0 +1,4 @@
+3
+recovered: division by zero
+-1
+result kept after late panic: 5

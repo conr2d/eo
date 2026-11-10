@@ -154,12 +154,18 @@ int evaluate_return(std::vector<int>& order) {
 }
 
 int return_expression_precedes_defer(std::vector<int>& order) {
+  int _eo_result_0{};
   eo_defer_scope;
-  eo_defer([&] { order.push_back(2); });
+  try {
+    eo_defer([&] { order.push_back(2); });
 
-  auto _eo_return_0 = evaluate_return(order);
-  eo_defer_run;
-  return _eo_return_0;
+    _eo_result_0 = evaluate_return(order);
+    eo_defer_run;
+    return _eo_result_0;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return _eo_result_0;
 }
 
 auto coroutine_defer(std::vector<int>& values) -> eo::func<> {

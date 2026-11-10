@@ -214,8 +214,8 @@ void test_concurrent_state_access_during_cancel() {
 void test_nil_parent_is_rejected() {
   try {
     eo::context::WithCancel(nullptr);
-  } catch (const std::runtime_error& error) {
-    check(std::string{error.what()} == "cannot create context from nil parent", "nil parent returned wrong error");
+  } catch (const eo::Panic& error) {
+    check(error.message() == "cannot create context from nil parent", "nil parent returned wrong error");
     return;
   }
 

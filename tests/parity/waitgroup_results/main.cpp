@@ -12,10 +12,14 @@ func<> eo_main() {
     wg->Add(1);
     go([wg, results, i]() -> func<> {
       eo_defer_scope;
-      auto _eo_defer_receiver_0 = wg;
-      eo_defer([=] { _eo_defer_receiver_0->Done(); });
-      co_await (results << i * i);
-      eo_defer_run;
+      try {
+        auto _eo_defer_receiver_0 = wg;
+        eo_defer([=] { _eo_defer_receiver_0->Done(); });
+        co_await (results << i * i);
+        eo_defer_run;
+      } catch (...) {
+        eo_defer_panic;
+      }
       co_return;
     });
   }

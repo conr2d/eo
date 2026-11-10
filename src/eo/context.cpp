@@ -213,7 +213,7 @@ auto cancel_func(const std::shared_ptr<CancelContext>& context) -> CancelFunc {
 
 auto WithCancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
   if (!parent) {
-    throw std::runtime_error("cannot create context from nil parent");
+    panic("cannot create context from nil parent");
   }
   auto c = std::make_shared<CancelContext>(parent);
   propagate_cancel(parent, c);
@@ -222,7 +222,7 @@ auto WithCancel(Context* parent) -> std::tuple<std::shared_ptr<Context>, CancelF
 
 auto WithCancel(std::shared_ptr<Context> parent) -> std::tuple<std::shared_ptr<Context>, CancelFunc> {
   if (!parent) {
-    throw std::runtime_error("cannot create context from nil parent");
+    panic("cannot create context from nil parent");
   }
   auto c = std::make_shared<CancelContext>(parent);
   propagate_cancel(parent.get(), c);

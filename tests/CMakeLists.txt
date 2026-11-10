@@ -65,6 +65,21 @@ add_test(
 # Two workers, so eo_main can resume while the panic is in progress.
 set_tests_properties(eo.main_returns_during_panic PROPERTIES ENVIRONMENT "EOMAXPROCS=2" TIMEOUT 10)
 
+add_executable(eo_panic panic.cpp)
+target_link_libraries(eo_panic PRIVATE eo::eo)
+
+add_test(NAME eo.panic COMMAND eo_panic)
+set_tests_properties(eo.panic PROPERTIES TIMEOUT 10)
+
+add_executable(eo_main_returns_during_panic_defers main_returns_during_panic_defers.cpp)
+target_link_libraries(eo_main_returns_during_panic_defers PRIVATE eo::main)
+
+# Passes only on exit status 2. Two workers, so eo_main can return while the deferred call runs.
+add_test(
+  NAME eo.main_returns_during_panic_defers
+  COMMAND sh -c "\"$0\"; test $? -eq 2" $<TARGET_FILE:eo_main_returns_during_panic_defers>)
+set_tests_properties(eo.main_returns_during_panic_defers PROPERTIES ENVIRONMENT "EOMAXPROCS=2" TIMEOUT 10)
+
 add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 

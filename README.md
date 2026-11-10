@@ -126,7 +126,7 @@ func<> f() {
 
 ### Defer
 
-A function containing Go `defer` declares one `eo_defer_scope` at function scope. Deferred callees, receivers, and arguments are saved in source order before `eo_defer(...)` registers a nullary callable. Translated normal exits call `eo_defer_run` before `return` or `co_return`, so deferred calls run in LIFO order while function locals are still alive.
+A function containing Go `defer` declares one `eo_defer_scope` at function scope. Deferred callees, receivers, and arguments are saved in source order before `eo_defer(...)` registers a nullary callable. Translated normal exits call `eo_defer_run` before `return` or `co_return`, so deferred calls run in LIFO order while function locals are still alive. From the first statement that contains a defer, the body is wrapped in `try`, and the catch handler runs the deferred calls on a panic with `eo_defer_panic`, where `recover()` can stop it.
 
 ```go
 // Go
@@ -140,10 +140,14 @@ func f() {
 // C++
 func<> f() {
   eo_defer_scope;
-  auto _eo_defer_arg_0_0 = std::string{"world"};
-  eo_defer([=] { fmt::Println(_eo_defer_arg_0_0); });
-  fmt::Println("hello");
-  eo_defer_run;
+  try {
+    auto _eo_defer_arg_0_0 = std::string{"world"};
+    eo_defer([=] { fmt::Println(_eo_defer_arg_0_0); });
+    fmt::Println("hello");
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
   co_return;
 }
 ```

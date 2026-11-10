@@ -13,7 +13,7 @@ Each directory here is one behavioral parity case:
 | `KNOWN_GAP.stdout`, `KNOWN_GAP.<variant>.stdout` | The exact stdout the C++ side writes, before it is killed for a `timeout` gap. Required for `stdout` and `timeout` gaps, and compared whenever present. |
 | `KNOWN_GAP.exitcode`, `KNOWN_GAP.<variant>.exitcode` | The exact exit status the C++ side returns. Required for an `exitcode` gap, and allowed only for one. |
 
-Only the Select, Defer, and program termination forms used here are frozen in the translation rules. Everything else in these translations is provisional, including goroutine launch, closure capture, boxed shared variables, panic, string literals as `std::string`, and `map` as `std::map`. Do not copy those forms as canonical. Cases that use goroutine launch, closure capture, boxing, or panic also say so in the first line of `main.cpp`.
+Only the Select, Defer, panic and recover, and program termination forms used here are frozen in the translation rules. Everything else in these translations is provisional, including goroutine launch, closure capture, boxed shared variables, the panic value types, string literals as `std::string`, and `map` as `std::map`. Do not copy those forms as canonical. Cases that use goroutine launch, closure capture, or boxing also say so in the first line of `main.cpp`.
 
 ## Tests
 
@@ -41,14 +41,10 @@ CTest only registers a Go test when `go env GOVERSION` runs at configure time an
 2. Run `tests/parity/update-golden.sh <name>` to generate the golden files.
 3. Write `<name>/main.cpp` by following the canonical mappings literally. For a construct that is not frozen yet, use the closest documented shape and say so in the first line of `main.cpp`.
 4. Add `eo_add_parity_case(<name>)` to `CMakeLists.txt`. A directory with a `main.go` that is not registered gets a configure warning and a failing `parity.<name>.unregistered` test.
-5. If the translation cannot match Go yet, add `<name>/KNOWN_GAP` with the mismatch kind on the first line and the reason below, and add a row to the table below. Add `KNOWN_GAP.stdout` for a `stdout` or `timeout` gap and `KNOWN_GAP.exitcode` for an `exitcode` gap, and give a `timeout` case `TIMEOUT 10`.
+5. If the translation cannot match Go yet, add `<name>/KNOWN_GAP` with the mismatch kind on the first line and the reason below, and list it under [Known gaps](#known-gaps). Add `KNOWN_GAP.stdout` for a `stdout` or `timeout` gap and `KNOWN_GAP.exitcode` for an `exitcode` gap, and give a `timeout` case `TIMEOUT 10`.
 
 The Go module in this directory pins the language version (`go 1.22`), so semantics such as per-iteration loop variables do not depend on the installed toolchain.
 
 ## Known gaps
 
-The reason for each gap is in its marker file.
-
-| Case | Mismatch | Marker |
-| --- | --- | --- |
-| `panic_runs_defers` | stdout | [`panic_runs_defers/KNOWN_GAP`](panic_runs_defers/KNOWN_GAP) |
+There are no known gaps. List each new one here as `| Case | Mismatch | Marker |` with a link to its marker file, which gives the reason.
