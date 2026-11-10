@@ -52,4 +52,3 @@ The reason for each gap is in its marker file.
 | Case | Mismatch | Marker |
 | --- | --- | --- |
 | `panic_runs_defers` | stdout | [`panic_runs_defers/KNOWN_GAP`](panic_runs_defers/KNOWN_GAP) |
-| `waitgroup_results`, variant `maxprocs1` | timeout | [`waitgroup_results/KNOWN_GAP.maxprocs1`](waitgroup_results/KNOWN_GAP.maxprocs1) |

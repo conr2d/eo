@@ -61,7 +61,7 @@ func<> eo_main() {
     });
   }
 
-  wg->Wait();
+  co_await wg->Wait();
 
   co_return;
 }

@@ -94,6 +94,9 @@ add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 
 add_test(NAME eo.waitgroup COMMAND eo_waitgroup)
+set_tests_properties(eo.waitgroup PROPERTIES TIMEOUT 10)
+add_test(NAME eo.waitgroup_one_worker COMMAND eo_waitgroup)
+set_tests_properties(eo.waitgroup_one_worker PROPERTIES ENVIRONMENT "EOMAXPROCS=1" TIMEOUT 10)
 
 add_executable(eo_timer timer.cpp)
 target_link_libraries(eo_timer PRIVATE eo::eo)

@@ -74,7 +74,7 @@ func<> eo_main() {
   go([&]() { do_increment("a", 10000); });
   go([&]() { do_increment("b", 10000); });
 
-  wg.Wait();
+  co_await wg.Wait();
   fmt::Println(c.counters);
 
   co_return;
