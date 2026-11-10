@@ -65,6 +65,12 @@ add_test(
 # Two workers, so eo_main can resume while the panic is in progress.
 set_tests_properties(eo.main_returns_during_panic PROPERTIES ENVIRONMENT "EOMAXPROCS=2" TIMEOUT 10)
 
+add_executable(eo_panic panic.cpp)
+target_link_libraries(eo_panic PRIVATE eo::eo)
+
+add_test(NAME eo.panic COMMAND eo_panic)
+set_tests_properties(eo.panic PROPERTIES TIMEOUT 10)
+
 add_executable(eo_error error.cpp)
 target_link_libraries(eo_error PRIVATE eo::eo)
 

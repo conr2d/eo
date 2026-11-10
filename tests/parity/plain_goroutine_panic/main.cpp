@@ -1,14 +1,12 @@
-// Provisional: the panic form is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/time.h>
 
 #include <chrono>
-#include <stdexcept>
 
 using namespace eo;
 
 void work() {
-  throw std::runtime_error("panic: boom");
+  panic("boom");
 }
 
 func<> eo_main() {

@@ -36,6 +36,7 @@
 // }
 
 #include <eo/fmt.h>
+#include <eo/os.h>
 
 using namespace eo;
 
@@ -59,17 +60,21 @@ void close_file(std::FILE* f) {
 
   if (err) {
     fmt::print(stderr, "error: {}\n", err);
-    std::exit(1);
+    os::Exit(1);
   }
 }
 
 func<> eo_main() {
   eo_defer_scope;
   auto f = create_file("/tmp/defer.txt");
-  auto _eo_defer_arg_0_0 = f;
-  eo_defer([=] { close_file(_eo_defer_arg_0_0); });
-  write_file(f);
+  try {
+    auto _eo_defer_arg_0_0 = f;
+    eo_defer([=] { close_file(_eo_defer_arg_0_0); });
+    write_file(f);
 
-  eo_defer_run;
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
   co_return;
 }

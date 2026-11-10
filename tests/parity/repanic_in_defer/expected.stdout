@@ -1,0 +1,5 @@
+inner deferred
+outer deferred 2
+outer recovered: first
+outer deferred 1
+main deferred

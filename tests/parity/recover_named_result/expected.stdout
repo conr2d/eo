@@ -1,0 +1,5 @@
+3
+recovered: division by zero
+-1
+recover outside panic: <nil>
+result kept after late panic: 5
