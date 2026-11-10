@@ -68,6 +68,8 @@ struct Mutex {
   }
 
 private:
+  friend struct detail::probe;
+
   std::mutex mutex;
   bool locked = false;
   std::deque<detail::waiter> waiters;

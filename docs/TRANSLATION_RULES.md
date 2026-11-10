@@ -343,13 +343,13 @@ Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.
 
 `RWMutex` also has `Lock`, `Unlock`, and `TryLock`, mapped as for `Mutex`. Only `Lock` and `RLock` are blocking operations. The others are plain calls, so a `defer` of `Unlock` or `RUnlock` is allowed. As in Go, a goroutine waiting in `rw.Lock()` keeps new readers out until it has unlocked.
 
-Unlocking a lock that is not held in that mode is a fatal error, as in Go. The runtime writes one of the following to stderr and exits with status 2:
+Unlocking a lock that is not held in that mode is a fatal error, as in Go. The runtime writes `fatal error: ` and the message to stderr, and exits with status 2:
 
-- `fatal error: sync: unlock of unlocked mutex`;
-- `fatal error: sync: Unlock of unlocked RWMutex`;
-- `fatal error: sync: RUnlock of unlocked RWMutex`.
+- `sync: unlock of unlocked mutex`;
+- `sync: Unlock of unlocked RWMutex`;
+- `sync: RUnlock of unlocked RWMutex`.
 
-Deferred calls do not run, and `recover()` cannot stop a fatal error.
+Deferred calls do not run, and `recover()` cannot stop a fatal error. When the fatal error happens in a deferred call during a panic, Go also prints that panic first and Eo does not. Stderr is not part of parity, as with panic reports.
 
 `mu.Lock(); defer mu.Unlock()` follows [Defer](#defer). `Unlock` has a pointer receiver, so the defer saves `&mu`. `co_await mu.Lock()` comes before `try {`, because it does not contain the defer:
 
@@ -437,6 +437,8 @@ Currently unsupported:
 - goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations));
 - `recover()` outside a deferred function literal, unless it is in a named function that is only called in `defer` statements (see [Panic and recover](#panic-and-recover)).
+- `sync.Once` and `sync.Cond` (see [Blocking operations](#blocking-operations)), `RWMutex.RLocker`, and passing a lock as a `sync.Locker` (see [Mutex](#mutex));
+- copying a `sync.Mutex`, `sync.RWMutex`, or `sync.WaitGroup` (see [Mutex](#mutex)).
 
 ## Translation review
 

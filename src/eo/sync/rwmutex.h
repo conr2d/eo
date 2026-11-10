@@ -114,6 +114,8 @@ struct RWMutex {
   }
 
 private:
+  friend struct detail::probe;
+
   // Called with mutex held.
   auto can_lock() const -> bool {
     return !writer && readers == 0 && writers.empty();

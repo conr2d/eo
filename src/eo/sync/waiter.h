@@ -14,6 +14,9 @@
 
 namespace eo::sync::detail {
 
+// Gives tests access to the waiter queues. Declared here, defined only by tests.
+struct probe;
+
 // A goroutine suspended in a sync operation: its completion handler and the executor it resumes on.
 struct waiter {
   boost::asio::any_io_executor executor;
