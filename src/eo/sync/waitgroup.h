@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/go.h>
+#include <eo/panic.h>
 
 #include <boost/asio/any_completion_handler.hpp>
 #include <boost/asio/any_io_executor.hpp>
@@ -31,7 +32,7 @@ struct WaitGroup {
       auto lock = std::lock_guard{mutex};
       counter += delta;
       if (counter < 0) {
-        throw std::runtime_error("sync: negative WaitGroup counter");
+        panic("sync: negative WaitGroup counter");
       }
       if (counter == 0) {
         released.swap(waiters);

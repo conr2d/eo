@@ -19,7 +19,7 @@ namespace eo {
 
 // The exception that carries a Go panic. what() is the report Go prints, "panic: <message>". It
 // derives from std::runtime_error so existing handlers of runtime panics keep working.
-class Panic : public std::runtime_error {
+class Panic : public std::runtime_error, public detail::counted_panic {
 public:
   Panic(std::any value, std::string message)
     : std::runtime_error("panic: " + message), value_(std::move(value)), message_(std::move(message)) {}
@@ -96,14 +96,24 @@ namespace detail {
     }
   }
 
+  // Go 1.21 and later: panic(nil) raises a *runtime.PanicNilError.
+  [[noreturn]] inline void panic_nil() {
+    throw Panic{std::any{}, "panic called with nil argument"};
+  }
+
 } // namespace detail
 
 // Go's panic(v). A string literal is stored as std::string, the C++ form of a Go string.
 template<typename T>
 [[noreturn]] void panic(T&& value) {
   using value_type = std::decay_t<T>;
-  if constexpr (std::is_same_v<value_type, Recovered>) {
-    // panic(recover()) raises the recovered panic again.
+  if constexpr (std::is_same_v<value_type, std::nullptr_t>) {
+    detail::panic_nil();
+  } else if constexpr (std::is_same_v<value_type, Recovered>) {
+    // panic(recover()) raises the recovered panic again; panic of a nil recover() is panic(nil).
+    if (value == nullptr) {
+      detail::panic_nil();
+    }
     std::rethrow_exception(value.exception());
   } else if constexpr (std::is_convertible_v<value_type, std::string_view> &&
     !std::is_same_v<value_type, std::string>) {

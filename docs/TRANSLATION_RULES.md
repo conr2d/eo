@@ -166,7 +166,7 @@ auto f(int x) -> int {
 ```
 
 - Each result has storage declared before `eo_defer_scope`: a named result uses its translated name, and an unnamed result `N` uses `_eo_result_N`. Both are declared as `T name{}` with the translated result type. A function with more than one result is provisional, as multi-value results have no frozen mapping.
-- `try {` opens immediately before the first statement at the top level of the function body that is, or contains, a `defer` statement, and before that statement's argument temporaries. It closes at the end of the function body. A panic before that point has no deferred call to run and leaves the function directly.
+- `try {` opens immediately before the first statement at the top level of the function body that is, or contains, a `defer` statement, and before that statement's argument temporaries. It closes at the end of the function body. A panic before that point has no deferred call to run and leaves the function directly. A `defer` inside a nested function literal belongs to that literal, which gets this shape itself, and does not count for the enclosing function.
 - After the catch handler, the function returns its result storage: `return _eo_result_0;`, `co_return _eo_result_0;`, or the named results. A function without results ends with nothing, or with `co_return;` for a coroutine. This return is reached only when a deferred call recovered the panic.
 
 A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal. Defer statements are counted like `go` statements, as described in [Temporary names](./GOROUTINE.md#temporary-names), with a separate count:
@@ -267,7 +267,7 @@ A function that reaches its end without an explicit return inserts `eo_defer_run
 
 ### Panic and recover
 
-`panic(v)` translates to `panic(v)` from `<eo/panic.h>`, which throws `eo::Panic`. Its `what()` is `panic: ` followed by the value as Go prints it, and `value()` holds the value. A Go string panic value is stored as `std::string`. Runtime panics raised by Eo, such as `close of closed channel`, are `eo::Panic` too. Any other C++ exception that leaves a translated call is also a panic.
+`panic(v)` translates to `panic(v)` from `<eo/panic.h>`, which throws `eo::Panic`. Its `what()` is `panic: ` followed by the value as Go prints it, and `value()` holds the value. A Go string panic value is stored as `std::string`. Runtime panics raised by Eo are `eo::Panic` too: the channel panics such as `close of closed channel`, `sync: negative WaitGroup counter`, `cannot create context from nil parent`, and `invalid argument to Intn`. Any other C++ exception that leaves a translated call is also a panic. `panic(nil)` translates to `panic(nullptr)` and, as since Go 1.21, raises a panic whose message is `panic called with nil argument`.
 
 While a panic leaves a function that contains a `defer` statement, its catch handler runs `eo_defer_panic`:
 
@@ -282,11 +282,11 @@ A panic in a deferred call during `eo_defer_run` leaves `eo_defer_run`, and the 
 - `r := recover()` translates to `auto r = recover();`;
 - `r == nil` and `r != nil` translate to `r == nullptr` and `r != nullptr`;
 - printing `r` with `fmt::Println` prints the panic value as Go does, and `<nil>` for nil;
-- `panic(r)` raises the recovered panic again.
+- `panic(r)` raises the recovered panic again, and `panic(r)` with a nil `r` is `panic(nil)`.
 
-`recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that, so a `recover()` in a function that a deferred function calls, rather than in the deferred function itself, is unsupported.
+`recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that. A `recover()` is frozen when it is in the body of a deferred function literal, `defer func() { ... recover() ... }()`, or in a named function that the program calls only in `defer` statements. Any other `recover()` is unsupported, because a call from inside a deferred function would recover where Go returns nil.
 
-The type of a recovered value is provisional beyond comparison with nil and printing: `r.value()` is a `std::any`, and a type assertion such as `r.(error)` has no mapping. `panic(nil)` and `runtime.Goexit` have no mapping.
+The type of a recovered value is provisional beyond comparison with nil and printing: `r.value()` is a `std::any`, and a type assertion such as `r.(error)` has no mapping. `runtime.Goexit` has no mapping.
 
 ### Blocking operations
 
@@ -323,7 +323,7 @@ Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.
 
 A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`. The runtime ends the process the way Go does:
 
-- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine is panicking at that moment, that panic ends the process with status 2 instead;
+- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine is running deferred calls for a panic, the runtime first waits up to about 100 ms for them, as Go's `runtime.main` yields to them. If a panic is then being reported, it ends the process with status 2 instead;
 - `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
 - an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The panicking goroutine's deferred calls have already run in its catch handlers (see [Panic and recover](#panic-and-recover)). The runtime reports the panic on stderr and exits with status 2;
 - `fmt::Println` and `fmt::Fprintln` write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.
@@ -346,7 +346,7 @@ Examples currently requiring additional canonical rules include:
 - goroutine launches that pass a held pointer whose source the launching function cannot check, an address that is neither local nor package-level storage, a non-owning view argument, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - untyped string and complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
-- the type of a recovered panic value beyond comparison with nil and printing, `panic(nil)`, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
+- the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
@@ -365,7 +365,7 @@ Currently unsupported:
 
 - goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations));
-- `recover()` in a function that a deferred function calls, rather than in the deferred function itself (see [Panic and recover](#panic-and-recover)).
+- `recover()` outside a deferred function literal, unless it is in a named function that is only called in `defer` statements (see [Panic and recover](#panic-and-recover)).
 
 ## Translation review
 

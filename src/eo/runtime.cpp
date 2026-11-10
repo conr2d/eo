@@ -93,6 +93,11 @@ void exit(int code) {
 void main_returned() {
   // Go's runtime.main does not exit while another goroutine is panicking, so that the panic ends
   // the program with status 2.
+  // Like Go's runtime.main: give goroutines that are running deferred calls for a panic a moment to
+  // finish, because they may still end the program with status 2.
+  for (auto i = 0; i < 1000 && eo::detail::running_panic_defers.load() != 0; ++i) {
+    std::this_thread::sleep_for(std::chrono::microseconds{100});
+  }
   if (panicking.load()) {
     for (;;) {
       std::this_thread::sleep_for(std::chrono::hours{1});

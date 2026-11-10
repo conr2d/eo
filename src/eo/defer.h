@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <atomic>
 #include <exception>
 #include <functional>
 #include <memory>
@@ -22,6 +23,50 @@ struct panic_state {
 };
 
 inline thread_local panic_state* current_panic = nullptr;
+
+// The number of panics in flight, like Go's runningPanicDefers. When eo_main returns, the runtime
+// waits briefly while it is not zero, because such a panic may still end the program with status 2.
+// An eo::Panic is counted from the first frame that runs deferred calls for it until it is recovered
+// or replaced by another panic; an unrecovered one ends the program. Any other exception is counted
+// only while one frame runs its deferred calls.
+inline std::atomic<int> running_panic_defers{0};
+
+// Base of eo::Panic that remembers whether the panic is counted in running_panic_defers.
+struct counted_panic {
+  mutable bool counted = false;
+};
+
+inline auto find_counted_panic(const std::exception_ptr& panic) -> const counted_panic* {
+  try {
+    std::rethrow_exception(panic);
+  } catch (const counted_panic& p) {
+    return &p;
+  } catch (...) {
+    return nullptr;
+  }
+}
+
+// Counts a panic when a frame starts running deferred calls for it.
+inline void begin_panic(const std::exception_ptr& panic) {
+  if (auto* p = find_counted_panic(panic)) {
+    if (p->counted) {
+      return;
+    }
+    p->counted = true;
+  }
+  running_panic_defers.fetch_add(1);
+}
+
+// Uncounts a panic that was recovered or replaced, or any non-Panic exception when its frame is done.
+inline void end_panic(const std::exception_ptr& panic) {
+  if (auto* p = find_counted_panic(panic)) {
+    if (!p->counted) {
+      return;
+    }
+    p->counted = false;
+  }
+  running_panic_defers.fetch_sub(1);
+}
 
 class panic_scope {
 public:
@@ -84,6 +129,7 @@ public:
   // the last panic was recovered; otherwise rethrows it.
   void run_panicking(std::exception_ptr panic) {
     auto state = panic_state{std::move(panic)};
+    begin_panic(state.panic);
     {
       auto scope = panic_scope{&state};
       while (!calls.empty()) {
@@ -92,10 +138,15 @@ public:
         try {
           deferred->invoke();
         } catch (...) {
+          end_panic(state.panic);
           state.panic = std::current_exception();
           state.recovered = false;
+          begin_panic(state.panic);
         }
       }
+    }
+    if (state.recovered || !find_counted_panic(state.panic)) {
+      end_panic(state.panic);
     }
     if (!state.recovered) {
       std::rethrow_exception(state.panic);

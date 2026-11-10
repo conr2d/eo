@@ -22,8 +22,8 @@ void test_done_panics_on_negative_counter() {
 
   try {
     wg.Done();
-  } catch (const std::runtime_error& error) {
-    check(std::string{error.what()} == "sync: negative WaitGroup counter", "negative counter returned wrong error");
+  } catch (const eo::Panic& error) {
+    check(error.message() == "sync: negative WaitGroup counter", "negative counter returned wrong error");
     return;
   }
 

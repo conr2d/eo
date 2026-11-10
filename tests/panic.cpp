@@ -3,6 +3,7 @@
 //
 #include <eo/core.h>
 #include <eo/fmt.h>
+#include <eo/sync.h>
 #include <eo/time.h>
 
 #include <any>
@@ -204,6 +205,70 @@ void test_other_exceptions_are_panics() {
   check(message == "index out of range", "a C++ exception was not recovered as a panic");
 }
 
+auto recovered_message(bool nil_from_recover) -> std::string {
+  std::string message{};
+  eo_defer_scope;
+  try {
+    eo_defer([&] { message = recover().message(); });
+    if (nil_from_recover) {
+      panic(recover());
+    }
+    panic(nullptr);
+    eo_defer_run;
+    return message;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return message;
+}
+
+void test_panic_nil() {
+  check(recovered_message(false) == "panic called with nil argument", "panic(nil) is not Go's PanicNilError");
+  check(recovered_message(true) == "panic called with nil argument", "panic of a nil recover() is not panic(nil)");
+}
+
+void panics_and_recovers_inside() {
+  eo_defer_scope;
+  try {
+    eo_defer([&] { recover(); });
+    panic("inner");
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
+}
+
+// A deferred call whose callee panics and recovers on its own leaves the outer panic recoverable.
+auto outer_panic_survives_inner_recover() -> std::string {
+  std::string message{};
+  eo_defer_scope;
+  try {
+    eo_defer([&] { message = recover().message(); });
+    eo_defer([&] { panics_and_recovers_inside(); });
+    panic("outer");
+    eo_defer_run;
+    return message;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return message;
+}
+
+void test_nested_recover_restores_the_outer_panic() {
+  check(outer_panic_survives_inner_recover() == "outer", "the outer panic was lost after a nested recover");
+}
+
+void test_runtime_panics_are_go_panics() {
+  auto wg = sync::WaitGroup{};
+  try {
+    wg.Done();
+  } catch (const Panic& p) {
+    check(p.message() == "sync: negative WaitGroup counter", "WaitGroup panic message is wrong");
+    return;
+  }
+  throw std::logic_error("WaitGroup misuse did not raise eo::Panic");
+}
+
 int main() {
   test_unrecovered_panic_runs_defers_and_propagates();
   test_recover_returns_the_panic_value();
@@ -213,4 +278,7 @@ int main() {
   test_runtime_panic_is_recoverable();
   test_panic_across_coroutines();
   test_other_exceptions_are_panics();
+  test_panic_nil();
+  test_nested_recover_restores_the_outer_panic();
+  test_runtime_panics_are_go_panics();
 }
