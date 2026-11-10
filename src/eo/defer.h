@@ -32,7 +32,20 @@ inline thread_local panic_state* current_panic = nullptr;
 inline std::atomic<int> running_panic_defers{0};
 
 // Base of eo::Panic that remembers whether the panic is counted in running_panic_defers.
+// A panic that leaves through a C++ handler outside any drain, such as eo::invoke, is uncounted when
+// the exception object is destroyed. A copy starts uncounted.
 struct counted_panic {
+  counted_panic() = default;
+  counted_panic(const counted_panic&) noexcept {}
+  auto operator=(const counted_panic&) noexcept -> counted_panic& {
+    return *this;
+  }
+  ~counted_panic() {
+    if (counted) {
+      running_panic_defers.fetch_sub(1);
+    }
+  }
+
   mutable bool counted = false;
 };
 

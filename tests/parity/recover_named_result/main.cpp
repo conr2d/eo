@@ -42,7 +42,6 @@ auto set() -> int {
 func<> eo_main() {
   fmt::Println(divide(7, 2));
   fmt::Println(divide(1, 0));
-  fmt::Println("recover outside panic:", recover());
   fmt::Println("result kept after late panic:", set());
   co_return;
 }

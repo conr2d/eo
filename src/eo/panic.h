@@ -110,11 +110,13 @@ template<typename T>
   if constexpr (std::is_same_v<value_type, std::nullptr_t>) {
     detail::panic_nil();
   } else if constexpr (std::is_same_v<value_type, Recovered>) {
-    // panic(recover()) raises the recovered panic again; panic of a nil recover() is panic(nil).
+    // panic(r) starts a new panic with the recovered value, as in Go; panic of a nil recover() is
+    // panic(nil). It never rethrows the recovered exception object, which other goroutines may also
+    // be raising again.
     if (value == nullptr) {
       detail::panic_nil();
     }
-    std::rethrow_exception(value.exception());
+    throw Panic{value.value(), value.message()};
   } else if constexpr (std::is_convertible_v<value_type, std::string_view> &&
     !std::is_same_v<value_type, std::string>) {
     auto s = std::string{std::string_view{value}};

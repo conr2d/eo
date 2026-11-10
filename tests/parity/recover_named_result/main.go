@@ -29,6 +29,5 @@ func set() (n int) {
 func main() {
 	fmt.Println(divide(7, 2))
 	fmt.Println(divide(1, 0))
-	fmt.Println("recover outside panic:", recover())
 	fmt.Println("result kept after late panic:", set())
 }

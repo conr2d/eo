@@ -282,9 +282,9 @@ A panic in a deferred call during `eo_defer_run` leaves `eo_defer_run`, and the 
 - `r := recover()` translates to `auto r = recover();`;
 - `r == nil` and `r != nil` translate to `r == nullptr` and `r != nullptr`;
 - printing `r` with `fmt::Println` prints the panic value as Go does, and `<nil>` for nil;
-- `panic(r)` raises the recovered panic again, and `panic(r)` with a nil `r` is `panic(nil)`.
+- `panic(r)` starts a new panic with the recovered value and message, and `panic(r)` with a nil `r` is `panic(nil)`.
 
-`recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that. A `recover()` is frozen when it is in the body of a deferred function literal, `defer func() { ... recover() ... }()`, or in a named function that the program calls only in `defer` statements. Any other `recover()` is unsupported, because a call from inside a deferred function would recover where Go returns nil.
+`recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that. A `recover()` is frozen when it is directly in the body of a deferred function literal, `defer func() { ... recover() ... }()`, and not in a function literal nested in that body, or directly in a named function or method that the program calls only in `defer` statements. Any other `recover()` is unsupported, because a call from inside a deferred function would recover where Go returns nil.
 
 The type of a recovered value is provisional beyond comparison with nil and printing: `r.value()` is a `std::any`, and a type assertion such as `r.(error)` has no mapping. `runtime.Goexit` has no mapping.
 
@@ -323,7 +323,7 @@ Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.
 
 A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`. The runtime ends the process the way Go does:
 
-- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine is running deferred calls for a panic, the runtime first waits up to about 100 ms for them, as Go's `runtime.main` yields to them. If a panic is then being reported, it ends the process with status 2 instead;
+- when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine has an `eo::Panic` that is not yet recovered, the runtime first waits up to about 100 ms for it, as Go's `runtime.main` yields to goroutines running deferred calls for a panic. Another C++ exception counts only while one function runs its deferred calls for it, not while it passes between functions. If a panic is then being reported, it ends the process with status 2 instead;
 - `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
 - an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The panicking goroutine's deferred calls have already run in its catch handlers (see [Panic and recover](#panic-and-recover)). The runtime reports the panic on stderr and exits with status 2;
 - `fmt::Println` and `fmt::Fprintln` write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.

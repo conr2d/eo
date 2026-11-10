@@ -120,7 +120,7 @@ auto repanics_recovered() -> std::string {
 }
 
 void test_panic_of_recovered_raises_it_again() {
-  check(repanics_recovered() == "original", "panic(recover()) did not raise the same panic");
+  check(repanics_recovered() == "original", "panic(recover()) did not raise the recovered value");
 }
 
 auto panics_in_normal_drain(std::vector<std::string>& seen) -> int {
@@ -269,6 +269,52 @@ void test_runtime_panics_are_go_panics() {
   throw std::logic_error("WaitGroup misuse did not raise eo::Panic");
 }
 
+auto recover_value_of(const Recovered& r) -> std::string {
+  std::string message{};
+  eo_defer_scope;
+  try {
+    eo_defer([&] { message = recover().message(); });
+    panic(r);
+    eo_defer_run;
+    return message;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return message;
+}
+
+auto capture_recovered() -> Recovered {
+  Recovered r{};
+  eo_defer_scope;
+  try {
+    eo_defer([&] { r = recover(); });
+    panic("shared");
+    eo_defer_run;
+    return r;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return r;
+}
+
+// panic(r) starts a new panic each time, so goroutines that raise the same recovered value again do
+// not share one exception object.
+void test_panic_of_recovered_starts_a_new_panic() {
+  auto r = capture_recovered();
+  auto results = invoke([r]() -> func<int> {
+    auto done = make_chan<int>(8);
+    for (auto i = 0; i < 8; i++) {
+      go([r, done]() -> func<> { co_await (done << (recover_value_of(r) == "shared" ? 1 : 0)); });
+    }
+    auto sum = 0;
+    for (auto i = 0; i < 8; i++) {
+      sum += co_await *done;
+    }
+    co_return sum;
+  });
+  check(results == 8, "panic(r) from several goroutines did not raise the recovered value");
+}
+
 int main() {
   test_unrecovered_panic_runs_defers_and_propagates();
   test_recover_returns_the_panic_value();
@@ -281,4 +327,6 @@ int main() {
   test_panic_nil();
   test_nested_recover_restores_the_outer_panic();
   test_runtime_panics_are_go_panics();
+  test_panic_of_recovered_starts_a_new_panic();
+  check(eo::detail::running_panic_defers.load() == 0, "a panic stayed counted after it was recovered or caught");
 }
