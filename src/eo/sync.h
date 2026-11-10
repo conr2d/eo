@@ -4,4 +4,6 @@
 #pragma once
 #include <eo/core.h>
 
+#include <eo/sync/mutex.h>
+#include <eo/sync/rwmutex.h>
 #include <eo/sync/waitgroup.h>

@@ -301,6 +301,8 @@ A Go operation that blocks the calling goroutine translates to an awaitable that
 | --- | --- | --- |
 | `select` without `default` | `co_await select.index()` | frozen, see [Select](#select) |
 | `wg.Wait()` | `co_await wg.Wait()` | frozen |
+| `mu.Lock()` | `co_await mu.Lock()` | frozen, see [Mutex](#mutex) |
+| `rw.Lock()`, `rw.RLock()` | `co_await rw.Lock()`, `co_await rw.RLock()` | frozen, see [Mutex](#mutex) |
 | `ch <- v` | `co_await (ch << v)` | provisional |
 | `v := <-ch` | `auto v = co_await *ch` | provisional |
 | `time.Sleep(d)` | `co_await time::Sleep(d)` | provisional, including the duration |
@@ -312,7 +314,9 @@ Two call sites do not `co_await`:
 - the `go` thunk returns the call (`return f(...)`), and `go(...)` runs the returned awaitable as the goroutine body (see [Goroutine](#goroutine));
 - a deferred call runs synchronously at `eo_defer_run`, so it cannot suspend. A `defer` is unsupported when its call is a blocking operation or a coroutine, such as `defer wg.Wait()`, and when it defers a function literal whose body would be a coroutine, such as `defer func() { ch <- v }()`: the registered call would create an awaitable and drop it, and the deferred work would never run.
 
-`sync.Mutex` and `sync.RWMutex` have no mapping yet. `std::mutex` blocks the OS thread and is provisional (see [#72](https://github.com/conr2d/eo/issues/72)).
+Do not translate a Go lock to `std::mutex` or `std::shared_mutex`. Their `lock()` blocks the OS thread, and a translation can then deadlock where Go does not: with `EOMAXPROCS=1`, or whenever the holder is suspended at a `co_await` while it holds the lock.
+
+`sync.Once` and `sync.Cond` have no mapping yet. `Once.Do` blocks while another goroutine runs the function, and `Cond.Wait` blocks until a signal, so `std::call_once` and `std::condition_variable` would block the worker. A translation that uses either is unsupported (see [#76](https://github.com/conr2d/eo/issues/76)).
 
 Do not use `eo::invoke` in a translation. It blocks the calling OS thread until a coroutine finishes, and it exists for C++ code outside the runtime, such as tests.
 
@@ -323,6 +327,68 @@ Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.
 - a local `var wg sync.WaitGroup` that goroutines use through a capture or `&wg` is unsupported until Eo defines a mapping for escaping and shared locals;
 - a `*sync.WaitGroup` value passed to or captured by a goroutine is provisional, even when its source can be checked as described in the Lifetime boundary, because the C++ type of a Go pointer to a WaitGroup is not frozen;
 - the `std::shared_ptr<sync::WaitGroup>` (`sync::WaitGroupPtr`) used with `wg->Wait()` in the examples and in `tests/parity/waitgroup_results` is a provisional local adaptation, not a defined mapping.
+
+#### Mutex
+
+`sync.Mutex` and `sync.RWMutex` map to `sync::Mutex` and `sync::RWMutex` from `<eo/sync.h>`:
+
+| Go | C++ |
+| --- | --- |
+| `mu.Lock()` | `co_await mu.Lock();` |
+| `mu.Unlock()` | `mu.Unlock();` |
+| `mu.TryLock()` | `mu.TryLock()` |
+| `rw.RLock()` | `co_await rw.RLock();` |
+| `rw.RUnlock()` | `rw.RUnlock();` |
+| `rw.TryRLock()` | `rw.TryRLock()` |
+
+`RWMutex` also has `Lock`, `Unlock`, and `TryLock`, mapped as for `Mutex`. Only `Lock` and `RLock` are blocking operations. The others are plain calls, so a `defer` of `Unlock` or `RUnlock` is allowed. As in Go, a goroutine waiting in `rw.Lock()` keeps new readers out until it has unlocked.
+
+Unlocking a lock that is not held in that mode is a fatal error, as in Go. The runtime writes `fatal error: ` and the message to stderr, and exits with status 2:
+
+- `sync: unlock of unlocked mutex`;
+- `sync: Unlock of unlocked RWMutex`;
+- `sync: RUnlock of unlocked RWMutex`.
+
+Deferred calls do not run, and `recover()` cannot stop a fatal error. When the fatal error happens in a deferred call during a panic, Go also prints that panic first and Eo does not. Stderr is not part of parity, as with panic reports.
+
+`mu.Lock(); defer mu.Unlock()` follows [Defer](#defer). `Unlock` has a pointer receiver, so the defer saves `&mu`. `co_await mu.Lock()` comes before `try {`, because it does not contain the defer:
+
+```go
+var mu sync.Mutex
+var count int
+
+func inc() {
+	mu.Lock()
+	defer mu.Unlock()
+	count++
+}
+```
+
+```cpp
+func<> inc() {
+  eo_defer_scope;
+  co_await mu.Lock();
+  try {
+    auto* _eo_defer_receiver_0 = &mu;
+    eo_defer([=] { _eo_defer_receiver_0->Unlock(); });
+    count++;
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  co_return;
+}
+```
+
+`inc` contains a blocking operation, so it is a coroutine, and its callers `co_await inc()`.
+
+Holding a lock across a blocking operation, such as a channel send, needs nothing extra: goroutines waiting in `Lock` are suspended, so the holder can still run.
+
+The following are not frozen:
+
+- sharing a Mutex or RWMutex follows the WaitGroup rules above. A local that goroutines use through a capture or an address is unsupported, and a pointer to one is provisional. The C++ form of package-level variables and struct fields is not frozen either, as used in `tests/parity/mutex_counter`;
+- `RLocker`, and passing a lock as a `sync.Locker`, have no mapping;
+- `sync::Mutex`, `sync::RWMutex`, and `sync::WaitGroup` cannot be copied or moved. A Go program that copies one, which `go vet` reports, is unsupported.
 
 ### Program termination
 
@@ -371,6 +437,8 @@ Currently unsupported:
 - goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
 - `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations));
 - `recover()` outside a deferred function literal, unless it is in a named function that is only called in `defer` statements (see [Panic and recover](#panic-and-recover)).
+- `sync.Once` and `sync.Cond` (see [Blocking operations](#blocking-operations)), `RWMutex.RLocker`, and passing a lock as a `sync.Locker` (see [Mutex](#mutex));
+- copying a `sync.Mutex`, `sync.RWMutex`, or `sync.WaitGroup` (see [Mutex](#mutex)).
 
 ## Translation review
 

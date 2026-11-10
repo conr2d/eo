@@ -91,6 +91,20 @@ eo_add_parity_case(exit_from_goroutine)
 eo_add_parity_case(goroutine_panic)
 eo_add_parity_case(main_returns_early TIMEOUT 10)
 eo_add_parity_case(map_println)
+# Pin the worker count so the base cases do not depend on the host's CPU count.
+eo_add_parity_case(mutex_counter ENVIRONMENT EOMAXPROCS=4)
+eo_add_parity_variant(mutex_counter maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPROCS=1 GO_ENVIRONMENT GOMAXPROCS=1)
+eo_add_parity_case(mutex_held_across_channel ENVIRONMENT EOMAXPROCS=4)
+eo_add_parity_variant(
+  mutex_held_across_channel
+  maxprocs1
+  TIMEOUT
+  10
+  ENVIRONMENT
+  EOMAXPROCS=1
+  GO_ENVIRONMENT
+  GOMAXPROCS=1)
+eo_add_parity_case(mutex_unlock_unlocked)
 eo_add_parity_case(panic_exit)
 eo_add_parity_case(panic_runs_defers)
 eo_add_parity_case(plain_goroutine_panic)
@@ -99,9 +113,10 @@ eo_add_parity_case(println_operands)
 eo_add_parity_case(recover_named_result)
 eo_add_parity_case(recover_runtime_error)
 eo_add_parity_case(repanic_in_defer)
+eo_add_parity_case(rwmutex_readers)
+eo_add_parity_variant(rwmutex_readers maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPROCS=1 GO_ENVIRONMENT GOMAXPROCS=1)
 eo_add_parity_case(select_default)
 eo_add_parity_case(shared_variable)
-# Pin the worker count so the base case does not depend on the host's CPU count.
 eo_add_parity_case(waitgroup_results ENVIRONMENT EOMAXPROCS=4)
 eo_add_parity_variant(waitgroup_results maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPROCS=1 GO_ENVIRONMENT GOMAXPROCS=1)
 

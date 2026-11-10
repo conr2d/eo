@@ -106,11 +106,20 @@ void main_returned() {
   exit(0);
 }
 
+namespace {
+
+  // Locked by the first fatal panic or fatal error and never unlocked: a later one on another thread
+  // waits here until the first one exits.
+  void begin_fatal_report() noexcept {
+    panicking.store(true);
+    static std::mutex reporting;
+    reporting.lock();
+  }
+
+} // namespace
+
 void fatal_panic(std::exception_ptr eptr) noexcept {
-  panicking.store(true);
-  // Never unlocked: a later panic on another thread waits here until the first one exits.
-  static std::mutex reporting;
-  reporting.lock();
+  begin_fatal_report();
   try {
     auto message = panic_message(eptr);
     if (!message.starts_with("panic: ")) {
@@ -120,6 +129,14 @@ void fatal_panic(std::exception_ptr eptr) noexcept {
   } catch (...) {
     write_stderr("panic: unknown exception");
   }
+  write_stderr("\n");
+  exit(2);
+}
+
+void fatal_error(std::string_view message) noexcept {
+  begin_fatal_report();
+  write_stderr("fatal error: ");
+  write_stderr(message);
   write_stderr("\n");
   exit(2);
 }
