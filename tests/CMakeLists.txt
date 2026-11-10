@@ -113,6 +113,34 @@ set_tests_properties(eo.waitgroup PROPERTIES TIMEOUT 10)
 add_test(NAME eo.waitgroup_one_worker COMMAND eo_waitgroup)
 set_tests_properties(eo.waitgroup_one_worker PROPERTIES ENVIRONMENT "EOMAXPROCS=1" TIMEOUT 10)
 
+add_executable(eo_mutex mutex.cpp)
+target_link_libraries(eo_mutex PRIVATE eo::eo)
+
+add_test(NAME eo.mutex COMMAND eo_mutex)
+set_tests_properties(eo.mutex PROPERTIES TIMEOUT 10)
+add_test(NAME eo.mutex_one_worker COMMAND eo_mutex)
+set_tests_properties(eo.mutex_one_worker PROPERTIES ENVIRONMENT "EOMAXPROCS=1" TIMEOUT 10)
+
+add_executable(eo_mutex_fatal mutex_fatal.cpp)
+target_link_libraries(eo_mutex_fatal PRIVATE eo::eo)
+
+# Passes only on exit status 2 with exactly "fatal error: <message>" on stderr and nothing on stdout.
+function(eo_add_mutex_fatal_test which message)
+  add_test(
+    NAME eo.mutex_fatal.${which}
+    COMMAND
+      sh -c
+      "out=$(\"$0\" \"$1\" 2>&1 >/dev/null); status=$?; test $status -eq 2 && test \"$out\" = \"fatal error: $2\" && test -z \"$(\"$0\" \"$1\" 2>/dev/null)\""
+      $<TARGET_FILE:eo_mutex_fatal> ${which} ${message})
+  set_tests_properties(eo.mutex_fatal.${which} PROPERTIES TIMEOUT 10)
+endfunction()
+
+eo_add_mutex_fatal_test(mutex "sync: unlock of unlocked mutex")
+eo_add_mutex_fatal_test(rwmutex "sync: Unlock of unlocked RWMutex")
+eo_add_mutex_fatal_test(rwmutex_reader "sync: RUnlock of unlocked RWMutex")
+eo_add_mutex_fatal_test(rwmutex_writer_while_reader "sync: Unlock of unlocked RWMutex")
+eo_add_mutex_fatal_test(rwmutex_reader_while_writer "sync: RUnlock of unlocked RWMutex")
+
 add_executable(eo_timer timer.cpp)
 target_link_libraries(eo_timer PRIVATE eo::eo)
 

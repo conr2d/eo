@@ -1,0 +1,5 @@
+second reader in
+TryLock while reading: false
+TryLock after RUnlock: true
+TryRLock while writing: false
+TryRLock after Unlock: true

@@ -5,6 +5,7 @@
 #include <boost/asio/thread_pool.hpp>
 
 #include <exception>
+#include <string_view>
 
 namespace eo::runtime {
 
@@ -23,6 +24,11 @@ extern boost::asio::thread_pool execution_context;
 // Go does for a panic that no goroutine recovers. If several goroutines panic at once, only the
 // first one is reported.
 [[noreturn]] void fatal_panic(std::exception_ptr eptr) noexcept;
+
+// Reports a fatal error on stderr as "fatal error: <message>" and ends the process with status 2, as
+// Go's runtime does for errors such as "sync: unlock of unlocked mutex". Unlike a panic, a fatal
+// error runs no deferred calls and cannot be recovered.
+[[noreturn]] void fatal_error(std::string_view message) noexcept;
 
 namespace detail {
 
