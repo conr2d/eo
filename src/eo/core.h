@@ -8,4 +8,5 @@
 #include <eo/error.h>
 #include <eo/invoke.h>
 #include <eo/panic.h>
+#include <eo/ptr.h>
 #include <eo/select.h>

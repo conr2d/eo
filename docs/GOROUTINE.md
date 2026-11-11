@@ -80,55 +80,46 @@ go([=]() mutable { return _eo_go_fn_0(_eo_go_arg_0_0); });
 
 For `go x.M(args...)`, evaluate and save the receiver binding before the arguments. Receiver binding follows the same Go value- vs pointer-receiver rules used by the defer translation contract.
 
-For a value-receiver method, save the receiver value that Go would pass. When Go selects a value-receiver method through a pointer `p`, that value is `*p`, so the dereference happens in the launching goroutine.
+For a value-receiver method, save the receiver value that Go would pass. When Go selects a value-receiver method through a pointer `p`, that value is `*p`, so the dereference happens in the launching goroutine, and a nil `p` panics there, as in Go.
 
 ```cpp
 auto _eo_go_receiver_0 = x;
 int64_t _eo_go_arg_0_0 = y();
-go([=]() mutable { return _eo_go_receiver_0.M(_eo_go_arg_0_0); });
+go([=]() mutable { return T::M(_eo_go_receiver_0, _eo_go_arg_0_0); });
 ```
 
-For a pointer-receiver method whose receiver expression already evaluates to a pointer value, save that pointer value directly:
+Both receiver kinds call the method in its [static form](./TRANSLATION_RULES.md#methods), `T::M(receiver, args...)`. For a pointer-receiver method, save the receiver as a pointer. If the receiver expression is already a pointer `p`, save `p`. If it is an addressable value `x`, save `&x`, translated as described in [Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables):
 
 ```cpp
 auto _eo_go_receiver_0 = p;
 int64_t _eo_go_arg_0_0 = y();
-go([=]() mutable { return _eo_go_receiver_0->M(_eo_go_arg_0_0); });
+go([=]() mutable { return T::M(_eo_go_receiver_0, _eo_go_arg_0_0); });
 ```
 
-This copies the pointer, not its target. It is sound only when the target outlives the goroutine; see the lifetime boundary below.
+A method of an Eo library type, such as `sync::WaitGroup`, is a member function, so the thunk calls it through the saved pointer: `return _eo_go_receiver_0->M(_eo_go_arg_0_0);`.
 
 ## Lifetime boundary
 
 A launched goroutine can outlive the C++ function that launched it. Go keeps any variable that a goroutine can reach alive and shared for as long as it is reachable. A raw C++ pointer or reference into the launching function's storage does not, and a by-value capture copies a variable that Go would share.
 
-This differs from defer. A deferred call runs at the function-level `eo_defer_run` or `eo_defer_panic`, before the function returns, so the defer contract may save `&x` for a pointer receiver on an addressable value that is still alive at both points. That excludes a local declared inside the function's `try` block, which is destroyed before `eo_defer_panic` runs (see [Defer](./TRANSLATION_RULES.md#defer)). A goroutine has no such bound.
+[Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables) closes this gap on the side that declares the variable, not at the `go` statement. A variable that a goroutine can reach, through a pointer, a capture, or a pointer-receiver call, is reported moved to heap by the Go compiler and is boxed. Its address is then an owning `ptr<T>`, and a capture copies the box, which shares the variable. A `ref` pointer refers only to storage that Go proved does not outlive its function, so no goroutine can hold one. The launch itself takes no special form:
 
-Taking an address at a `go` statement (`&x`, `&s.f`, `&a[i]`, a slice expression on an array such as `a[:]`, or the implicit `&x` of a pointer-receiver call on an addressable value) is frozen only when the storage is a package-level variable or a part of one. A part is defined as in [By-value captures](#by-value-captures): field selectors and array indexes with no pointer, slice, or map indirection. `&g.s[i]` through a package-level slice `g.s` is therefore not package-level storage, because the backing array may belong to a caller's local. That case saves the address like the defer pointer-receiver shape:
-
-```cpp
-auto* _eo_go_receiver_0 = &g; // g is a package-level variable; M has receiver *T
-go([=]() mutable { return _eo_go_receiver_0->M(); });
+```go
+func (s *T) Start() {
+	go s.loop()
+}
 ```
 
-The following are unsupported:
+```cpp
+void T::Start(ptr<T> s) {
+  auto _eo_go_receiver_0 = s;
+  go([=]() mutable { return T::loop(_eo_go_receiver_0); });
+}
+```
 
-- an address whose storage is, or is a part of, a local variable or parameter of the launching function or an enclosing function, whether taken explicitly, by slicing an array, or implied by a pointer-receiver call;
-- a function literal that captures a local variable or parameter by reference;
-- a function literal that captures by value a local variable or parameter that is written after the `go` statement, as defined in [By-value captures](#by-value-captures), because a by-value capture would not share it;
-- a function literal that captures by value a local variable or parameter declared in an enclosing function, when the `go` statement is itself inside a function literal.
+The saved `s` keeps the target alive whatever the caller passed. A caller that writes `var t T; t.Start()` boxes `t`, because `Start` keeps its receiver.
 
-Until Eo defines a canonical mapping for escaping and shared locals, a translator must not emit `&x`, `[&]`, or a by-value copy for these cases, because each silently changes semantics.
-
-Any other address taken at a `go` statement, whose storage is neither a part of a package-level variable nor a part of a local variable or parameter, such as `&g.s[i]` through a package-level slice, `&p.f` through a pointer, or `&s[i]` on a slice, is provisional, like a held pointer whose source cannot be checked.
-
-Saving a pointer value that the source already holds, as in the `p` example above, takes no new address at the `go` statement, but it does not keep the target alive either. If the target is a local variable or parameter, of the launching function or of a caller, the goroutine can outlive it exactly as in the first case above. This applies to a pointer passed as a receiver, as an argument, or through a by-value capture.
-
-Such a pointer is frozen only when its source can be checked in the launching function: the expression is `new(T)`, `&T{...}`, or the address of package-level storage, or it is a local variable of the launching function whose declaration and every assignment are such expressions and whose address is not taken. A pointer from any other source, such as a parameter, a field, a package-level pointer variable, or a function result, cannot be checked locally. The translator uses the same shape and marks the launch as provisional, because its soundness depends on where the pointer came from.
-
-For example, `func (s *T) Start() { go s.loop() }` is provisional: a caller may run `var t T; t.Start()` and pass the address of its own stack local, which the current contract allows.
-
-This boundary is incomplete. Any value that refers to storage has the same hazard as a pointer: a slice of a caller's local array, an interface holding such a pointer, or a struct or array containing one. This contract does not check those values. The real boundary is on the caller side, where the address of a local is taken. Freezing these launches, and dropping the provisional marking above, needs a caller-side rule that allocates a local on the heap whenever Go's escape analysis moves it there; that rule is not defined yet.
+Every address and every held pointer at a `go` statement is therefore frozen, whatever its source: an argument, a receiver, a capture, or a parameter of the launching function. The boundary still applies to values that refer to storage through a type whose mapping is not frozen, such as a slice of a local array, a string view, or an interface. Those launches are provisional until the mapping of that type defines how it keeps its storage alive.
 
 ## Function literals
 
@@ -170,11 +161,9 @@ go([=]() mutable { return _eo_go_fn_0(_eo_go_arg_0_0); });
 
 Package-level variables are not captured. The lambda refers to them directly, so they are shared as in Go.
 
-### By-value captures
+### Captures
 
-`[=]` copies each captured local variable or parameter of the launching function when the lambda is created, while Go shares the variable. The copy is equivalent only if nothing writes the variable after that point. A literal launched by `go` may capture a local variable or parameter `v` by value only if there is no write to `v` as defined below. Otherwise the launch falls under the [lifetime boundary](#lifetime-boundary) and is unsupported.
-
-The check below covers only variables declared in the launching function. When the `go` statement is inside a function literal and `v` is declared in an enclosing function, the enclosing function can write `v` after the launch, and those writes are outside the places listed below:
+A launched literal captures as described in [Function literals](./TRANSLATION_RULES.md#function-literals). `[=]` copies each captured variable of the launching function, and of any enclosing function, when the lambda is created. Go captures by value only a variable that is never written after it is captured, so the copy equals the variable. Every variable that a launched literal captures by reference is moved to heap and boxed, so the copy is a pointer that shares the variable:
 
 ```go
 x := 0
@@ -186,38 +175,31 @@ start := func() {
 start()
 x = 1
 close(done)
-fmt.Println(<-res) // Go prints 1; a by-value copy would give 0
+fmt.Println(<-res) // prints 1
 ```
 
-Such a by-value capture is unsupported until captures of ordinary closures are frozen.
+```cpp
+auto x = New<int64_t>(0);
+// ...
+auto start = [=]() mutable {
+  go([=]() mutable -> func<> {
+    co_await *done;
+    co_await (res << *x);
+  });
+};
+start();
+*x = 1;
+```
 
-A part of `v` is `v` followed by field selectors and array index expressions that stay inside `v`'s own storage, such as `v.f`, `v[i]` where `v` is an array, or `v.f[i].g`. A selector or index that goes through a pointer, slice, or map, including an implicit pointer dereference, reaches storage that `v` refers to rather than `v` itself. This assumes the translated pointer, slice, and map types share their target when copied, as Go's do.
-
-Each of the following is a write to `v`:
-
-- an assignment or compound assignment whose target is `v` or a part of `v`, including one target of a multiple assignment, a receive assignment such as `v, ok = <-ch` or a `select` case `case v = <-ch:`, and a short variable declaration that redeclares `v`;
-- `++` or `--` applied to `v` or a part of `v`;
-- `v` or a part of `v` used as an iteration variable of a `range` clause with `=`;
-- a `return` statement with operands, which writes every named result parameter of the function it returns from;
-- taking the address of `v` or a part of `v`, explicitly or implicitly: `&v`, `&v.f`, `&v[i]`, a call or method value of a pointer-receiver method on `v` or a part of `v` (`v.Lock()`, `v.f.Add(1)`, `v.M`), or any slice expression (`v[:]`, `v[a:b]`, `v[a:b:c]`) on `v` or a part of `v` that is an array.
-
-Reading `v`, passing it by value, and calling a value-receiver method on it are not writes.
-
-A write counts if it is:
-
-- anywhere in the body of the launched literal;
-- anywhere in another function literal that captures `v`, because it can run at any time;
-- in the launching function, anywhere in `v`'s scope that can run after the `go` statement: any statement after it in source order, and every part of a loop that encloses the `go` statement and is itself inside `v`'s scope, including its body, condition, post statement, and `range` clause. If a `goto` can jump backward over the `go` statement inside `v`'s scope, every statement in `v`'s scope counts.
-
-Taking the address of `v` counts wherever it appears in `v`'s scope, including before the `go` statement, because writes through the resulting pointer cannot be checked.
+Both lambdas copy the box `x`, so the goroutine reads the 1 that `main` writes later. The translator does not check where a variable is written. The escape facts already decide it.
 
 ### Loop variables
 
 Eo follows Go 1.22 and later loop-variable semantics. Each iteration of a `for` loop whose clause declares variables with `:=`, in the three-clause or `range` form, has its own copy of those variables. Code from a module whose Go language version is earlier than 1.22 is not covered when a launched literal captures a loop variable.
 
-For the write check, each iteration's loop variable is a separate variable whose scope is that iteration. The loop's own updates, the post statement of a three-clause loop and the assignment of the next `range` values, act on the next iteration's variable and are not writes to the variable captured in the current iteration. A write to the loop variable inside the loop body is a write to the current iteration's variable, and it counts if it can run after the `go` statement.
+Each iteration's loop variable is a separate variable. The loop's own updates, the post statement of a three-clause loop and the assignment of the next `range` values, act on the next iteration's variable. Go captures the current iteration's variable by value only if nothing writes it or takes its address after the capture and it is at most 128 bytes, so a launched literal usually copies it. A loop variable that a launched literal captures by reference is boxed, and a boxed variable declared by a loop's own clause is unsupported (see [Boxed variables](./TRANSLATION_RULES.md#boxed-variables)).
 
-The exception for the loop's own updates covers only the variables that the loop's own clause declares with `:=`. A post statement or `range ... =` clause of an enclosing loop that writes any other variable, including the loop variable of an outer loop, counts as above:
+This covers only the variables that the loop's own clause declares with `:=`. A variable declared before the loop is one variable for every iteration. A launched literal that captures it while the loop's post statement writes it captures it by reference, so it is boxed, and every goroutine shares it, as in Go:
 
 ```go
 x := 0
@@ -247,7 +229,7 @@ for (int i = 0; i < n; i++) {
 }
 ```
 
-While the body runs, the C++ `i` stands for the current iteration's Go variable. The by-value capture copies it at the `go` statement, and since nothing writes that iteration's variable afterward, the copy stays equal to it. The C++ `i++` runs after the copy is made and corresponds to the Go post statement on the next iteration's variable.
+While the body runs, the C++ `i` stands for the current iteration's Go variable. Go captures it by value, and the `[=]` capture copies it at the `go` statement. Nothing writes that iteration's variable afterward, so the copy stays equal to it. The C++ `i++` runs after the copy is made and corresponds to the Go post statement on the next iteration's variable.
 
 ## Unfrozen launch forms
 
@@ -258,10 +240,9 @@ The following are not covered by this contract yet:
 - calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, because Eo has no frozen mapping for the variadic slice that Go builds or passes in the launching goroutine;
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
 - untyped string and complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
-- a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`;
-- a nil pointer `p` in `go p.M()` where `M` has a value receiver. Go panics in the launching goroutine. The prepare step dereferences `p` at the same point, but dereferencing a null C++ pointer is undefined behavior rather than a panic.
+- a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`.
 
-The nil cases are instances of the panic-producing operations listed under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs). The shapes above remain canonical when the function value and receiver pointer are not nil.
+The nil function value is an instance of the panic-producing operations listed under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs). The shapes above remain canonical when the function value is not nil.
 
 A panic that escapes the launched call ends the program with status 2, whether or not the callee is a coroutine, as in Go (see [Program termination](./TRANSLATION_RULES.md#program-termination)).
 

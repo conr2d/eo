@@ -94,6 +94,173 @@ double _eo_go_arg_6_0 = double{0x1.52d02c7e14af6p+76};
 
 Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type. The C++ mapping of Go defined types is not frozen; `T{L}` applies to whatever type it produces. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
 
+### Pointers and escaping variables
+
+Go keeps a variable alive for as long as anything can reach it, and a function literal or goroutine that uses a variable shares it with the function that declared it. A C++ local is destroyed at the end of its block, and a lambda that captures by value copies the variable. This mapping gives such a variable shared heap storage that stays alive while any pointer refers to it. The Go compiler, not the translator, decides which variables need it.
+
+#### Pointer type
+
+Go `*T` maps to `ptr<T>` from `<eo/ptr.h>`, which `<eo/core.h>` includes:
+
+| Go | C++ |
+| --- | --- |
+| `*T` | `ptr<T>` |
+| `nil` as a `*T`, and the zero value of `*T` | `ptr<T>{}`, or `nullptr` where it converts |
+| `p == nil`, `p != nil` | `p == nullptr`, `p != nullptr` |
+| `p == q` | `p == q` |
+| `*p` | `*p` |
+| `p.f` | `p->f` |
+| `new(T)` | `New<T>()` |
+| `&T{...}` | `New<T>(...)` with the translated composite literal as the argument |
+| `&x`, where `x` is [boxed](#boxed-variables) | `x` |
+| `&x.f`, where `x` is boxed | `ptr(x, &x->f)` |
+| `&x`, `&x.f`, where `x` is not boxed | `ref(x)`, `ref(x.f)` |
+| `&p.f`, where `p` is a pointer | `ptr(p, &p->f)` |
+| `&*p` | `p` |
+| `&p[i]`, where `p` is a pointer to an array | `ptr(p, &(*p)[i])` |
+
+`&x.f` stands for the address of any part of `x`: `x` followed by field selectors and array indexes that stay inside `x`'s own storage, such as `x.f[i].g`. The `ptr(owner, address)` form keeps the whole target of `owner` alive, as Go does for a pointer into the middle of a variable.
+
+A pointer from `New` owns its target, and every copy shares it. The target is destroyed when the last pointer to it is gone. A pointer from `ref` does not own its target. The rules below use `ref` only for storage that outlives every use of the pointer: package-level variables, and locals that are not boxed.
+
+Pass, return, and store pointers by value, as `ptr<T>`, never as `const ptr<T>&`. A reference to a pointer variable would see a later assignment to that variable, which a Go parameter does not. If that assignment dropped the last owner, the reference would also refer to a destroyed target. Copying an owning pointer increments an atomic count. Copying a `ref` pointer does not.
+
+`*p`, `p->f`, and `ptr(p, &p->f)` on a nil `p` panic with Go's runtime error `runtime error: invalid memory address or nil pointer dereference`. A deferred `recover()` can stop it, as in Go. Otherwise the program ends with status 2. Go also prints a signal line to stderr, which is not part of parity.
+
+A reference cycle of owning pointers is never destroyed, while Go's garbage collector frees it. Eo does not provide weak pointers. The Go source does not record which pointer in a cycle could be weak, and a wrong choice would destroy a target that is still reachable. A program that keeps creating unreachable cycles uses more memory under Eo than under Go, but it behaves the same otherwise (see [#80](https://github.com/conr2d/eo/issues/80)).
+
+Destroying a target releases the pointers it holds without recursion, so dropping the head of a long linked list frees it without overflowing the stack.
+
+A data race on a pointer variable, such as one goroutine assigning `p` while another copies it, is undefined behavior in Eo, as it is for any variable outside the [data-race-free programs](./TRANSLATION.md) that Eo targets. Go happens to keep a racy single-word pointer write memory-safe; a reference-counted pointer does not.
+
+#### Escape facts
+
+Build the package being translated with the Go toolchain that its module selects, and keep the compiler's escape report:
+
+```sh
+go build -gcflags='all=-l -m=2' <package>
+```
+
+Two kinds of lines are used, each naming a variable by its declaration position:
+
+- `moved to heap: x`: the variable can outlive its function's frame, or is shared with code that can;
+- `<function> capturing by value: x` and `<function> capturing by ref: x`: how a function literal captures `x`. Go captures by value only a variable that is never written after it is captured, so the copy always equals the variable.
+
+Ignore capture lines for compiler temporaries, whose names start with `.autotmp_`. A capture line names the function that declares the literal, and the position of the captured variable's declaration.
+
+`-l` turns off inlining. With inlining, the compiler can inline a function literal and drop its capture lines, so the facts would depend on its inlining decisions. Without inlining, a few variables may be moved to heap that an inlining build keeps on the stack. Boxing them costs an allocation, and the translation stays correct.
+
+#### Boxed variables
+
+A local variable or parameter `x` is boxed if:
+
+1. the escape facts report `moved to heap: x`; or
+2. `x`'s address is taken, or a function literal captures `x` by reference, and `x` is declared anywhere except directly in the function body before the `try` block of the [defer shape](#defer), in a loop's own clause, or directly in a loop body. This includes the body of an `if`, `else`, `switch` case, or `select` case, a bare block `{ ... }`, the init statement of an `if` or `switch`, a type switch guard, a `select` receive such as `case v := <-ch:`, and the top level of the `try` block, at any depth.
+
+A variable declared by a loop's own clause or directly in a loop body is not boxed by rule 2. Go reports a variable moved to heap when its address can outlive one iteration, so any other pointer to it is declared inside the same iteration and is destroyed with it.
+
+Taking the address of `x` means `&x` or `&x.f` on a part of `x`, a call or method value of a pointer-receiver method on `x` or a part of `x` (`x.Lock()`, `x.f.Add(1)`, `x.M`), and a slice expression on `x` or a part of `x` that is an array.
+
+Rule 2 is needed because Go keeps a variable that is not moved to heap in its function's frame until the function returns, while the C++ variable is destroyed at the end of its block:
+
+```go
+var p *int
+{
+	x := 5
+	p = &x // Go keeps x on the stack, but p still refers to it below
+}
+*p += 1
+```
+
+```cpp
+ptr<int64_t> p;
+{
+  auto x = New<int64_t>(5);
+  p = x;
+}
+*p += 1;
+```
+
+A boxed variable is declared as a pointer to its value, with the translated Go type of the variable as `T`:
+
+| Go | C++ |
+| --- | --- |
+| `var x T` | `auto x = New<T>();` |
+| `x := v`, `var x T = v` | `auto x = New<T>(v);` |
+| parameter `x T` | parameter `T _eo_param_x`, and `auto x = New<T>(_eo_param_x);` at the start of the body |
+| named result `x T` | `auto x = New<T>();` at the start of the body, in place of the `T x{}` of the defer shape, and `*x` wherever the function returns `x` |
+
+At the start of the body, boxed parameters come first, in parameter order, then result storage, then `eo_defer_scope`.
+
+Every other use of `x` is `*x`, `x.f` is `x->f`, and `&x` is `x`.
+
+A loop clause variable that is moved to heap, such as `i` in `for i := 0; i < n; i++` or `v` in `for _, v := range s`, is unsupported. Go copies such a variable into a new one for every iteration, and that copy has no mapping yet (see [#78](https://github.com/conr2d/eo/issues/78)).
+
+#### Function literals
+
+A function literal translates to a lambda `[=, &a, &b]() mutable`, where `a` and `b` are the variables that the literal captures by reference and that are not boxed. Every other captured variable is copied. A variable that Go captures by value never changes after it is captured, so the copy is equivalent. A copied box is a copy of the pointer, so it shares the variable. Package-level variables are not captured.
+
+```go
+x := 0 // captured by reference, not moved to heap
+y := 5 // captured by value
+inc := func() { x++ }
+get := func() int { return x + y }
+```
+
+```cpp
+auto x = int64_t{0};
+auto y = int64_t{5};
+auto inc = [=, &x]() mutable { x++; };
+auto get = [=, &x]() mutable -> int64_t { return x + y; };
+```
+
+By rule 2, a variable captured by reference that is not boxed is declared directly in the function body before any `try` block, in a loop clause, or directly in a loop body. It is alive for every call the literal can receive: Go reports the variable moved to heap if the literal can be called after the function returns, or after the iteration that declared the variable.
+
+Two kinds of literal have their own frozen shape:
+
+- a literal launched by `go` is `[=]() mutable`, as described in [Goroutine](./GOROUTINE.md#function-literals). A goroutine's literal always outlives its frame, so every variable that it captures by reference is moved to heap;
+- a deferred literal is `[&]` when every variable it captures is a parameter, result, or variable declared before the `try` block of its function, or a variable of an enclosing function, which the function reaches through its own capture for as long as it runs. Otherwise it is `[&, v...]() mutable`, listing by copy each captured variable that is declared inside the `try` block. Such a variable is captured by value, is boxed by rule 1 or rule 2, or is declared in a loop clause or directly in a loop body, where Go moves it to heap if a deferred literal captures it by reference, which leaves a loop clause variable unsupported (see [Defer](#defer)).
+
+#### Methods
+
+A method of a translated type `T` is a static member function whose first parameter is the receiver: a `ptr<T>` for a pointer receiver, and a `T` for a value receiver. A value receiver is then an ordinary parameter, which is boxed by the same rules as any other:
+
+```go
+func (c *Counter) Start() {
+	go c.loop()
+}
+```
+
+```cpp
+struct Counter {
+  // fields
+  static void Start(ptr<Counter> c);
+  static auto loop(ptr<Counter> c) -> func<>;
+};
+
+void Counter::Start(ptr<Counter> c) {
+  auto _eo_go_receiver_0 = c;
+  go([=]() mutable { return Counter::loop(_eo_go_receiver_0); });
+}
+```
+
+The receiver is not `this`, because a method can keep its receiver after it returns, here in a goroutine, and `this` cannot keep the target alive. A value receiver is not `*this` either: a goroutine or closure that captures it must capture a copy or a box, never `this`.
+
+| Go call | Pointer receiver | Value receiver |
+| --- | --- | --- |
+| `p.M(args)`, `p` a pointer | `T::M(p, args)` | `T::M(*p, args)` |
+| `x.M(args)`, `x` addressable | `T::M(&x, args)`, with `&x` translated as above | `T::M(x, args)` |
+
+Go does not specify whether `*p` in a value-receiver call is evaluated before or after the other arguments, and C++ does not either, so `T::M(*p, f())` is translated as written. As in Go, a pointer-receiver call on a nil pointer passes nil, and only a dereference inside the method panics, while a value-receiver call through a nil pointer panics at the call.
+
+Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay member functions, called as `x.M()` or `p->M()`.
+
+#### Not covered yet
+
+- pointers held inside slices, maps, strings, and interfaces, whose own mappings are not frozen, and the C++ type of a slice of an array;
+- printing a pointer with `fmt`, which shows an address;
+- method values and method expressions, promoted methods of embedded fields, and conversions through `unsafe.Pointer` or `uintptr`.
+
 ### Goroutine
 
 Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
@@ -108,10 +275,8 @@ In particular:
 - launch a nullary `[=]() mutable` thunk whose body is only the call of the prepared temporaries, so the callee is invoked after launch even if it is not a lazy coroutine;
 - pass a function literal with no parameters, called without arguments, to `go(...)` directly, since its body is the callee body, and save any other function literal as the function value;
 - do not move any other source expression into the launched thunk;
-- do not take the address of a local variable or parameter, of the launching function or an enclosing function, or a part of one, including by slicing an array, and do not capture one by reference; any other address that is not a part of a package-level variable is provisional;
-- do not capture by value, in a launched function literal, a local that is written after the `go` statement as defined in [By-value captures](./GOROUTINE.md#by-value-captures); escaping and shared locals are not frozen;
-- do not capture by value a local variable or parameter declared in an enclosing function when the `go` statement is inside a function literal;
-- treat a held pointer whose source the launching function cannot check, such as a parameter, as provisional (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- translate addresses, pointers, and captures as described in [Pointers and escaping variables](#pointers-and-escaping-variables), which boxes every variable that a goroutine can reach, so that no launch needs a lifetime check of its own (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary)); a launch that passes a value referring to storage through a type whose mapping is not frozen, such as a slice of a local array, is provisional;
+- call a method of a translated type as `T::M(receiver, args...)` with the saved receiver;
 - apply Go 1.22 and later per-iteration loop-variable semantics; a loop's own post statement or `range` update is not a write to the variables that its clause declares with `:=`, but it is a write to any other variable.
 
 `go(...)` returns without running the launched call, including when it is called from a running goroutine.
@@ -136,7 +301,7 @@ Do not use an alternate Select shape merely because it is equivalent for a parti
 
 ### Defer
 
-The following mapping is canonical for defer registration, function returns, panics that run deferred calls, and `recover`. Deferred closures whose captured variables require lifetime extension beyond their translated C++ lexical scope remain unfrozen as described below.
+The following mapping is canonical for defer registration, function returns, panics that run deferred calls, and `recover`.
 
 A translated function containing at least one Go `defer` statement declares one function-scoped defer stack at the beginning of the C++ function body:
 
@@ -202,22 +367,24 @@ For a value-receiver method, save the receiver value that Go would pass to the m
 ```cpp
 auto _eo_defer_receiver_0 = x;
 auto _eo_defer_arg_0_0 = y();
-eo_defer([=]() mutable { _eo_defer_receiver_0.M(_eo_defer_arg_0_0); });
+eo_defer([=]() mutable { T::M(_eo_defer_receiver_0, _eo_defer_arg_0_0); });
 ```
 
-For a pointer-receiver method invoked on an addressable value, preserve Go's implicit `&x` binding by saving a pointer to the original value rather than copying it:
+For a pointer-receiver method invoked on an addressable value, preserve Go's implicit `&x` binding by saving a pointer to the original value rather than copying it. The pointer is `&x` translated as described in [Pointers and escaping variables](#pointers-and-escaping-variables), and the call uses the [method form](#methods):
 
 ```go
-defer x.M(y()) // M has receiver *T
+defer x.M(y()) // M has receiver *T, and x is not boxed
 ```
 
 ```cpp
-auto* _eo_defer_receiver_0 = &x;
+auto _eo_defer_receiver_0 = ref(x);
 auto _eo_defer_arg_0_0 = y();
-eo_defer([=] { _eo_defer_receiver_0->M(_eo_defer_arg_0_0); });
+eo_defer([=] { T::M(_eo_defer_receiver_0, _eo_defer_arg_0_0); });
 ```
 
-If the source receiver expression already evaluates to a pointer for a pointer-receiver method, evaluate and save that pointer value directly. Translators must resolve the Go receiver kind from the method declaration instead of inferring it from convenient C++ syntax.
+If `x` is boxed, the receiver is `x` itself: `auto _eo_defer_receiver_0 = x;`. If the source receiver expression already evaluates to a pointer for a pointer-receiver method, evaluate and save that pointer value directly. Translators must resolve the Go receiver kind from the method declaration instead of inferring it from convenient C++ syntax.
+
+A method of an Eo library type, such as `sync::Mutex`, is a member function. Its receiver binding saves a raw `&x` for a package-level `x` or a variable declared before the `try` block, and otherwise `&x` translated by the pointer table, such as the box for a boxed `x` or `ptr(c, &c->mu)` for `defer c.mu.Unlock()`. The deferred call is `_eo_defer_receiver_0->M(...)`, as in [Mutex](#mutex).
 
 A deferred closure may use a direct reference capture only when every referenced translated object remains alive until the function-level `eo_defer_run` and `eo_defer_panic`:
 
@@ -229,9 +396,7 @@ defer func() { use(x) }()
 eo_defer([&] { use(x); });
 ```
 
-Parameters, result storage, package-level variables, and locals declared at the top level of the function body before `try {` stay alive for both. A local declared inside the `try` block is destroyed before the catch handler runs `eo_defer_panic`. A deferred call that refers to such a local by reference capture, or through a saved address such as a pointer-receiver binding, is provisional.
-
-This shape is not valid when the Go closure captures a variable whose translated C++ lexical lifetime ends before the function-level drain, such as a variable declared inside an inner block or a loop iteration. Go may keep such captured variables alive, while a C++ reference capture would dangle. Until Eo defines a canonical escape/capture-cell mapping, translators must leave that case explicitly unsupported or unfrozen rather than emit `[&]` and silently change semantics.
+Parameters, result storage, package-level variables, and locals declared at the top level of the function body before `try {` stay alive for both. A local declared inside the `try` block, including one in an inner block or a loop iteration, is destroyed before the catch handler runs `eo_defer_panic`, and an inner-block local before the drain at a later return. A deferred literal that captures such a local lists it by copy, as in `eo_defer([&, v]() mutable { use(v); });`. The local is captured by value in Go, or it is boxed (see [Function literals](#function-literals)), so the copy keeps Go's semantics. A saved address of such a local, such as a pointer-receiver binding, is the box itself: rule 2 of [Boxed variables](#boxed-variables) boxes a local at the top level of the `try` block or in an inner block, and Go moves a loop-body local to heap when a deferred call keeps its address.
 
 Repeated execution, including inside loops, registers a new callable each time. Registered calls execute in LIFO order when `eo_defer_run` executes. The `eo_defer_scope` declaration belongs to the surrounding translated function, not to a nested block containing the defer statement.
 
@@ -322,11 +487,7 @@ Do not use `eo::invoke` in a translation. It blocks the calling OS thread until 
 
 `sync.WaitGroup` maps to `sync::WaitGroup` from `<eo/sync.h>`. `Add` and `Done` are plain calls, and `Add` panics with `sync: negative WaitGroup counter` when the counter goes below zero.
 
-Sharing a WaitGroup with goroutines follows the [Lifetime boundary](./GOROUTINE.md#lifetime-boundary):
-
-- a local `var wg sync.WaitGroup` that goroutines use through a capture or `&wg` is unsupported until Eo defines a mapping for escaping and shared locals;
-- a `*sync.WaitGroup` value passed to or captured by a goroutine is provisional, even when its source can be checked as described in the Lifetime boundary, because the C++ type of a Go pointer to a WaitGroup is not frozen;
-- the `std::shared_ptr<sync::WaitGroup>` (`sync::WaitGroupPtr`) used with `wg->Wait()` in the examples and in `tests/parity/waitgroup_results` is a provisional local adaptation, not a defined mapping.
+Sharing a WaitGroup with goroutines follows [Pointers and escaping variables](#pointers-and-escaping-variables). A local `var wg sync.WaitGroup` that goroutines use through a capture or `&wg` is moved to heap, so it is boxed as `auto wg = New<sync::WaitGroup>();` and used as `wg->Add(1)` and `co_await wg->Wait()`. A `*sync.WaitGroup` is a `ptr<sync::WaitGroup>`. The `sync::WaitGroupPtr` alias for `std::shared_ptr<sync::WaitGroup>` is not a translation mapping.
 
 #### Mutex
 
@@ -386,7 +547,7 @@ Holding a lock across a blocking operation, such as a channel send, needs nothin
 
 The following are not frozen:
 
-- sharing a Mutex or RWMutex follows the WaitGroup rules above. A local that goroutines use through a capture or an address is unsupported, and a pointer to one is provisional. The C++ form of package-level variables and struct fields is not frozen either, as used in `tests/parity/mutex_counter`;
+- the C++ form of package-level variables and struct fields, as used in `tests/parity/mutex_counter`. Sharing a local Mutex or RWMutex follows the WaitGroup rules above and is frozen, as in `tests/parity/mutex_local_shared`;
 - `RLocker`, and passing a lock as a `sync.Locker`, have no mapping;
 - `sync::Mutex`, `sync::RWMutex`, and `sync::WaitGroup` cannot be copied or moved. A Go program that copies one, which `go vet` reports, is unsupported.
 
@@ -413,10 +574,10 @@ Translation-facing mappings with broad source impact should be frozen before lar
 
 Examples currently requiring additional canonical rules include:
 
-- deferred closures whose captured variables outlive their translated C++ lexical scope;
-- goroutine launches that pass a held pointer whose source the launching function cannot check, an address that is neither local nor package-level storage, a non-owning view argument, or another value that refers to storage, which are provisional until a caller-side escape rule exists (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- pointers held in slices, maps, strings, and interfaces, printing a pointer, method values, method expressions, and promoted methods (see [Not covered yet](#not-covered-yet));
 - untyped string and complex constant arguments of `go` and `defer`;
-- goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value or a nil value-receiver pointer (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
+- goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
 - general zero-value construction for translated Go types;
@@ -434,7 +595,7 @@ The purpose of this rule is to keep translation gaps explicit so they can drive 
 
 Currently unsupported:
 
-- goroutine calls and function literals that take the address of, capture by reference, or share a written-after-launch local variable or parameter of the launching function or an enclosing function, or capture by value a variable of an enclosing function (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
+- a boxed variable declared by a loop's own clause (see [Boxed variables](#boxed-variables));
 - `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations));
 - `recover()` outside a deferred function literal, unless it is in a named function that is only called in `defer` statements (see [Panic and recover](#panic-and-recover)).
 - `sync.Once` and `sync.Cond` (see [Blocking operations](#blocking-operations)), `RWMutex.RLocker`, and passing a lock as a `sync.Locker` (see [Mutex](#mutex));

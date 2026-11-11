@@ -154,7 +154,29 @@ func<> f() {
 }
 ```
 
-Deferred method receivers follow Go's receiver binding: value receivers save a value, while pointer receivers on addressable values save the corresponding address. A deferred closure may use `eo_defer([&] { ... });` only when every referenced translated object remains alive until the function-level drain; captures that require Go-style lifetime extension across a nested C++ scope are not yet frozen. See `docs/TRANSLATION_RULES.md` for the canonical source-order, receiver, and return translation shapes.
+Deferred method receivers follow Go's receiver binding: value receivers save a value, while pointer receivers on addressable values save the corresponding address. A deferred closure uses `eo_defer([&] { ... });` when every variable it captures lives until the function-level drain, and copies the variables declared inside the `try` block otherwise. See `docs/TRANSLATION_RULES.md` for the canonical source-order, receiver, and return translation shapes.
+
+### Pointers
+
+Go `*T` is `ptr<T>`. A variable that the Go compiler moves to heap (`go build -gcflags='all=-l -m=2'` reports `moved to heap: x`) is boxed with `New<T>(...)`, so goroutines, closures, and returned pointers share it and keep it alive. Copies share the target, and dereferencing nil panics with Go's runtime error.
+
+```go
+// Go
+func newCounter() *int {
+  n := 0
+  return &n
+}
+```
+
+```cpp
+// C++
+auto newCounter() -> ptr<int64_t> {
+  auto n = New<int64_t>(0);
+  return n;
+}
+```
+
+A pointer is reference-counted, so a reference cycle is never freed. See `docs/TRANSLATION_RULES.md` for the full mapping, including `ref(x)` for addresses that do not escape and the static method form.
 
 ### Libraries
 

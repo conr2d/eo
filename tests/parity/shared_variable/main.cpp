@@ -1,14 +1,12 @@
-// Provisional: goroutine launch and closure capture of the boxed x are not frozen mappings (see ../README.md).
+// Provisional: channel operations and the C++ type of Go int are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
-
-#include <memory>
 
 using namespace eo;
 
 func<> eo_main() {
-  auto x = std::make_shared<int>(0);
+  auto x = New<int>(0);
   auto done = make_chan<bool>();
-  go([x, done]() -> func<> {
+  go([=]() mutable -> func<> {
     *x = 42;
     co_await (done << true);
   });

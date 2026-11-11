@@ -7,9 +7,9 @@ func<> eo_main() {
   eo_defer_scope;
   try {
     eo_defer([&] { fmt::Println("recovered:", recover()); });
-    sync::Mutex mu;
+    auto mu = New<sync::Mutex>();
     fmt::Println("unlocking");
-    mu.Unlock();
+    mu->Unlock();
     fmt::Println("unreachable");
     eo_defer_run;
   } catch (...) {
