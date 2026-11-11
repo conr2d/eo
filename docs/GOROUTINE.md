@@ -85,10 +85,10 @@ For a value-receiver method, save the receiver value that Go would pass. When Go
 ```cpp
 auto _eo_go_receiver_0 = x;
 int64_t _eo_go_arg_0_0 = y();
-go([=]() mutable { return _eo_go_receiver_0.M(_eo_go_arg_0_0); });
+go([=]() mutable { return T::M(_eo_go_receiver_0, _eo_go_arg_0_0); });
 ```
 
-For a pointer-receiver method, save the receiver as a pointer and call the method in its [pointer-receiver form](./TRANSLATION_RULES.md#methods-with-pointer-receivers), `T::M(receiver, args...)`. If the receiver expression is already a pointer `p`, save `p`. If it is an addressable value `x`, save `&x`, translated as described in [Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables):
+Both receiver kinds call the method in its [static form](./TRANSLATION_RULES.md#methods), `T::M(receiver, args...)`. For a pointer-receiver method, save the receiver as a pointer. If the receiver expression is already a pointer `p`, save `p`. If it is an addressable value `x`, save `&x`, translated as described in [Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables):
 
 ```cpp
 auto _eo_go_receiver_0 = p;
@@ -197,7 +197,7 @@ Both lambdas copy the box `x`, so the goroutine reads the 1 that `main` writes l
 
 Eo follows Go 1.22 and later loop-variable semantics. Each iteration of a `for` loop whose clause declares variables with `:=`, in the three-clause or `range` form, has its own copy of those variables. Code from a module whose Go language version is earlier than 1.22 is not covered when a launched literal captures a loop variable.
 
-Each iteration's loop variable is a separate variable. The loop's own updates, the post statement of a three-clause loop and the assignment of the next `range` values, act on the next iteration's variable. Go captures the current iteration's variable by value unless the body writes it, so a launched literal usually copies it. A loop variable that a launched literal captures by reference is boxed, and a boxed variable declared by a loop's own clause is unsupported (see [Boxed variables](./TRANSLATION_RULES.md#boxed-variables)).
+Each iteration's loop variable is a separate variable. The loop's own updates, the post statement of a three-clause loop and the assignment of the next `range` values, act on the next iteration's variable. Go captures the current iteration's variable by value only if nothing writes it or takes its address after the capture and it is at most 128 bytes, so a launched literal usually copies it. A loop variable that a launched literal captures by reference is boxed, and a boxed variable declared by a loop's own clause is unsupported (see [Boxed variables](./TRANSLATION_RULES.md#boxed-variables)).
 
 This covers only the variables that the loop's own clause declares with `:=`. A variable declared before the loop is one variable for every iteration. A launched literal that captures it while the loop's post statement writes it captures it by reference, so it is boxed, and every goroutine shares it, as in Go:
 

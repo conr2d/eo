@@ -176,7 +176,7 @@ auto newCounter() -> ptr<int64_t> {
 }
 ```
 
-A pointer is reference-counted, so a reference cycle is never freed. See `docs/TRANSLATION_RULES.md` for the full mapping, including `ref(x)` for addresses that do not escape and the pointer-receiver method form.
+A pointer is reference-counted, so a reference cycle is never freed. See `docs/TRANSLATION_RULES.md` for the full mapping, including `ref(x)` for addresses that do not escape and the static method form.
 
 ### Libraries
 

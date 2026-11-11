@@ -10,6 +10,7 @@
 #include <memory>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace eo {
 
@@ -18,6 +19,33 @@ namespace detail {
   inline auto nil_pointer_dereference() -> const Error& {
     static const auto err = Error{"runtime error: invalid memory address or nil pointer dereference"};
     return err;
+  }
+
+  // Drops one owning reference without recursion. Destroying a target destroys the pointers it holds,
+  // and a shared_ptr would destroy their targets from inside that destructor, so freeing a long
+  // linked list would overflow the stack. Here a reference that would destroy its target while
+  // another release is running on this thread is queued instead, and the outermost release destroys
+  // the queued targets one at a time.
+  inline void release(std::shared_ptr<void> p) noexcept {
+    thread_local bool releasing = false;
+    thread_local std::vector<std::shared_ptr<void>> pending;
+    // use_count() == 1 is exact: this is the only owner, and Eo pointers have no weak references.
+    if (p.use_count() != 1) {
+      return; // dropping a shared reference destroys nothing, unless another thread drops the last
+              // one concurrently; then this release destroys the target, which queues what it holds
+    }
+    if (releasing) {
+      pending.push_back(std::move(p));
+      return;
+    }
+    releasing = true;
+    p.reset();
+    while (!pending.empty()) {
+      auto next = std::move(pending.back());
+      pending.pop_back();
+      next.reset();
+    }
+    releasing = false;
   }
 
 } // namespace detail
@@ -35,6 +63,24 @@ public:
 
   ptr() noexcept = default;
   ptr(std::nullptr_t) noexcept {}
+  ptr(const ptr&) noexcept = default;
+  ptr(ptr&&) noexcept = default;
+
+  ~ptr() {
+    detail::release(std::move(p_));
+  }
+
+  auto operator=(const ptr& other) noexcept -> ptr& {
+    auto old = std::exchange(p_, other.p_);
+    detail::release(std::move(old));
+    return *this;
+  }
+
+  auto operator=(ptr&& other) noexcept -> ptr& {
+    auto old = std::exchange(p_, std::move(other.p_));
+    detail::release(std::move(old));
+    return *this;
+  }
 
   // &owner.f: a pointer to storage inside the target of owner, keeping that whole target alive.
   template<typename U>

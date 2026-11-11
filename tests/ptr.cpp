@@ -116,6 +116,41 @@ void test_ref_borrows_without_owning() {
   check(Tracked::live == 0, "ref kept a borrowed variable alive");
 }
 
+struct Node {
+  static inline int live = 0;
+  ptr<Node> next;
+  Node() {
+    live++;
+  }
+  Node(const Node&) = delete;
+  ~Node() {
+    live--;
+  }
+};
+
+// Freeing a list releases each node from the previous node's destructor. Doing that recursively
+// would overflow the stack long before a million nodes.
+void test_long_chain_is_freed_without_recursion() {
+  ptr<Node> head;
+  for (auto i = 0; i < 1'000'000; i++) {
+    auto n = New<Node>();
+    n->next = head;
+    head = n;
+  }
+  check(Node::live == 1'000'000, "the list was not built");
+  head = nullptr;
+  check(Node::live == 0, "dropping the head did not free the list");
+  {
+    ptr<Node> scoped;
+    for (auto i = 0; i < 1'000'000; i++) {
+      auto n = New<Node>();
+      n->next = std::move(scoped);
+      scoped = std::move(n);
+    }
+  }
+  check(Node::live == 0, "a list leaving scope was not freed");
+}
+
 void test_pointers_hash_by_address() {
   auto a = New<int64_t>();
   auto b = New<int64_t>();
@@ -129,5 +164,6 @@ int main() {
   test_nil_dereference_panics();
   test_field_pointer_keeps_the_target_alive();
   test_ref_borrows_without_owning();
+  test_long_chain_is_freed_without_recursion();
   test_pointers_hash_by_address();
 }
