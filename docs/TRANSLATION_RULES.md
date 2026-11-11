@@ -194,7 +194,29 @@ At the start of the body, boxed parameters come first, in parameter order, then 
 
 Every other use of `x` is `*x`, `x.f` is `x->f`, and `&x` is `x`.
 
-A loop clause variable that is moved to heap, such as `i` in `for i := 0; i < n; i++` or `v` in `for _, v := range s`, is unsupported. Go copies such a variable into a new one for every iteration, and that copy has no mapping yet (see [#78](https://github.com/conr2d/eo/issues/78)).
+#### Loop clause variables
+
+A variable that the init statement of a three-clause `for` loop declares, and that is moved to heap, is boxed in the init statement. Go gives every iteration its own variable: before the post statement runs, it declares the next iteration's variable and copies the current value into it. The C++ post expression therefore first assigns a new box to each boxed clause variable, in declaration order, and then runs the translated post statement, joined by the comma operator:
+
+```go
+var head *Node
+for i := 0; i < 3; i++ {
+	head = &Node{p: &i, next: head}
+}
+```
+
+```cpp
+ptr<Node> head;
+for (auto i = New<int64_t>(0); *i < 3; i = New<int64_t>(*i), (*i)++) {
+  head = New<Node>(Node{.p = i, .next = head});
+}
+```
+
+Each node keeps the box of its own iteration, so the values are 0, 1, and 2, as in Go. The condition and the post statement act on the new box. `continue` jumps to the C++ post expression, so the copy happens there too, as it does in Go. A loop without a post statement, `for i := 0; i < n; {`, has only the new-box assignments as its C++ post expression.
+
+A clause variable that is not boxed stays a plain C++ variable that every iteration reuses. Nothing that outlives an iteration refers to it, so the per-iteration copy cannot be observed.
+
+An init statement that declares variables of different translated types and a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`, are not covered. A variable that a `range` clause declares is not covered either, because `range` loops have no mapping yet (see [#84](https://github.com/conr2d/eo/issues/84)).
 
 #### Function literals
 
@@ -219,7 +241,7 @@ By rule 2, a variable captured by reference that is not boxed is declared direct
 Two kinds of literal have their own frozen shape:
 
 - a literal launched by `go` is `[=]() mutable`, as described in [Goroutine](./GOROUTINE.md#function-literals). A goroutine's literal always outlives its frame, so every variable that it captures by reference is moved to heap;
-- a deferred literal is `[&]` when every variable it captures is a parameter, result, or variable declared before the `try` block of its function, or a variable of an enclosing function, which the function reaches through its own capture for as long as it runs. Otherwise it is `[&, v...]() mutable`, listing by copy each captured variable that is declared inside the `try` block. Such a variable is captured by value, is boxed by rule 1 or rule 2, or is declared in a loop clause or directly in a loop body, where Go moves it to heap if a deferred literal captures it by reference, which leaves a loop clause variable unsupported (see [Defer](#defer)).
+- a deferred literal is `[&]` when every variable it captures is a parameter, result, or variable declared before the `try` block of its function, or a variable of an enclosing function, which the function reaches through its own capture for as long as it runs. Otherwise it is `[&, v...]() mutable`, listing by copy each captured variable that is declared inside the `try` block. Such a variable is captured by value, is boxed by rule 1 or rule 2, or is declared in a loop clause or directly in a loop body, where Go moves it to heap if a deferred literal captures it by reference (see [Defer](#defer)). A boxed loop clause variable is copied as the box of the iteration that registers the call, as in `eo_defer([&, i]() mutable { use(*i); });`.
 
 #### Methods
 
@@ -580,6 +602,7 @@ Examples currently requiring additional canonical rules include:
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
+- `range` loops, including a boxed variable that a `range` clause declares (see [#84](https://github.com/conr2d/eo/issues/84)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 
@@ -595,7 +618,6 @@ The purpose of this rule is to keep translation gaps explicit so they can drive 
 
 Currently unsupported:
 
-- a boxed variable declared by a loop's own clause (see [Boxed variables](#boxed-variables));
 - `defer` of a blocking operation or of a call to a function translated as a coroutine (see [Blocking operations](#blocking-operations));
 - `recover()` outside a deferred function literal, unless it is in a named function that is only called in `defer` statements (see [Panic and recover](#panic-and-recover)).
 - `sync.Once` and `sync.Cond` (see [Blocking operations](#blocking-operations)), `RWMutex.RLocker`, and passing a lock as a `sync.Locker` (see [Mutex](#mutex));
