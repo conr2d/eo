@@ -13,7 +13,7 @@ Each directory here is one behavioral parity case:
 | `KNOWN_GAP.stdout`, `KNOWN_GAP.<variant>.stdout` | The exact stdout the C++ side writes, before it is killed for a `timeout` gap. Required for `stdout` and `timeout` gaps, and compared whenever present. |
 | `KNOWN_GAP.exitcode`, `KNOWN_GAP.<variant>.exitcode` | The exact exit status the C++ side returns. Required for an `exitcode` gap, and allowed only for one. |
 
-Only the Select, Defer, panic and recover, program termination, WaitGroup, and Mutex forms used here are frozen in the translation rules. Everything else in these translations is provisional, including goroutine launch, closure capture, boxed shared variables, the panic value types, string literals as `std::string`, and `map` as `std::map`. Do not copy those forms as canonical. Cases that use goroutine launch, closure capture, or boxing also say so in the first line of `main.cpp`.
+Only the Select, Defer, panic and recover, program termination, WaitGroup, Mutex, pointer, boxed variable, and function literal capture forms used here are frozen in the translation rules, and the goroutine launch shape where a case uses the canonical `[=]() mutable` thunk. Everything else in these translations is provisional, including channel operations, struct types and composite literals, package-level variables, the C++ type of Go `int`, the panic value types, string literals as `std::string`, and `map` as `std::map`. Do not copy those forms as canonical. A case that uses a provisional form says so in the first line of `main.cpp`.
 
 ## Tests
 

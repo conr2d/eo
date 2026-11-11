@@ -46,12 +46,12 @@ func<> worker(int id) {
 }
 
 func<> eo_main() {
-  auto wg = std::make_shared<sync::WaitGroup>();
+  auto wg = New<sync::WaitGroup>();
 
   for (auto i = 1; i <= 5; i++) {
     wg->Add(1);
 
-    go([wg, i]() -> func<> {
+    go([=]() mutable -> func<> {
       eo_defer_scope;
       try {
         auto _eo_defer_receiver_0 = wg;

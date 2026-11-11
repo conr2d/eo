@@ -105,6 +105,11 @@ target_link_libraries(eo_fmt PRIVATE eo::eo)
 
 add_test(NAME eo.fmt COMMAND eo_fmt)
 
+add_executable(eo_ptr ptr.cpp)
+target_link_libraries(eo_ptr PRIVATE eo::eo)
+
+add_test(NAME eo.ptr COMMAND eo_ptr)
+
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 
