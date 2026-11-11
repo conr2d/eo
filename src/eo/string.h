@@ -15,10 +15,14 @@
 // a byte count of the translated int type, checked indexing that yields a byte, checked slicing,
 // and the conversion of an integer to the UTF-8 encoding of a rune.
 
-// The ordinary literal encoding must be UTF-8, so that "é" and a literal é are Go's bytes.
+// The ordinary literal encoding and the source encoding must both be UTF-8, so that "\u00e9" and a
+// literal é are Go's bytes.
+static_assert(sizeof("\u00e9") == 3 && static_cast<unsigned char>("\u00e9"[0]) == 0xc3 &&
+    static_cast<unsigned char>("\u00e9"[1]) == 0xa9,
+  "Eo requires UTF-8 as the ordinary literal encoding");
 static_assert(sizeof("é") == 3 && static_cast<unsigned char>("é"[0]) == 0xc3 &&
     static_cast<unsigned char>("é"[1]) == 0xa9,
-  "Eo requires UTF-8 as the ordinary literal encoding");
+  "Eo requires UTF-8 source files");
 
 namespace eo {
 
@@ -30,14 +34,14 @@ inline auto len(const std::string& s) -> int64_t {
 }
 
 // s[i]
-template<std::integral I>
+template<detail::go_integer I>
 auto at(const std::string& s, I i) -> uint8_t {
   detail::check_index(i, s.size());
   return static_cast<uint8_t>(s[static_cast<std::size_t>(i)]);
 }
 
 // s[low:high]
-template<std::integral L, std::integral H>
+template<detail::go_integer L, detail::go_integer H>
 auto substr(const std::string& s, L low, H high) -> std::string {
   detail::check_slice(low, high, s.size());
   auto begin = static_cast<std::size_t>(low);
@@ -45,14 +49,14 @@ auto substr(const std::string& s, L low, H high) -> std::string {
 }
 
 // s[low:]
-template<std::integral L>
+template<detail::go_integer L>
 auto substr(const std::string& s, L low) -> std::string {
   return substr(s, low, s.size());
 }
 
 // string(r) for a value r of any integer type: the UTF-8 encoding of r, or of U+FFFD when r is not a
 // valid code point, as Go converts it.
-template<std::integral I>
+template<detail::go_integer I>
 auto string_from_rune(I r) -> std::string {
   auto c = char32_t{0xfffd};
   if (std::cmp_greater_equal(r, 0) && std::cmp_less_equal(r, 0x10ffff) &&

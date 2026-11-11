@@ -143,7 +143,7 @@ func f() {
 func<> f() {
   eo_defer_scope;
   try {
-    auto _eo_defer_arg_0_0 = "world"s;
+    auto _eo_defer_arg_0_0 = std::string{"world"s};
     eo_defer([=] { fmt::Println(_eo_defer_arg_0_0); });
     fmt::Println("hello"s);
     eo_defer_run;
@@ -191,7 +191,7 @@ fmt.Println(len(s), s[1], s[1:3])
 ```cpp
 // C++
 auto s = "héllo"s;
-fmt::Println(len(s), at(s, 1), substr(s, 1, 3));
+fmt::Println(eo::len(s), eo::at(s, 1), eo::substr(s, 1, 3));
 ```
 
 See `docs/TRANSLATION_RULES.md` for the literal escapes and the rest of the mapping.

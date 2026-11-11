@@ -69,7 +69,7 @@ Do not translate the source expression of an untyped constant argument. C++ woul
 - integer: `L` is the decimal value, with a `u` suffix when the type is unsigned; the minimum value of a signed type is written `-M - 1`, where `M` is the type's maximum;
 - floating-point: the recorded value `v` is already rounded to the type. Let `x` be `v` as a Go float (`constant.Float64Val` or `constant.Float32Val`) and `s` be `strconv.FormatFloat(x, 'g', -1, bits)`. If `constant.Compare(constant.MakeFromLiteral(s, token.FLOAT, 0), token.EQL, v)` holds, the decimal `s` is exactly `v`, and `L` is `s`, with `.0` appended when it contains neither `.` nor `e`. Otherwise `L` is the hexadecimal floating literal `strconv.FormatFloat(x, 'x', -1, bits)`, which is always exact. Add an `f` suffix when the underlying Go type is `float32`;
 - boolean: `L` is `true` or `false`;
-- string: `T` is `std::string` and `L` is the folded value as a C++ string literal, written as described in [String literals](#string-literals), as in `std::string{"a\x{00}b"s}`.
+- string: `L` is the folded value as a C++ string literal, written as described in [String literals](#string-literals), as in `std::string{"a\x{00}b"s}` when `T` is `std::string`.
 
 Untyped complex constant arguments are not frozen, because no translation of complex values is frozen yet. A `go` or `defer` statement with such an argument is provisional.
 
@@ -104,22 +104,24 @@ Go `string` maps to `std::string`. A Go string is immutable, so a copy of a `std
 | `string` | `std::string` |
 | an interpreted literal `"..."` | `"..."s`, see [String literals](#string-literals) |
 | a raw literal `` `...` `` | `R"(...)"s` |
-| `len(s)` | `len(s)`, an `int64_t` byte count |
-| `s[i]` | `at(s, i)`, a `uint8_t` |
-| `s[low:high]`, `s[low:]`, `s[:high]` | `substr(s, low, high)`, `substr(s, low)`, `substr(s, 0, high)` |
+| `len(s)` | `eo::len(s)`, an `int64_t` byte count |
+| `s[i]` | `eo::at(s, i)`, a `uint8_t` |
+| `s[low:high]`, `s[low:]`, `s[:high]` | `eo::substr(s, low, high)`, `eo::substr(s, low)`, `eo::substr(s, 0, high)` |
 | `s + t`, `s += t` | `s + t`, `s += t` |
 | `s == t`, `s < t`, and the other comparisons | the same operators |
-| `string(r)`, where `r` has an integer type | `string_from_rune(r)` |
+| `string(r)`, where `r` has an integer type | `eo::string_from_rune(r)` |
 
-`at` and `substr` accept an index of any integer type. An index or bound out of range panics with Go's runtime error, such as `runtime error: index out of range [5] with length 3` or `runtime error: slice bounds out of range [:5] with length 3`, which a deferred `recover()` can stop. `std::string::operator[]` and `std::string::substr` are not used for Go indexing and slicing, because they do not check bounds the same way and `operator[]` yields a `char`, whose signedness differs from Go's `byte`.
+These four functions are always called qualified, as `eo::len` and so on. A Go program can declare a function of the same name, such as `substr`, whose spelling the translation keeps (see [Identifier mapping](#identifier-mapping)), and an unqualified call would silently resolve to it, because overload resolution prefers a non-template function. A collision between Go identifiers and the other Eo names is tracked in [#83](https://github.com/conr2d/eo/issues/83).
 
-`string_from_rune` converts the integer to the UTF-8 encoding of that code point. A value that is negative, above `0x10FFFF`, or a surrogate converts to `"�"`, as in Go. A `byte` value converts as a code point too, so `string(byte(0xff))` is the two bytes of U+00FF.
+`eo::at` and `eo::substr` accept an index of any Go integer type, but not `bool` or a character type. An index or bound out of range panics with Go's runtime error, such as `runtime error: index out of range [5] with length 3` or `runtime error: slice bounds out of range [:5] with length 3`, which a deferred `recover()` can stop. `std::string::operator[]` and `std::string::substr` are not used for Go indexing and slicing, because they do not check bounds the same way and `operator[]` yields a `char`, whose signedness differs from Go's `byte`.
+
+`eo::string_from_rune` converts the integer to the UTF-8 encoding of that code point. A value that is negative, above `0x10FFFF`, or a surrogate converts to `"\uFFFD"`, as in Go. A `byte` value converts as a code point too, so `string(byte(0xff))` is the two bytes of U+00FF.
 
 `std::string` comparisons compare bytes as `unsigned char`, as Go does, so `"\xff" > "a"` holds in both.
 
 Pass, return, and store strings by value, as `std::string`, never as `const std::string&`. A reference parameter would see a later assignment to the caller's variable, which a Go parameter does not.
 
-`len` of a string is an `int64_t`, which is the type that Eo's library uses for Go `int`. The general mapping of Go `int` and the other basic types is not frozen yet (see [#90](https://github.com/conr2d/eo/issues/90)).
+`eo::len` of a string is an `int64_t`, which is the type that Eo's library uses for Go `int`. Arithmetic on the `uint8_t` that `eo::at` returns promotes to `int` in C++, so an expression such as `s[i] - '0'` is provisional until Go's integer arithmetic is mapped. The general mapping of Go `int` and the other basic types is not frozen yet (see [#90](https://github.com/conr2d/eo/issues/90)).
 
 Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://github.com/conr2d/eo/issues/84)); the conversions `[]byte(s)`, `[]rune(s)`, and `string(b)` for a slice `b` ([#87](https://github.com/conr2d/eo/issues/87)); and the `strings`, `strconv`, and `unicode/utf8` packages.
 
@@ -128,16 +130,16 @@ Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://g
 An interpreted string literal keeps its source text, with two changes: each `\xhh` escape is written `\x{hh}`, and the literal gets the `s` suffix from `std::string_literals`, which `<eo/string.h>` makes visible through `using namespace eo;`:
 
 ```go
-s := "café \xff\x00!"
+s := "caf\u00e9 \xff\x00!"
 ```
 
 ```cpp
-auto s = "café \x{ff}\x{00}!"s;
+auto s = "caf\u00e9 \x{ff}\x{00}!"s;
 ```
 
-Go's other escapes, `\a \b \f \n \r \t \v \\ \"`, a three-digit octal `\ooo`, `\uXXXX`, and `\UXXXXXXXX`, mean the same in C++. A C++ `\x` escape without braces takes every hex digit that follows it, so `"\xffc"` would be one out-of-range escape instead of Go's two bytes. The `s` suffix keeps a NUL byte, which `std::string{"..."}` would cut off. Non-ASCII characters are copied as written. `<eo/string.h>` checks that the compiler's ordinary literal encoding is UTF-8, so `é` and a literal `é` are Go's bytes.
+Only an escape sequence changes, not text that merely looks like one: in `\\x41`, the escape is `\\`, and the C++ literal is `\\x41` too. Go's other escapes, `\a \b \f \n \r \t \v \\ \"`, a three-digit octal `\ooo`, `\uXXXX`, and `\UXXXXXXXX`, mean the same in C++. A carriage return byte written directly in the source text is written `\r`, because a C++ compiler reads it as the end of the line. A C++ `\x` escape without braces takes every hex digit that follows it, so `"\xffc"` would be one out-of-range escape instead of Go's two bytes. The `s` suffix keeps a NUL byte, which `std::string{"..."}` would cut off. Non-ASCII characters are copied as written. `<eo/string.h>` checks that the source encoding and the compiler's ordinary literal encoding are both UTF-8, so `\u00e9` and a literal `é` are Go's bytes.
 
-A raw string literal is `R"(...)"s` with the source text inside, after dropping each carriage return, as Go does. If the text contains `)"`, the delimiter is `eo`, `R"eo(...)eo"s`, and if it also contains `)eo"`, the delimiter is the first of `eo1`, `eo2`, ... that the text does not contain followed by `"`.
+A raw string literal is `R"(...)"s` with the source text inside, after dropping each carriage return, as Go does. The delimiter is empty unless the text contains `)"`. Otherwise it is the first of `eo`, `eo1`, `eo2`, ... for which the text does not contain `)` followed by the delimiter and `"`, as in `R"eo(...)eo"s`.
 
 A string constant that the Go type checker folds, such as an untyped constant argument (see [Untyped constant arguments](#untyped-constant-arguments)), is written from its value rather than its source: each byte from `0x20` to `0x7e` other than `"` and `\` as itself, `\a \b \f \n \r \t \v \\ \"` for those bytes, and every other byte as `\x{hh}` with two lowercase hex digits.
 

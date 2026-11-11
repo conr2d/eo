@@ -6,12 +6,28 @@
 #include <fmt/format.h>
 
 #include <any>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
 #include <string>
 
 using namespace eo;
+
+template<typename T>
+concept indexes_with = requires(std::string s, T i) { eo::at(s, i); };
+
+template<typename T>
+concept converts_to_rune = requires(T r) { eo::string_from_rune(r); };
+
+// Go functions whose names match Eo helpers, as a Go program may declare them.
+auto substr(std::string s, int64_t start, int64_t n) -> std::string {
+  return s.substr(static_cast<std::size_t>(start), static_cast<std::size_t>(n));
+}
+
+auto at(std::string, int64_t) -> int64_t {
+  return 42;
+}
 
 void check(bool condition, const char* message) {
   if (!condition) {
@@ -56,13 +72,24 @@ int main() {
     "slice high is checked first");
 
   // A recovered runtime error prints its message.
+  auto value_checked = false;
   try {
-    at(s, 9);
+    eo::at(s, 9);
   } catch (const Panic& p) {
     check(fmt::format("{}", std::any_cast<const eo::detail::runtime_error&>(p.value())) ==
         "runtime error: index out of range [9] with length 6",
       "runtime error value");
+    value_checked = true;
   }
+  check(value_checked, "at out of range panics");
+
+  // A Go function named like an Eo helper keeps its name, and the qualified call still reaches Eo.
+  check(::substr("abcdef"s, 2, 4) == "cdef" && eo::substr("abcdef"s, 2, 4) == "cd", "qualified substr");
+  check(::at("abc"s, 2) == 42 && eo::at("abc"s, 2) == 'c', "qualified at");
+
+  static_assert(indexes_with<int8_t> && indexes_with<uint64_t> && !indexes_with<bool> && !indexes_with<char> &&
+      converts_to_rune<int32_t> && !converts_to_rune<char32_t>,
+    "bool and character types are not Go integers");
 
   check(string_from_rune(int32_t{0x41}) == "A", "ascii rune");
   check(string_from_rune(int32_t{0xe9}) == "é", "two-byte rune");

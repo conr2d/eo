@@ -10,9 +10,18 @@
 #include <concepts>
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 namespace eo::detail {
+
+// A Go integer type: an integer type other than bool and the character types, which the std::cmp_*
+// functions reject.
+template<typename T>
+concept go_integer =
+  std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool> && !std::same_as<std::remove_cv_t<T>, char> &&
+  !std::same_as<std::remove_cv_t<T>, wchar_t> && !std::same_as<std::remove_cv_t<T>, char8_t> &&
+  !std::same_as<std::remove_cv_t<T>, char16_t> && !std::same_as<std::remove_cv_t<T>, char32_t>;
 
 // The value of a runtime panic whose message depends on its operands, such as an index out of range.
 // eo::Error registers every distinct message for good, so it is kept for fixed messages.
@@ -30,7 +39,7 @@ struct runtime_error {
 // any type, so a negative index is reported as negative and a huge unsigned one is not wrapped. Go
 // leaves out the length or the other bound when the reported operand is negative.
 
-template<std::integral I, std::integral N>
+template<go_integer I, go_integer N>
 void check_index(I i, N length) {
   if (std::cmp_less(i, 0)) {
     panic_runtime_error(fmt::format("index out of range [{}]", i));
@@ -42,7 +51,7 @@ void check_index(I i, N length) {
 
 // s[low:high] of a value whose upper limit is `limit`: the length of a string, or the capacity of a
 // slice, named by `limit_name`. Go checks the high bound first.
-template<std::integral L, std::integral H, std::integral N>
+template<go_integer L, go_integer H, go_integer N>
 void check_slice(L low, H high, N limit, const char* limit_name = "length") {
   if (std::cmp_less(high, 0)) {
     panic_runtime_error(fmt::format("slice bounds out of range [:{}]", high));
