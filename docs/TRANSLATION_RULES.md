@@ -216,7 +216,12 @@ Each node keeps the box of its own iteration, so the values are 0, 1, and 2, as 
 
 A clause variable that is not boxed stays a plain C++ variable that every iteration reuses. Nothing that outlives an iteration refers to it, so the per-iteration copy cannot be observed.
 
-An init statement that declares variables of different translated types, or a boxed and an unboxed variable, which C++ `auto` cannot declare together, and a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`, are not covered. A variable that a `range` clause declares is not covered either, because `range` loops have no mapping yet (see [#84](https://github.com/conr2d/eo/issues/84)).
+This shape does not cover:
+
+- an init statement that declares variables of different translated types, or a boxed and an unboxed variable, because one C++ `auto` declaration cannot declare them together;
+- a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`.
+
+A variable that a `range` clause declares is not covered either, because `range` loops have no mapping yet (see [#84](https://github.com/conr2d/eo/issues/84)).
 
 #### Function literals
 
