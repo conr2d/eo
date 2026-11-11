@@ -119,10 +119,11 @@ add_test(NAME eo.string COMMAND eo_string)
 add_executable(eo_string_collision EXCLUDE_FROM_ALL string_collision.cpp)
 target_link_libraries(eo_string_collision PRIVATE eo::eo)
 
-add_test(NAME eo.string.collision COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target eo_string_collision)
-set_tests_properties(
-  eo.string.collision
-  PROPERTIES PASS_REGULAR_EXPRESSION "reference to [^ ]*at[^ ]* is ambiguous" FAIL_REGULAR_EXPRESSION "Linking CXX")
+add_test(
+  NAME eo.string.collision
+  COMMAND
+    ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR} -DTARGET=eo_string_collision
+    "-DNAMES=len;at;substr;string_from_rune" -P ${CMAKE_CURRENT_SOURCE_DIR}/expect_ambiguous.cmake)
 
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)

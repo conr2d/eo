@@ -19,9 +19,19 @@ auto substr(std::string s, int64_t, int64_t) -> std::string {
   return s;
 }
 
+auto len(std::string) -> int64_t {
+  return 0;
+}
+
+auto string_from_rune(int32_t) -> std::string {
+  return {};
+}
+
 int main() {
   auto s = "abc"s;
   at(s, 1);
   substr(s, 1, 2);
+  len(s);
+  string_from_rune(int32_t{65});
   return 0;
 }
