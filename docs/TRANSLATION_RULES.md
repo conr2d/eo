@@ -219,7 +219,7 @@ By rule 2, a variable captured by reference that is not boxed is declared direct
 Two kinds of literal have their own frozen shape:
 
 - a literal launched by `go` is `[=]() mutable`, as described in [Goroutine](./GOROUTINE.md#function-literals). A goroutine's literal always outlives its frame, so every variable that it captures by reference is moved to heap;
-- a deferred literal is `[&]` when every variable it captures is a parameter, result, or variable declared before the `try` block of its function, or a variable of an enclosing function, which the function reaches through its own capture for as long as it runs. Otherwise it is `[&, v...]() mutable`, listing by copy each captured variable that is declared inside the `try` block. Such a variable is captured by value, is boxed by rule 1 or rule 2, or is declared directly in a loop body, where Go moves it to heap if a deferred literal captures it by reference (see [Defer](#defer)).
+- a deferred literal is `[&]` when every variable it captures is a parameter, result, or variable declared before the `try` block of its function, or a variable of an enclosing function, which the function reaches through its own capture for as long as it runs. Otherwise it is `[&, v...]() mutable`, listing by copy each captured variable that is declared inside the `try` block. Such a variable is captured by value, is boxed by rule 1 or rule 2, or is declared in a loop clause or directly in a loop body, where Go moves it to heap if a deferred literal captures it by reference, which leaves a loop clause variable unsupported (see [Defer](#defer)).
 
 #### Methods
 
