@@ -15,6 +15,6 @@ func<> eo_main() {
   }
   fmt::Println(head->v, head->next->v);
   head = nullptr;
-  fmt::Println("freed");
+  fmt::Println("freed"s);
   co_return;
 }

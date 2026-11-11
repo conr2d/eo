@@ -8,7 +8,7 @@ sync::RWMutex rw;
 
 func<> reader(chan<std::string> got, chan<bool> done) {
   co_await rw.RLock();
-  co_await (got << "second reader in");
+  co_await (got << "second reader in"s);
   rw.RUnlock();
   co_await (done << true);
 }
@@ -21,12 +21,12 @@ func<> eo_main() {
   chan<bool> _eo_go_arg_0_1 = done;
   go([=]() mutable { return reader(_eo_go_arg_0_0, _eo_go_arg_0_1); });
   fmt::Println(co_await *got);
-  fmt::Println("TryLock while reading:", rw.TryLock());
+  fmt::Println("TryLock while reading:"s, rw.TryLock());
   co_await *done;
   rw.RUnlock();
-  fmt::Println("TryLock after RUnlock:", rw.TryLock());
-  fmt::Println("TryRLock while writing:", rw.TryRLock());
+  fmt::Println("TryLock after RUnlock:"s, rw.TryLock());
+  fmt::Println("TryRLock while writing:"s, rw.TryRLock());
   rw.Unlock();
-  fmt::Println("TryRLock after Unlock:", rw.TryRLock());
+  fmt::Println("TryRLock after Unlock:"s, rw.TryRLock());
   rw.RUnlock();
 }

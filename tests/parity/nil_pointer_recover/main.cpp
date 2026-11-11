@@ -13,7 +13,7 @@ auto read(ptr<T> p) -> int {
   try {
     eo_defer([&] {
       if (auto r = recover(); r != nullptr) {
-        fmt::Println("recovered:", r);
+        fmt::Println("recovered:"s, r);
         n = -1;
       }
     });

@@ -5,8 +5,8 @@ using namespace eo;
 
 func<> eo_main() {
   ptr<int> p;
-  fmt::Println("before");
+  fmt::Println("before"s);
   fmt::Println(*p);
-  fmt::Println("after");
+  fmt::Println("after"s);
   co_return;
 }

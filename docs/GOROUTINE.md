@@ -239,7 +239,7 @@ The following are not covered by this contract yet:
 - method calls on interface values, where Go evaluates the method value, and panics on a nil interface, in the launching goroutine;
 - calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, because Eo has no frozen mapping for the variadic slice that Go builds or passes in the launching goroutine;
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
-- untyped string and complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
+- untyped complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
 - a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`.
 
 The nil function value is an instance of the panic-producing operations listed under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs). The shapes above remain canonical when the function value is not nil.

@@ -38,5 +38,5 @@ func<> eo_main() {
   int _eo_go_arg_2_0 = int{1000};
   go([=]() mutable { return worker(_eo_go_arg_2_0); });
   co_await wg.Wait();
-  fmt::Println("count =", count);
+  fmt::Println("count ="s, count);
 }

@@ -6,12 +6,12 @@
 using namespace eo;
 
 void work() {
-  panic("boom");
+  panic("boom"s);
 }
 
 func<> eo_main() {
-  fmt::Println("start");
+  fmt::Println("start"s);
   go([=]() mutable { return work(); });
   co_await time::Sleep(std::chrono::seconds{1});
-  fmt::Println("unreachable");
+  fmt::Println("unreachable"s);
 }

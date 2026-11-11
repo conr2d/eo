@@ -7,10 +7,10 @@ void count() {
   eo_defer_scope;
   try {
     for (auto i = New<int>(0); *i < 6; i = New<int>(*i), (*i)++) {
-      eo_defer([&, i]() mutable { fmt::Println("deferred", *i); });
+      eo_defer([&, i]() mutable { fmt::Println("deferred"s, *i); });
       (*i)++;
     }
-    fmt::Println("end of count");
+    fmt::Println("end of count"s);
     eo_defer_run;
   } catch (...) {
     eo_defer_panic;

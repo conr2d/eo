@@ -11,23 +11,23 @@ func<> eo_main() {
   switch (auto select = Select{*messages}; select.try_index()) {
   case 0: {
     auto msg = select.recv<0>();
-    fmt::Println("received message", msg);
+    fmt::Println("received message"s, msg);
     break;
   }
   default: {
-    fmt::Println("no message received");
+    fmt::Println("no message received"s);
     break;
   }
   }
 
-  auto msg = std::string{"hi"};
+  auto msg = "hi"s;
   switch (auto select = Select{messages << msg}; select.try_index()) {
   case 0: {
-    fmt::Println("sent message", msg);
+    fmt::Println("sent message"s, msg);
     break;
   }
   default: {
-    fmt::Println("no message sent");
+    fmt::Println("no message sent"s);
     break;
   }
   }
@@ -35,16 +35,16 @@ func<> eo_main() {
   switch (auto select = Select{*messages, *signals}; select.try_index()) {
   case 0: {
     auto msg = select.recv<0>();
-    fmt::Println("received message", msg);
+    fmt::Println("received message"s, msg);
     break;
   }
   case 1: {
     auto sig = select.recv<1>();
-    fmt::Println("received signal", sig);
+    fmt::Println("received signal"s, sig);
     break;
   }
   default: {
-    fmt::Println("no activity");
+    fmt::Println("no activity"s);
     break;
   }
   }

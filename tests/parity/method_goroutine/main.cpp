@@ -33,5 +33,5 @@ func<> eo_main() {
   auto results = make_chan<int>();
   spawn(results, 1);
   spawn(results, 2);
-  fmt::Println("sum", co_await *results + co_await *results);
+  fmt::Println("sum"s, co_await *results + co_await *results);
 }
