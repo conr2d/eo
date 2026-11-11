@@ -13,6 +13,18 @@ func value() int {
 	return *p
 }
 
+// header declares y in an if statement's init, whose C++ scope ends with the statement.
+func header() int {
+	var p *int
+	var f func() int
+	if y := 3; y > 0 {
+		p = &y
+		f = func() int { y++; return y }
+	}
+	*p += 10
+	return f()
+}
+
 func main() {
-	fmt.Println(value())
+	fmt.Println(value(), header())
 }

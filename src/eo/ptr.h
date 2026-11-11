@@ -28,21 +28,23 @@ namespace detail {
   // the queued targets one at a time.
   inline void release(std::shared_ptr<void> p) noexcept {
     thread_local bool releasing = false;
-    thread_local std::vector<std::shared_ptr<void>> pending;
+    // Never destroyed, so a release during static destruction, after thread-local objects are gone,
+    // still has a queue.
+    thread_local auto* pending = new std::vector<std::shared_ptr<void>>{};
     // use_count() == 1 is exact: this is the only owner, and Eo pointers have no weak references.
     if (p.use_count() != 1) {
       return; // dropping a shared reference destroys nothing, unless another thread drops the last
               // one concurrently; then this release destroys the target, which queues what it holds
     }
     if (releasing) {
-      pending.push_back(std::move(p));
+      pending->push_back(std::move(p));
       return;
     }
     releasing = true;
     p.reset();
-    while (!pending.empty()) {
-      auto next = std::move(pending.back());
-      pending.pop_back();
+    while (!pending->empty()) {
+      auto next = std::move(pending->back());
+      pending->pop_back();
       next.reset();
     }
     releasing = false;
@@ -70,15 +72,18 @@ public:
     detail::release(std::move(p_));
   }
 
+  // Both read other before changing this pointer, so p = p and n->next = n->next keep the target.
   auto operator=(const ptr& other) noexcept -> ptr& {
-    auto old = std::exchange(p_, other.p_);
-    detail::release(std::move(old));
+    auto next = other.p_;
+    p_.swap(next);
+    detail::release(std::move(next));
     return *this;
   }
 
   auto operator=(ptr&& other) noexcept -> ptr& {
-    auto old = std::exchange(p_, std::move(other.p_));
-    detail::release(std::move(old));
+    auto next = std::move(other.p_);
+    p_.swap(next);
+    detail::release(std::move(next));
     return *this;
   }
 

@@ -1,5 +1,7 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
+// Provisional: Go int and func types (here std::function) are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
+
+#include <functional>
 
 using namespace eo;
 
@@ -15,7 +17,22 @@ auto value() -> int {
   return *p;
 }
 
+// header declares y in an if statement's init, whose C++ scope ends with the statement.
+auto header() -> int {
+  ptr<int> p;
+  std::function<int()> f;
+  if (auto y = New<int>(3); *y > 0) {
+    p = y;
+    f = [=]() mutable -> int {
+      (*y)++;
+      return *y;
+    };
+  }
+  *p += 10;
+  return f();
+}
+
 func<> eo_main() {
-  fmt::Println(value());
+  fmt::Println(value(), header());
   co_return;
 }

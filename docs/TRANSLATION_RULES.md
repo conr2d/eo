@@ -155,7 +155,7 @@ Ignore capture lines for compiler temporaries, whose names start with `.autotmp_
 A local variable or parameter `x` is boxed if:
 
 1. the escape facts report `moved to heap: x`; or
-2. `x`'s address is taken, or a function literal captures `x` by reference, and `x` is declared in the body of an `if`, `else`, `switch` case, or `select` case, in a bare block `{ ... }`, at any depth, or at the top level of the `try` block of the [defer shape](#defer), that is, directly in the function body at or after the statement that opens it.
+2. `x`'s address is taken, or a function literal captures `x` by reference, and `x` is declared anywhere except directly in the function body before the `try` block of the [defer shape](#defer), in a loop's own clause, or directly in a loop body. This includes the body of an `if`, `else`, `switch` case, or `select` case, a bare block `{ ... }`, the init statement of an `if` or `switch`, a type switch guard, a `select` receive such as `case v := <-ch:`, and the top level of the `try` block, at any depth.
 
 A variable declared by a loop's own clause or directly in a loop body is not boxed by rule 2. Go reports a variable moved to heap when its address can outlive one iteration, so any other pointer to it is declared inside the same iteration and is destroyed with it.
 
@@ -251,7 +251,7 @@ The receiver is not `this`, because a method can keep its receiver after it retu
 | `p.M(args)`, `p` a pointer | `T::M(p, args)` | `T::M(*p, args)` |
 | `x.M(args)`, `x` addressable | `T::M(&x, args)`, with `&x` translated as above | `T::M(x, args)` |
 
-As in Go, a pointer-receiver call on a nil pointer passes nil, and only a dereference inside the method panics, while a value-receiver call through a nil pointer panics at the call.
+Go does not specify whether `*p` in a value-receiver call is evaluated before or after the other arguments, and C++ does not either, so `T::M(*p, f())` is translated as written. As in Go, a pointer-receiver call on a nil pointer passes nil, and only a dereference inside the method panics, while a value-receiver call through a nil pointer panics at the call.
 
 Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay member functions, called as `x.M()` or `p->M()`.
 

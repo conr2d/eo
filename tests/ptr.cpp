@@ -151,6 +151,27 @@ void test_long_chain_is_freed_without_recursion() {
   check(Node::live == 0, "a list leaving scope was not freed");
 }
 
+// Assigning a pointer to itself, directly or through another path to the same variable, keeps it.
+void test_self_assignment_keeps_the_target() {
+  auto p = New<int64_t>(3);
+  auto pp = ref(p);
+  p = *pp;
+  check(p != nullptr && *p == 3, "p = *pp with pp == &p lost the target");
+  auto& alias = p;
+  p = std::move(alias);
+  check(p != nullptr && *p == 3, "a self move lost the target");
+  {
+    auto n = New<Node>();
+    n->next = New<Node>();
+    n->next = n->next;
+    check(n->next != nullptr, "n.next = n.next made n.next nil");
+    auto a = n;
+    a->next = n->next;
+    check(Node::live == 2, "a.next = b.next with a == b freed the next node");
+  }
+  check(Node::live == 0, "the nodes outlived their pointers");
+}
+
 void test_pointers_hash_by_address() {
   auto a = New<int64_t>();
   auto b = New<int64_t>();
@@ -165,5 +186,6 @@ int main() {
   test_field_pointer_keeps_the_target_alive();
   test_ref_borrows_without_owning();
   test_long_chain_is_freed_without_recursion();
+  test_self_assignment_keeps_the_target();
   test_pointers_hash_by_address();
 }
