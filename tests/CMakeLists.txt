@@ -115,6 +115,15 @@ target_link_libraries(eo_string PRIVATE eo::eo)
 
 add_test(NAME eo.string COMMAND eo_string)
 
+# Builds a file that must fail to compile with an ambiguity error (see string_collision.cpp).
+add_executable(eo_string_collision EXCLUDE_FROM_ALL string_collision.cpp)
+target_link_libraries(eo_string_collision PRIVATE eo::eo)
+
+add_test(NAME eo.string.collision COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target eo_string_collision)
+set_tests_properties(
+  eo.string.collision
+  PROPERTIES PASS_REGULAR_EXPRESSION "reference to [^ ]*at[^ ]* is ambiguous" FAIL_REGULAR_EXPRESSION "Linking CXX")
+
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 

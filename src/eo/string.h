@@ -29,57 +29,78 @@ namespace eo {
 // Go string literals translate to "..."s.
 using namespace std::string_literals;
 
-inline auto len(const std::string& s) -> int64_t {
-  return static_cast<int64_t>(s.size());
-}
+// The helpers are function objects, not function templates. A translation calls them qualified, as
+// eo::at(s, i), and a Go function of the same name keeps its spelling. If both were functions, overload
+// resolution would silently pick whichever matched better, in either direction. An unqualified call
+// that finds both an object and a function is ambiguous, so the collision fails to compile instead.
+namespace detail {
 
-// s[i]
-template<detail::go_integer I>
-auto at(const std::string& s, I i) -> uint8_t {
-  detail::check_index(i, s.size());
-  return static_cast<uint8_t>(s[static_cast<std::size_t>(i)]);
-}
+  struct len_fn {
+    auto operator()(const std::string& s) const -> int64_t {
+      return static_cast<int64_t>(s.size());
+    }
+  };
 
-// s[low:high]
-template<detail::go_integer L, detail::go_integer H>
-auto substr(const std::string& s, L low, H high) -> std::string {
-  detail::check_slice(low, high, s.size());
-  auto begin = static_cast<std::size_t>(low);
-  return s.substr(begin, static_cast<std::size_t>(high) - begin);
-}
+  struct at_fn {
+    // s[i]
+    template<go_integer I>
+    auto operator()(const std::string& s, I i) const -> uint8_t {
+      check_index(i, s.size());
+      return static_cast<uint8_t>(s[static_cast<std::size_t>(i)]);
+    }
+  };
 
-// s[low:]
-template<detail::go_integer L>
-auto substr(const std::string& s, L low) -> std::string {
-  return substr(s, low, s.size());
-}
+  struct substr_fn {
+    // s[low:high]
+    template<go_integer L, go_integer H>
+    auto operator()(const std::string& s, L low, H high) const -> std::string {
+      check_slice(low, high, s.size());
+      auto begin = static_cast<std::size_t>(low);
+      return s.substr(begin, static_cast<std::size_t>(high) - begin);
+    }
 
-// string(r) for a value r of any integer type: the UTF-8 encoding of r, or of U+FFFD when r is not a
-// valid code point, as Go converts it.
-template<detail::go_integer I>
-auto string_from_rune(I r) -> std::string {
-  auto c = char32_t{0xfffd};
-  if (std::cmp_greater_equal(r, 0) && std::cmp_less_equal(r, 0x10ffff) &&
-    !(std::cmp_greater_equal(r, 0xd800) && std::cmp_less_equal(r, 0xdfff))) {
-    c = static_cast<char32_t>(r);
-  }
-  auto out = std::string{};
-  if (c < 0x80) {
-    out += static_cast<char>(c);
-  } else if (c < 0x800) {
-    out += static_cast<char>(0xc0 | (c >> 6));
-    out += static_cast<char>(0x80 | (c & 0x3f));
-  } else if (c < 0x10000) {
-    out += static_cast<char>(0xe0 | (c >> 12));
-    out += static_cast<char>(0x80 | ((c >> 6) & 0x3f));
-    out += static_cast<char>(0x80 | (c & 0x3f));
-  } else {
-    out += static_cast<char>(0xf0 | (c >> 18));
-    out += static_cast<char>(0x80 | ((c >> 12) & 0x3f));
-    out += static_cast<char>(0x80 | ((c >> 6) & 0x3f));
-    out += static_cast<char>(0x80 | (c & 0x3f));
-  }
-  return out;
-}
+    // s[low:]
+    template<go_integer L>
+    auto operator()(const std::string& s, L low) const -> std::string {
+      return (*this)(s, low, s.size());
+    }
+  };
+
+  // string(r) for a value r of any integer type: the UTF-8 encoding of r, or of U+FFFD when r is not a
+  // valid code point, as Go converts it.
+  struct string_from_rune_fn {
+    template<go_integer I>
+    auto operator()(I r) const -> std::string {
+      auto c = char32_t{0xfffd};
+      if (std::cmp_greater_equal(r, 0) && std::cmp_less_equal(r, 0x10ffff) &&
+        !(std::cmp_greater_equal(r, 0xd800) && std::cmp_less_equal(r, 0xdfff))) {
+        c = static_cast<char32_t>(r);
+      }
+      auto out = std::string{};
+      if (c < 0x80) {
+        out += static_cast<char>(c);
+      } else if (c < 0x800) {
+        out += static_cast<char>(0xc0 | (c >> 6));
+        out += static_cast<char>(0x80 | (c & 0x3f));
+      } else if (c < 0x10000) {
+        out += static_cast<char>(0xe0 | (c >> 12));
+        out += static_cast<char>(0x80 | ((c >> 6) & 0x3f));
+        out += static_cast<char>(0x80 | (c & 0x3f));
+      } else {
+        out += static_cast<char>(0xf0 | (c >> 18));
+        out += static_cast<char>(0x80 | ((c >> 12) & 0x3f));
+        out += static_cast<char>(0x80 | ((c >> 6) & 0x3f));
+        out += static_cast<char>(0x80 | (c & 0x3f));
+      }
+      return out;
+    }
+  };
+
+} // namespace detail
+
+inline constexpr detail::len_fn len{};
+inline constexpr detail::at_fn at{};
+inline constexpr detail::substr_fn substr{};
+inline constexpr detail::string_from_rune_fn string_from_rune{};
 
 } // namespace eo

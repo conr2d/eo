@@ -19,5 +19,6 @@ func main() {
 	raw := `C:\path\n` + "\t|"
 	fmt.Println(raw, len(raw))
 	fmt.Println(string(rune(0x4e16)), string(rune(-1)), string(rune(0xd800)) == "\uFFFD", string(rune(0x1F600)))
+	fmt.Println("\\x41", len("\\x41"))
 	fmt.Println("\xff" > "a", "ab" < "b", "é" == "\u00e9", "\377" == "\xff")
 }

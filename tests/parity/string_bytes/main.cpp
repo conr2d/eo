@@ -26,6 +26,7 @@ func<> eo_main() {
     eo::string_from_rune(int32_t{-1}),
     eo::string_from_rune(int32_t{0xd800}) == "\uFFFD"s,
     eo::string_from_rune(int32_t{0x1F600}));
+  fmt::Println("\\x41"s, eo::len("\\x41"s));
   fmt::Println("\x{ff}"s > "a"s, "ab"s < "b"s, "é"s == "\u00e9"s, "\377"s == "\x{ff}"s);
   co_return;
 }

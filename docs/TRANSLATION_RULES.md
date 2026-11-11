@@ -111,9 +111,9 @@ Go `string` maps to `std::string`. A Go string is immutable, so a copy of a `std
 | `s == t`, `s < t`, and the other comparisons | the same operators |
 | `string(r)`, where `r` has an integer type | `eo::string_from_rune(r)` |
 
-These four functions are always called qualified, as `eo::len` and so on. A Go program can declare a function of the same name, such as `substr`, whose spelling the translation keeps (see [Identifier mapping](#identifier-mapping)), and an unqualified call would silently resolve to it, because overload resolution prefers a non-template function. A collision between Go identifiers and the other Eo names is tracked in [#83](https://github.com/conr2d/eo/issues/83).
+These four helpers are function objects, and a translation always calls them qualified, as `eo::len(s)`. A Go program can declare a function of the same name, such as `substr`, whose spelling the translation keeps (see [Identifier mapping](#identifier-mapping)). The qualified call still reaches Eo. An unqualified call to the Go function also finds the helper through `using namespace eo;`, so it is ambiguous and does not compile, instead of silently resolving to either one. Such a program needs the identifier rule of [#83](https://github.com/conr2d/eo/issues/83), which also tracks collisions with the other Eo names, such as `New`.
 
-`eo::at` and `eo::substr` accept an index of any Go integer type, but not `bool` or a character type. An index or bound out of range panics with Go's runtime error, such as `runtime error: index out of range [5] with length 3` or `runtime error: slice bounds out of range [:5] with length 3`, which a deferred `recover()` can stop. `std::string::operator[]` and `std::string::substr` are not used for Go indexing and slicing, because they do not check bounds the same way and `operator[]` yields a `char`, whose signedness differs from Go's `byte`.
+`eo::at` and `eo::substr` accept an index of any Go integer type: any C++ integer type other than `bool`, `char`, `wchar_t`, `char8_t`, `char16_t`, and `char32_t`. An index or bound out of range panics with Go's runtime error, such as `runtime error: index out of range [5] with length 3` or `runtime error: slice bounds out of range [:5] with length 3`, which a deferred `recover()` can stop. `std::string::operator[]` and `std::string::substr` are not used for Go indexing and slicing, because they do not check bounds the same way and `operator[]` yields a `char`, whose signedness differs from Go's `byte`.
 
 `eo::string_from_rune` converts the integer to the UTF-8 encoding of that code point. A value that is negative, above `0x10FFFF`, or a surrogate converts to `"\uFFFD"`, as in Go. A `byte` value converts as a code point too, so `string(byte(0xff))` is the two bytes of U+00FF.
 
@@ -130,11 +130,11 @@ Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://g
 An interpreted string literal keeps its source text, with two changes: each `\xhh` escape is written `\x{hh}`, and the literal gets the `s` suffix from `std::string_literals`, which `<eo/string.h>` makes visible through `using namespace eo;`:
 
 ```go
-s := "caf\u00e9 \xff\x00!"
+s := "caf\u00e9 → \xff\x00!"
 ```
 
 ```cpp
-auto s = "caf\u00e9 \x{ff}\x{00}!"s;
+auto s = "caf\u00e9 → \x{ff}\x{00}!"s;
 ```
 
 Only an escape sequence changes, not text that merely looks like one: in `\\x41`, the escape is `\\`, and the C++ literal is `\\x41` too. Go's other escapes, `\a \b \f \n \r \t \v \\ \"`, a three-digit octal `\ooo`, `\uXXXX`, and `\UXXXXXXXX`, mean the same in C++. A carriage return byte written directly in the source text is written `\r`, because a C++ compiler reads it as the end of the line. A C++ `\x` escape without braces takes every hex digit that follows it, so `"\xffc"` would be one out-of-range escape instead of Go's two bytes. The `s` suffix keeps a NUL byte, which `std::string{"..."}` would cut off. Non-ASCII characters are copied as written. `<eo/string.h>` checks that the source encoding and the compiler's ordinary literal encoding are both UTF-8, so `\u00e9` and a literal `é` are Go's bytes.
