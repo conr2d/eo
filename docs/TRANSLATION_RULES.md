@@ -212,11 +212,11 @@ for (auto i = New<int64_t>(0); *i < 3; i = New<int64_t>(*i), (*i)++) {
 }
 ```
 
-Each node keeps the box of its own iteration, so the values are 0, 1, and 2, as in Go. The condition and the post statement act on the new box. `continue` jumps to the C++ post expression, so the copy happens there too, as it does in Go. A loop without a post statement, `for i := 0; i < n; {`, has only the new-box assignments as its C++ post expression.
+Each node keeps the box of its own iteration, so the values are 0, 1, and 2, as in Go. The condition is first evaluated on the init statement's box, and after that the condition and the post statement act on each iteration's new box. `continue` jumps to the C++ post expression, so the copy happens there too, as it does in Go. A loop without a post statement, `for i := 0; i < n; {`, has only the new-box assignments as its C++ post expression. Several boxed clause variables of one type share the init declaration, as in `for (auto i = New<int64_t>(0), j = New<int64_t>(10); *i < *j; i = New<int64_t>(*i), j = New<int64_t>(*j))`.
 
 A clause variable that is not boxed stays a plain C++ variable that every iteration reuses. Nothing that outlives an iteration refers to it, so the per-iteration copy cannot be observed.
 
-An init statement that declares variables of different translated types and a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`, are not covered. A variable that a `range` clause declares is not covered either, because `range` loops have no mapping yet (see [#84](https://github.com/conr2d/eo/issues/84)).
+An init statement that declares variables of different translated types, or a boxed and an unboxed variable, which C++ `auto` cannot declare together, and a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`, are not covered. A variable that a `range` clause declares is not covered either, because `range` loops have no mapping yet (see [#84](https://github.com/conr2d/eo/issues/84)).
 
 #### Function literals
 
