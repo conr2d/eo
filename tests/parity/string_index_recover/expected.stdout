@@ -1,0 +1,11 @@
+index runtime error: index out of range [5] with length 3
+negative runtime error: index out of range [-1]
+high runtime error: slice bounds out of range [:5] with length 3
+low runtime error: slice bounds out of range [5:3]
+inverted runtime error: slice bounds out of range [2:1]
+unsigned runtime error: index out of range [9223372036854775808] with length 3
+negativeLow runtime error: slice bounds out of range [-1:]
+negativeHigh runtime error: slice bounds out of range [:-1]
+highFirst runtime error: slice bounds out of range [:6] with length 3
+bc 99
+ok <nil>

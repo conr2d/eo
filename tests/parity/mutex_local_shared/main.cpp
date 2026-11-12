@@ -28,5 +28,5 @@ func<> eo_main() {
     });
   }
   co_await wg->Wait();
-  fmt::Println("count =", *count);
+  fmt::Println("count ="s, *count);
 }

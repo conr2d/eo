@@ -68,9 +68,10 @@ Do not translate the source expression of an untyped constant argument. C++ woul
 
 - integer: `L` is the decimal value, with a `u` suffix when the type is unsigned; the minimum value of a signed type is written `-M - 1`, where `M` is the type's maximum;
 - floating-point: the recorded value `v` is already rounded to the type. Let `x` be `v` as a Go float (`constant.Float64Val` or `constant.Float32Val`) and `s` be `strconv.FormatFloat(x, 'g', -1, bits)`. If `constant.Compare(constant.MakeFromLiteral(s, token.FLOAT, 0), token.EQL, v)` holds, the decimal `s` is exactly `v`, and `L` is `s`, with `.0` appended when it contains neither `.` nor `e`. Otherwise `L` is the hexadecimal floating literal `strconv.FormatFloat(x, 'x', -1, bits)`, which is always exact. Add an `f` suffix when the underlying Go type is `float32`;
-- boolean: `L` is `true` or `false`.
+- boolean: `L` is `true` or `false`;
+- string: `L` is the folded value as a C++ string literal, written as described in [String literals](#string-literals), as in `std::string{"a\x{00}b"s}` when `T` is `std::string`.
 
-Untyped string and complex constant arguments are not frozen, because no translation of string or complex values is frozen yet. A `go` or `defer` statement with such an argument is provisional. The defer contract never froze a string form, so this does not narrow it.
+Untyped complex constant arguments are not frozen, because no translation of complex values is frozen yet. A `go` or `defer` statement with such an argument is provisional.
 
 ```go
 go f(1 / 3)       // func f(x float64); Go value 0
@@ -93,6 +94,54 @@ double _eo_go_arg_6_0 = double{0x1.52d02c7e14af6p+76};
 ```
 
 Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type. The C++ mapping of Go defined types is not frozen; `T{L}` applies to whatever type it produces. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
+
+### Strings
+
+Go `string` maps to `std::string`. A Go string is immutable, so a copy of a `std::string` behaves like Go's shared bytes, and only the cost differs. The functions below are in `<eo/string.h>`, which `<eo/core.h>` includes. They cover the operations whose plain C++ form would differ from Go's:
+
+| Go | C++ |
+| --- | --- |
+| `string` | `std::string` |
+| an interpreted literal `"..."` | `"..."s`, see [String literals](#string-literals) |
+| a raw literal `` `...` `` | `R"(...)"s` |
+| `len(s)` | `eo::len(s)`, an `int64_t` byte count |
+| `s[i]` | `eo::at(s, i)`, a `uint8_t` |
+| `s[low:high]`, `s[low:]`, `s[:high]` | `eo::substr(s, low, high)`, `eo::substr(s, low)`, `eo::substr(s, 0, high)` |
+| `s + t`, `s += t` | `s + t`, `s += t` |
+| `s == t`, `s < t`, and the other comparisons | the same operators |
+| `string(r)`, where `r` has an integer type | `eo::string_from_rune(r)` |
+
+These four helpers are function objects, and a translation always calls them qualified, as `eo::len(s)`. A Go program can declare a function of the same name, such as `substr`, whose spelling the translation keeps (see [Identifier mapping](#identifier-mapping)). The qualified call still reaches Eo. When the Go function is declared at global scope, an unqualified call to it also finds the helper through `using namespace eo;`, so it is ambiguous and does not compile, instead of silently resolving to either one. A Go function declared in a namespace that encloses the call hides the helper, and the call reaches the Go function, as in Go. Such a program needs the identifier rule of [#83](https://github.com/conr2d/eo/issues/83), which also tracks collisions with the other Eo names, such as `New`.
+
+`eo::at` and `eo::substr` accept an index of any Go integer type: any C++ integer type other than `bool`, `char`, `wchar_t`, `char8_t`, `char16_t`, and `char32_t`. An index or bound out of range panics with Go's runtime error, such as `runtime error: index out of range [5] with length 3` or `runtime error: slice bounds out of range [:5] with length 3`, which a deferred `recover()` can stop. `std::string::operator[]` and `std::string::substr` are not used for Go indexing and slicing, because they do not check bounds the same way and `operator[]` yields a `char`, whose signedness differs from Go's `byte`.
+
+`eo::string_from_rune` converts the integer to the UTF-8 encoding of that code point. A value that is negative, above `0x10FFFF`, or a surrogate converts to `"\uFFFD"`, as in Go. A `byte` value converts as a code point too, so `string(byte(0xff))` is the two bytes of U+00FF.
+
+`std::string` comparisons compare bytes as `unsigned char`, as Go does, so `"\xff" > "a"` holds in both.
+
+Pass, return, and store strings by value, as `std::string`, never as `const std::string&`. A reference parameter would see a later assignment to the caller's variable, which a Go parameter does not.
+
+`eo::len` of a string is an `int64_t`, which is the type that Eo's library uses for Go `int`. Arithmetic on the `uint8_t` that `eo::at` returns promotes to `int` in C++, so an expression such as `s[i] - '0'` is provisional until Go's integer arithmetic is mapped. The general mapping of Go `int` and the other basic types is not frozen yet (see [#90](https://github.com/conr2d/eo/issues/90)).
+
+Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://github.com/conr2d/eo/issues/84)); the conversions `[]byte(s)`, `[]rune(s)`, and `string(b)` for a slice `b` ([#87](https://github.com/conr2d/eo/issues/87)); and the `strings`, `strconv`, and `unicode/utf8` packages.
+
+#### String literals
+
+An interpreted string literal keeps its source text, with two changes: each `\xhh` escape is written `\x{hh}`, and the literal gets the `s` suffix from `std::string_literals`, which `<eo/string.h>` makes visible through `using namespace eo;`:
+
+```go
+s := "caf\u00e9 → \xff\x00!"
+```
+
+```cpp
+auto s = "caf\u00e9 → \x{ff}\x{00}!"s;
+```
+
+Only an escape sequence changes, not text that merely looks like one: in `\\x41`, the escape is `\\`, and the C++ literal is `\\x41` too. Go's other escapes, `\a \b \f \n \r \t \v \\ \"`, a three-digit octal `\ooo`, `\uXXXX`, and `\UXXXXXXXX`, mean the same in C++. A carriage return byte written directly in the source text is written `\r`, because a C++ compiler reads it as the end of the line. A C++ `\x` escape without braces takes every hex digit that follows it, so `"\xffc"` would be one out-of-range escape instead of Go's two bytes. The `s` suffix keeps a NUL byte, which `std::string{"..."}` would cut off. Non-ASCII characters are copied as written. `<eo/string.h>` checks that the source encoding and the compiler's ordinary literal encoding are both UTF-8, so `\u00e9` and a literal `é` are Go's bytes.
+
+A raw string literal is `R"(...)"s` with the source text inside, after dropping each carriage return, as Go does. The delimiter is empty unless the text contains `)"`. Otherwise it is the first of `eo`, `eo1`, `eo2`, ... for which the text does not contain `)` followed by the delimiter and `"`, as in `R"eo(...)eo"s`.
+
+A string constant that the Go type checker folds, such as an untyped constant argument (see [Untyped constant arguments](#untyped-constant-arguments)), is written from its value rather than its source: each byte from `0x20` to `0x7e` other than `"` and `\` as itself, `\a \b \f \n \r \t \v \\ \"` for those bytes, and every other byte as `\x{hh}` with two lowercase hex digits.
 
 ### Pointers and escaping variables
 
@@ -284,7 +333,7 @@ Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay m
 
 #### Not covered yet
 
-- pointers held inside slices, maps, strings, and interfaces, whose own mappings are not frozen, and the C++ type of a slice of an array;
+- pointers held inside slices, maps, and interfaces, whose own mappings are not frozen, and the C++ type of a slice of an array;
 - printing a pointer with `fmt`, which shows an address;
 - method values and method expressions, promoted methods of embedded fields, and conversions through `unsafe.Pointer` or `uintptr`.
 
@@ -602,8 +651,8 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- pointers held in slices, maps, strings, and interfaces, printing a pointer, method values, method expressions, and promoted methods (see [Not covered yet](#not-covered-yet));
-- untyped string and complex constant arguments of `go` and `defer`;
+- pointers held in slices, maps, and interfaces, printing a pointer, method values, method expressions, and promoted methods (see [Not covered yet](#not-covered-yet));
+- untyped complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;

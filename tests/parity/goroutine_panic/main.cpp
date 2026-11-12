@@ -7,11 +7,11 @@
 using namespace eo;
 
 func<> eo_main() {
-  fmt::Println("start");
+  fmt::Println("start"s);
   go([]() -> func<> {
-    panic("boom");
+    panic("boom"s);
     co_return;
   });
   co_await time::Sleep(std::chrono::seconds{1});
-  fmt::Println("unreachable");
+  fmt::Println("unreachable"s);
 }

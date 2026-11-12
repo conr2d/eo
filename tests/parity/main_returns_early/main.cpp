@@ -13,5 +13,5 @@ func<> eo_main() {
     }
   });
   co_await time::Sleep(std::chrono::milliseconds{10});
-  fmt::Println("main returns");
+  fmt::Println("main returns"s);
 }

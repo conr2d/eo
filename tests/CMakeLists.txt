@@ -110,6 +110,21 @@ target_link_libraries(eo_ptr PRIVATE eo::eo)
 
 add_test(NAME eo.ptr COMMAND eo_ptr)
 
+add_executable(eo_string string.cpp)
+target_link_libraries(eo_string PRIVATE eo::eo)
+
+add_test(NAME eo.string COMMAND eo_string)
+
+# Builds a file that must fail to compile with an ambiguity error (see string_collision.cpp).
+add_executable(eo_string_collision EXCLUDE_FROM_ALL string_collision.cpp)
+target_link_libraries(eo_string_collision PRIVATE eo::eo)
+
+add_test(
+  NAME eo.string.collision
+  COMMAND
+    ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR} -DTARGET=eo_string_collision
+    "-DNAMES=len;at;substr;string_from_rune" -P ${CMAKE_CURRENT_SOURCE_DIR}/expect_ambiguous.cmake)
+
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 

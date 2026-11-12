@@ -58,7 +58,7 @@ switch (auto select = Select{*messages, output << value};
         co_await select.index()) {
 case 0: {
   auto msg = select.recv<0>();
-  fmt::Println("received", msg);
+  fmt::Println("received"s, msg);
   break;
 }
 case 1: {

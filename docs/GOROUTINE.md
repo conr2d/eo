@@ -41,9 +41,9 @@ A call without arguments still uses the thunk: `go([=]() mutable { return f(); }
 
 ### Argument temporary types
 
-Declare each argument temporary with the value type of the translated parameter it is passed to, not `auto`. The value type is the translated parameter type with reference and `const`/`volatile` qualifiers removed, so the temporary holds its own copy whenever that type owns its value: a parameter translated as `const std::string&` gives a `std::string` temporary. If the translated parameter type is a non-owning view, such as `std::string_view` or `std::span`, the temporary would refer to storage that may not outlive the launch, and the launch is provisional until the string and slice mappings are frozen. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call.
+Declare each argument temporary with the value type of the translated parameter it is passed to, not `auto`. The value type is the translated parameter type with reference and `const`/`volatile` qualifiers removed, so the temporary holds its own copy whenever that type owns its value: a parameter translated as `const T&` gives a `T` temporary. Go strings are `std::string` parameters (see [Strings](./TRANSLATION_RULES.md#strings)). If the translated parameter type is a non-owning view, such as `std::string_view` or `std::span`, the temporary would refer to storage that may not outlive the launch, and the launch is provisional. Go converts each argument to its parameter type when the `go` statement evaluates it, so the conversion belongs in the launching goroutine. With `auto`, the temporary would keep the argument's own C++ type: `nil` would become `std::nullptr_t`, and a value passed to an interface parameter would not be converted until the call.
 
-An untyped boolean, integer, or floating-point constant argument, including a named untyped constant, is written as its folded value, as defined in [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments), which also covers string and complex constants:
+An untyped boolean, integer, floating-point, or string constant argument, including a named untyped constant, is written as its folded value, as defined in [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments), which also covers complex constants:
 
 ```go
 go f(1 << 40) // func f(n int64)
@@ -239,7 +239,7 @@ The following are not covered by this contract yet:
 - method calls on interface values, where Go evaluates the method value, and panics on a nil interface, in the launching goroutine;
 - calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, because Eo has no frozen mapping for the variadic slice that Go builds or passes in the launching goroutine;
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
-- untyped string and complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
+- untyped complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
 - a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`.
 
 The nil function value is an instance of the panic-producing operations listed under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs). The shapes above remain canonical when the function value is not nil.

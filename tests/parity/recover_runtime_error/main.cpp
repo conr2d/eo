@@ -7,8 +7,8 @@ void closeTwice(chan<int> ch) {
   eo_defer_scope;
   try {
     eo_defer([&] {
-      fmt::Println("recovered:", recover());
-      fmt::Println("again:", recover());
+      fmt::Println("recovered:"s, recover());
+      fmt::Println("again:"s, recover());
     });
     ch.close();
     ch.close();
@@ -20,6 +20,6 @@ void closeTwice(chan<int> ch) {
 
 func<> eo_main() {
   closeTwice(make_chan<int>());
-  fmt::Println("main continues");
+  fmt::Println("main continues"s);
   co_return;
 }

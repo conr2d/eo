@@ -9,7 +9,7 @@ sync::Mutex mu;
 func<> waiter(chan<std::string> done) {
   co_await mu.Lock();
   mu.Unlock();
-  co_await (done << "waiter locked");
+  co_await (done << "waiter locked"s);
 }
 
 func<> sender(chan<int> ch) {
@@ -25,7 +25,7 @@ func<> eo_main() {
   chan<int> _eo_go_arg_1_0 = ch;
   go([=]() mutable { return sender(_eo_go_arg_1_0); });
   auto v = co_await *ch;
-  fmt::Println("holder received", v);
+  fmt::Println("holder received"s, v);
   mu.Unlock();
   fmt::Println(co_await *done);
 }

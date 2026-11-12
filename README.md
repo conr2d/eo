@@ -55,9 +55,9 @@ func<> f(std::string s) {
 }
 
 func<> eo_main() {
-  go(f("hello"));
+  go(f("hello"s));
   go([]() -> func<> {
-    fmt::Println("world");
+    fmt::Println("world"s);
     co_return;
   });
   co_return;
@@ -84,7 +84,7 @@ func main() {
 // C++
 func<> eo_main() {
   auto ch = make_chan<std::string>();
-  go([&]() -> func<> { co_await (ch << "ping"); });
+  go([&]() -> func<> { co_await (ch << "ping"s); });
   auto msg = co_await *ch;
   fmt::Println(msg);
 }
@@ -143,9 +143,9 @@ func f() {
 func<> f() {
   eo_defer_scope;
   try {
-    auto _eo_defer_arg_0_0 = std::string{"world"};
+    auto _eo_defer_arg_0_0 = std::string{"world"s};
     eo_defer([=] { fmt::Println(_eo_defer_arg_0_0); });
-    fmt::Println("hello");
+    fmt::Println("hello"s);
     eo_defer_run;
   } catch (...) {
     eo_defer_panic;
@@ -177,6 +177,24 @@ auto newCounter() -> ptr<int64_t> {
 ```
 
 A pointer is reference-counted, so a reference cycle is never freed. See `docs/TRANSLATION_RULES.md` for the full mapping, including `ref(x)` for addresses that do not escape and the static method form.
+
+### Strings
+
+Go `string` is `std::string`, and a string literal is `"..."s`. Indexing, slicing, and `len` go through functions that keep Go's byte semantics and panic with Go's runtime error out of range.
+
+```go
+// Go
+s := "héllo"
+fmt.Println(len(s), s[1], s[1:3])
+```
+
+```cpp
+// C++
+auto s = "héllo"s;
+fmt::Println(eo::len(s), eo::at(s, 1), eo::substr(s, 1, 3));
+```
+
+See `docs/TRANSLATION_RULES.md` for the literal escapes and the rest of the mapping.
 
 ### Libraries
 

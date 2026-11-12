@@ -6,11 +6,11 @@ using namespace eo;
 func<> eo_main() {
   eo_defer_scope;
   try {
-    eo_defer([&] { fmt::Println("recovered:", recover()); });
+    eo_defer([&] { fmt::Println("recovered:"s, recover()); });
     auto mu = New<sync::Mutex>();
-    fmt::Println("unlocking");
+    fmt::Println("unlocking"s);
     mu->Unlock();
-    fmt::Println("unreachable");
+    fmt::Println("unreachable"s);
     eo_defer_run;
   } catch (...) {
     eo_defer_panic;

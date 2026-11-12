@@ -18,5 +18,5 @@ func<> eo_main() {
   for (auto k = 0; k < 4; k++) {
     sum += co_await *results;
   }
-  fmt::Println("sum", sum);
+  fmt::Println("sum"s, sum);
 }

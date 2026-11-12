@@ -11,5 +11,5 @@ func<> eo_main() {
     co_await (done << true);
   });
   co_await *done;
-  fmt::Println("x =", *x);
+  fmt::Println("x ="s, *x);
 }

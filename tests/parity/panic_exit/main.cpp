@@ -3,7 +3,7 @@
 using namespace eo;
 
 func<> eo_main() {
-  fmt::Println("before panic");
-  panic("boom");
+  fmt::Println("before panic"s);
+  panic("boom"s);
   co_return;
 }
