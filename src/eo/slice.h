@@ -14,7 +14,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace eo {
 
@@ -37,8 +36,16 @@ namespace detail {
     if (old_cap < threshold) {
       return double_cap;
     }
-    while (new_cap < new_len) {
-      new_cap += (new_cap + 3 * threshold) >> 2;
+    // Go compares as unsigned, so a capacity that overflows ends the loop and falls back to new_len.
+    while (true) {
+      new_cap =
+        static_cast<int64_t>(static_cast<uint64_t>(new_cap) + ((static_cast<uint64_t>(new_cap) + 3 * threshold) >> 2));
+      if (static_cast<uint64_t>(new_cap) >= static_cast<uint64_t>(new_len)) {
+        break;
+      }
+    }
+    if (new_cap <= 0) {
+      return new_len;
     }
     return new_cap;
   }
@@ -114,7 +121,7 @@ public:
   static auto allocate(int64_t len, int64_t cap) -> slice {
     if (cap == 0) {
       // Never dereferenced: every index of a zero-capacity slice is out of range.
-      alignas(std::max_align_t) static std::byte zero_base[1];
+      alignas(T) static std::byte zero_base[sizeof(T)];
       auto empty = std::shared_ptr<T>{std::shared_ptr<void>{}, reinterpret_cast<T*>(zero_base)};
       return slice{ptr<T>{std::move(empty)}, 0, 0};
     }
@@ -147,7 +154,8 @@ namespace detail {
     template<go_integer N, go_integer C>
     auto operator()(N len, C cap) const -> slice<T> {
       auto limit = max_alloc / sizeof(T);
-      if (std::cmp_less(cap, 0) || std::cmp_greater(cap, limit) || std::cmp_greater(len, cap)) {
+      if (std::cmp_less(len, 0) || std::cmp_greater(len, cap) || std::cmp_less(cap, 0) ||
+        std::cmp_greater(cap, limit)) {
         if (std::cmp_less(len, 0) || std::cmp_greater(len, limit)) {
           panic_runtime_error("makeslice: len out of range");
         }
@@ -283,14 +291,17 @@ namespace detail {
     // []rune(s): the code points of s, with U+FFFD for each byte that does not start a valid UTF-8
     // sequence, as Go decodes it.
     auto operator()(const std::string& s) const -> slice<int32_t> {
-      auto runes = std::vector<int32_t>{};
+      auto count = int64_t{0};
+      for (std::size_t i = 0; i < s.size(); i += decode_rune(s, i).second) {
+        ++count;
+      }
+      auto out = slice<int32_t>::allocate(count, count);
+      auto* dst = out.data();
       for (std::size_t i = 0; i < s.size();) {
         auto [r, n] = decode_rune(s, i);
-        runes.push_back(static_cast<int32_t>(r));
+        *dst++ = static_cast<int32_t>(r);
         i += n;
       }
-      auto out = slice<int32_t>::allocate(static_cast<int64_t>(runes.size()), static_cast<int64_t>(runes.size()));
-      std::copy(runes.begin(), runes.end(), out.data());
       return out;
     }
   };

@@ -237,7 +237,7 @@ The following are not covered by this contract yet:
 
 - method expressions such as `go T.M(x)` or `go (*T).M(&x)`;
 - method calls on interface values, where Go evaluates the method value, and panics on a nil interface, in the launching goroutine;
-- calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, where Go builds or passes the variadic slice in the launching goroutine; an ordinary variadic call is mapped in [Slices](./TRANSLATION_RULES.md#slices), but its argument temporaries are not;
+- calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, where Go builds or passes the variadic slice in the launching goroutine; an ordinary variadic call is mapped in [Slices](./TRANSLATION_RULES.md#slices), but its argument temporaries are not ([#95](https://github.com/conr2d/eo/issues/95));
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
 - untyped complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
 - a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`.

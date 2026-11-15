@@ -170,13 +170,13 @@ Go `[]T` maps to `slice<T>` from `<eo/slice.h>`, which `<eo/core.h>` includes. A
 
 `byte` is `uint8_t` and `rune` is `int32_t`. A variadic call passes the slice where Go passes it: arguments after the fixed ones become a new slice, no arguments pass nil, and `t...` passes `t` itself, so the callee shares its elements.
 
-`slice<T>{}` is the nil slice, because `T{}` is the zero value of every type in Eo. A composite literal is never nil, even when it is empty, so it is written `slice<T>::of({...})`. A nested literal whose element type Go elides spells it, and a `nil` element is `nullptr`: `[][]int{{1}, nil, {}}` is `slice<slice<int64_t>>::of({slice<int64_t>::of({1}), nullptr, slice<int64_t>::of({})})`. The braced list evaluates the elements left to right, as Go evaluates the calls in a composite literal, and so does the braced list of `eo::append`.
+`slice<T>{}` is the nil slice, because `T{}` is the zero value of every type in Eo. A composite literal is never nil, even when it is empty, so it is written `slice<T>::of({...})`. A nested literal whose element type Go elides spells it, and a `nil` element is `nullptr`: `[][]int{{1}, nil, {}}` is `slice<slice<int64_t>>::of({slice<int64_t>::of({1}), nullptr, slice<int64_t>::of({})})`. The braced list evaluates the elements left to right, as Go evaluates the calls in a composite literal, and so does the braced list of `eo::append`. The other operands of `eo::append`, and of every other helper, are function arguments, whose order C++ leaves unspecified, so calls in them follow [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands).
 
 Slicing a nil slice gives nil, and slicing any other slice gives a non-nil one, even when it is empty, as in Go. Appending nothing returns the slice unchanged, so `append(s)` and `append(s, t...)` with an empty `t` keep a nil `s` nil.
 
 `eo::at`, `eo::subslice`, and `eo::make_slice` accept the same Go integer types as `eo::at` on a string (see [Strings](#strings)). An index out of range panics with Go's runtime error. A slice's high bound is checked against its capacity, so slicing a slice of capacity 3 as `s[:5]` panics with `runtime error: slice bounds out of range [:5] with capacity 3`, and the three-index form checks `max`, then `high`, then `low`, with Go's messages, such as `slice bounds out of range [:3:2]`. `make` panics with `runtime error: makeslice: len out of range` for a negative length, and `makeslice: cap out of range` for a capacity below the length. A length or capacity whose storage exceeds Go's 2<sup>48</sup> byte allocation limit panics in the same way, measured with the C++ size of `T`, which can differ from Go's.
 
-`eo::at` returns a reference into the backing array, so `s[i] = v` is `eo::at(s, i) = v`, and `s[i] += v` is `eo::at(s, i) += v`. C++ evaluates the right operand of an assignment before the left, so `eo::at(s, i) = f()` calls `f` before it checks `i`, as the gc compiler does. When the left side of such an assignment also contains a call, as in `s[g()] = f()`, where Go calls `g` before `f`, save the left side's call results in temporaries first, in Go's order (see [Preserve evaluation boundaries](#preserve-evaluation-boundaries)). Do not bind the reference to a C++ reference variable: an `append` past capacity or an assignment to `s` can leave it referring to an array that is no longer shared or no longer alive. Take the address with the pointer form, `ptr(s, &eo::at(s, i))`, instead (see [Pointer type](#pointer-type)).
+`eo::at` returns a reference into the backing array, so `s[i] = v` is `eo::at(s, i) = v`, and `s[i] += v` is `eo::at(s, i) += v`. C++ evaluates the right operand of an assignment before the left, so `eo::at(s, i) = f()` calls `f` before it checks `i`, as the gc compiler does. When the left side also contains a call, as in `s[g()] = f()`, the rule below applies. Do not bind the reference to a C++ reference variable: an `append` past capacity or an assignment to `s` can leave it referring to an array that is no longer shared or no longer alive. Take the address with the pointer form, `ptr(s, &eo::at(s, i))`, instead (see [Pointer type](#pointer-type)).
 
 `append` writes in place when the new elements fit in the capacity of `s`, so other slices of the same backing array observe them, as in Go. Otherwise it copies the elements into a new array, and the result no longer shares elements with `s`. The capacity of the new array follows the formula of Go's runtime, `nextslicecap`, without its rounding to allocation size classes. Go does not specify this capacity, and the gc compiler's choice depends on the element size and on escape analysis: a slice that does not escape may start in a 32-byte stack buffer. A program whose behavior depends on the capacity after a reallocating `append` is outside this mapping, and parity cases do not print it. `copy` and `eo::append_slice` handle overlapping elements as Go does, as if through a temporary buffer.
 
@@ -188,7 +188,26 @@ Pass, return, and store slices by value, as `slice<T>`, never as `const slice<T>
 
 The slice helpers are function objects with the same collision rule as the string helpers (see [Strings](#strings)).
 
-Not covered yet: `for range` over a slice ([#84](https://github.com/conr2d/eo/issues/84)); keyed elements in a composite literal, such as `[]T{2: x}`; slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays; the `slices` package; and variadic calls in `go` and `defer` statements (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms)).
+Not covered yet: `for range` over a slice ([#84](https://github.com/conr2d/eo/issues/84)); keyed elements in a composite literal, such as `[]T{2: x}`, slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays ([#93](https://github.com/conr2d/eo/issues/93)); the `slices` package ([#94](https://github.com/conr2d/eo/issues/94)); and variadic calls in `go` and `defer` statements ([#95](https://github.com/conr2d/eo/issues/95)).
+
+#### Calls next to slice and string operands
+
+C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions left to right, and the gc compiler makes those calls before it reads the other operands of the expression. In `fmt.Println(s[0], g())`, where `g` assigns a new slice to `s`, Go prints the new `s[0]`, and in `ss[0][g()]`, where `g` assigns `ss`, Go indexes the new `ss`. In C++, the element reference could instead refer to an array that `g` has freed.
+
+So when an expression contains a call to an `eo::` slice or string helper or to `slice<T>::of`, take each Go function or method call that is nested in it, as an argument or an operand of another call or operator, and save its result in a temporary immediately before the statement, in Go's order. Use the temporary in its place:
+
+```go
+fmt.Println(s[0], g())
+```
+
+```cpp
+auto _eo_call_0 = g();
+fmt::Println(eo::at(s, 0), _eo_call_0);
+```
+
+`<n>` in `_eo_call_<n>` counts these temporaries from 0 in source order through the enclosing function. The outermost call of an expression statement, such as `fmt.Println` above, and a call that is the whole right side of an assignment stay in place, because their arguments are evaluated before they run. A call in a temporary's own initializer follows the rule again, so `fmt.Println(f(s[0]), g())` saves `f(eo::at(s, 0))` and then `g()`. Builtins and conversions, such as `len`, `append`, and `string(b)`, are not Go calls for this rule, and a call inside a function literal's body belongs to that body. The right operand of an assignment whose left side has no Go call needs no temporary, because C++ evaluates it first. An expression where no statement can precede it, such as a loop condition or an `else if` condition, is not covered yet.
+
+`ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved by the rule above first, so that the pointer's owner and target are the same array.
 
 ### Pointers and escaping variables
 

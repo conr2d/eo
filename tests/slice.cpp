@@ -83,7 +83,8 @@ int main() {
   // Go's growth formula, without the size class rounding
   check(eo::detail::next_slice_cap(1, 0) == 1 && eo::detail::next_slice_cap(4, 3) == 6 &&
       eo::detail::next_slice_cap(9, 3) == 9 && eo::detail::next_slice_cap(257, 256) == 512 &&
-      eo::detail::next_slice_cap(513, 512) == 832,
+      eo::detail::next_slice_cap(513, 512) == 832 &&
+      eo::detail::next_slice_cap(std::numeric_limits<int64_t>::max(), 1 << 20) == std::numeric_limits<int64_t>::max(),
     "next_slice_cap");
 
   // append(s, s...) and overlapping copy behave as memmove
@@ -133,6 +134,8 @@ int main() {
     "slice3 negative max");
   check(panic_message([&] { eo::make_slice<int64_t>(-1); }) == "runtime error: makeslice: len out of range",
     "make negative");
+  check(panic_message([&] { eo::make_slice<int64_t>(-1, 3); }) == "runtime error: makeslice: len out of range",
+    "make negative length below capacity");
   check(panic_message([&] { eo::make_slice<int64_t>(3, 2); }) == "runtime error: makeslice: cap out of range",
     "make cap below len");
   check(panic_message([&] { eo::make_slice<int64_t>(int64_t{1} << 62); }) ==

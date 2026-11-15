@@ -39,6 +39,7 @@ func<> eo_main() {
   attempt("negativeMax"s, [=]() mutable { fmt::Println(eo::subslice(s, 0, 1, j)); });
   attempt("makeLen"s, [=]() mutable { fmt::Println(eo::make_slice<int64_t>(j)); });
   attempt("makeCap"s, [=]() mutable { fmt::Println(eo::make_slice<int64_t>(k, k - 1)); });
+  attempt("makeLenBelowCap"s, [=]() mutable { fmt::Println(eo::make_slice<int64_t>(j, k)); });
   attempt("ok"s, [=]() mutable {
     fmt::Println(eo::subslice(s, 1, 3),
       eo::at(s, 2),

@@ -27,5 +27,6 @@ func main() {
 	attempt("negativeMax", func() { fmt.Println(s[0:1:j]) })
 	attempt("makeLen", func() { fmt.Println(make([]int, j)) })
 	attempt("makeCap", func() { fmt.Println(make([]int, k, k-1)) })
+	attempt("makeLenBelowCap", func() { fmt.Println(make([]int, j, k)) })
 	attempt("ok", func() { fmt.Println(s[1:3], s[2], s[:0], s[3:], len(s[1:1:3])) })
 }

@@ -12,5 +12,6 @@ negativeLow3 runtime error: slice bounds out of range [-1::]
 negativeMax runtime error: slice bounds out of range [::-1]
 makeLen runtime error: makeslice: len out of range
 makeCap runtime error: makeslice: cap out of range
+makeLenBelowCap runtime error: makeslice: len out of range
 [2 3] 3 [] [] 0
 ok <nil>
