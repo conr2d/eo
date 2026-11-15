@@ -123,7 +123,7 @@ Pass, return, and store strings by value, as `std::string`, never as `const std:
 
 `eo::len` of a string is an `int64_t`, which is the type that Eo's library uses for Go `int`. Arithmetic on the `uint8_t` that `eo::at` returns promotes to `int` in C++, so an expression such as `s[i] - '0'` is provisional until Go's integer arithmetic is mapped. The general mapping of Go `int` and the other basic types is not frozen yet (see [#90](https://github.com/conr2d/eo/issues/90)).
 
-Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://github.com/conr2d/eo/issues/84)); the conversions `[]byte(s)`, `[]rune(s)`, and `string(b)` for a slice `b` ([#87](https://github.com/conr2d/eo/issues/87)); and the `strings`, `strconv`, and `unicode/utf8` packages.
+The conversions between strings and `[]byte` or `[]rune` are in [Slices](#slices). Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://github.com/conr2d/eo/issues/84)), and the `strings`, `strconv`, and `unicode/utf8` packages.
 
 #### String literals
 
@@ -142,6 +142,53 @@ Only an escape sequence changes, not text that merely looks like one: in `\\x41`
 A raw string literal is `R"(...)"s` with the source text inside, after dropping each carriage return, as Go does. The delimiter is empty unless the text contains `)"`. Otherwise it is the first of `eo`, `eo1`, `eo2`, ... for which the text does not contain `)` followed by the delimiter and `"`, as in `R"eo(...)eo"s`.
 
 A string constant that the Go type checker folds, such as an untyped constant argument (see [Untyped constant arguments](#untyped-constant-arguments)), is written from its value rather than its source: each byte from `0x20` to `0x7e` other than `"` and `\` as itself, `\a \b \f \n \r \t \v \\ \"` for those bytes, and every other byte as `\x{hh}` with two lowercase hex digits.
+
+### Slices
+
+Go `[]T` maps to `slice<T>` from `<eo/slice.h>`, which `<eo/core.h>` includes. A `slice<T>` is a view of a shared backing array: copying it copies the view, and every copy and every slice expression of it refers to the same elements, as in Go. The backing array stays alive for as long as any slice or element pointer refers to it.
+
+| Go | C++ |
+| --- | --- |
+| `[]T` | `slice<T>` |
+| `nil` as a `[]T`, and the zero value of `[]T` | `slice<T>{}`, or `nullptr` where it converts; `var s []T` is `slice<T> s;` |
+| `s == nil`, `s != nil` | `s == nullptr`, `s != nullptr` |
+| `[]T{a, b, c}`, `[]T{}` | `slice<T>::of({a, b, c})`, `slice<T>::of({})` |
+| `make([]T, n)`, `make([]T, n, c)` | `eo::make_slice<T>(n)`, `eo::make_slice<T>(n, c)` |
+| `len(s)`, `cap(s)` | `eo::len(s)`, `eo::cap(s)`, as `int64_t` |
+| `s[i]` | `eo::at(s, i)`, a `T&` to the shared element |
+| `s[low:high]`, `s[low:]`, `s[:high]`, `s[:]` | `eo::subslice(s, low, high)`, `eo::subslice(s, low)`, `eo::subslice(s, 0, high)`, `eo::subslice(s, 0)` |
+| `s[low:high:max]`, `s[:high:max]` | `eo::subslice(s, low, high, max)`, `eo::subslice(s, 0, high, max)` |
+| `append(s, a, b)`, `append(s)` | `eo::append(s, {a, b})`, `eo::append(s, {})` |
+| `append(s, t...)` | `eo::append_slice(s, t)` |
+| `append(b, str...)`, where `b` is a `[]byte` | `eo::append_slice(b, str)` |
+| `copy(dst, src)`, `copy(b, str)` | `eo::copy(dst, src)`, `eo::copy(b, str)`, an `int64_t` count |
+| `clear(s)` | `eo::clear(s)` |
+| `[]byte(str)`, `string(b)` | `eo::bytes_from_string(str)`, `eo::string_from_bytes(b)` |
+| `[]rune(str)`, `string(r)`, where `r` is a `[]rune` | `eo::runes_from_string(str)`, `eo::string_from_runes(r)` |
+| a variadic parameter `xs ...T` | a parameter `slice<T> xs` |
+| `f(a, b)`, `f()`, `f(t...)` for a variadic `f` | `f(slice<T>::of({a, b}))`, `f(nullptr)`, `f(t)` |
+
+`byte` is `uint8_t` and `rune` is `int32_t`. A variadic call passes the slice where Go passes it: arguments after the fixed ones become a new slice, no arguments pass nil, and `t...` passes `t` itself, so the callee shares its elements.
+
+`slice<T>{}` is the nil slice, because `T{}` is the zero value of every type in Eo. A composite literal is never nil, even when it is empty, so it is written `slice<T>::of({...})`. A nested literal whose element type Go elides spells it, and a `nil` element is `nullptr`: `[][]int{{1}, nil, {}}` is `slice<slice<int64_t>>::of({slice<int64_t>::of({1}), nullptr, slice<int64_t>::of({})})`. The braced list evaluates the elements left to right, as Go evaluates the calls in a composite literal, and so does the braced list of `eo::append`.
+
+Slicing a nil slice gives nil, and slicing any other slice gives a non-nil one, even when it is empty, as in Go. Appending nothing returns the slice unchanged, so `append(s)` and `append(s, t...)` with an empty `t` keep a nil `s` nil.
+
+`eo::at`, `eo::subslice`, and `eo::make_slice` accept the same Go integer types as `eo::at` on a string (see [Strings](#strings)). An index out of range panics with Go's runtime error. A slice's high bound is checked against its capacity, so slicing a slice of capacity 3 as `s[:5]` panics with `runtime error: slice bounds out of range [:5] with capacity 3`, and the three-index form checks `max`, then `high`, then `low`, with Go's messages, such as `slice bounds out of range [:3:2]`. `make` panics with `runtime error: makeslice: len out of range` for a negative length, and `makeslice: cap out of range` for a capacity below the length. A length or capacity whose storage exceeds Go's 2<sup>48</sup> byte allocation limit panics in the same way, measured with the C++ size of `T`, which can differ from Go's.
+
+`eo::at` returns a reference into the backing array, so `s[i] = v` is `eo::at(s, i) = v`, and `s[i] += v` is `eo::at(s, i) += v`. C++ evaluates the right operand of an assignment before the left, so `eo::at(s, i) = f()` calls `f` before it checks `i`, as the gc compiler does. When the left side of such an assignment also contains a call, as in `s[g()] = f()`, where Go calls `g` before `f`, save the left side's call results in temporaries first, in Go's order (see [Preserve evaluation boundaries](#preserve-evaluation-boundaries)). Do not bind the reference to a C++ reference variable: an `append` past capacity or an assignment to `s` can leave it referring to an array that is no longer shared or no longer alive. Take the address with the pointer form, `ptr(s, &eo::at(s, i))`, instead (see [Pointer type](#pointer-type)).
+
+`append` writes in place when the new elements fit in the capacity of `s`, so other slices of the same backing array observe them, as in Go. Otherwise it copies the elements into a new array, and the result no longer shares elements with `s`. The capacity of the new array follows the formula of Go's runtime, `nextslicecap`, without its rounding to allocation size classes. Go does not specify this capacity, and the gc compiler's choice depends on the element size and on escape analysis: a slice that does not escape may start in a 32-byte stack buffer. A program whose behavior depends on the capacity after a reallocating `append` is outside this mapping, and parity cases do not print it. `copy` and `eo::append_slice` handle overlapping elements as Go does, as if through a temporary buffer.
+
+Pass, return, and store slices by value, as `slice<T>`, never as `const slice<T>&`, for the same reason as pointers. A slice variable is boxed by the rules in [Boxed variables](#boxed-variables), like any other variable. A function literal that captures a slice by value still shares its elements.
+
+`fmt::Println` prints a slice as Go does: its elements in brackets separated by spaces, `[]` for nil, and a `[]byte` as numbers.
+
+`begin()` and `end()` give the elements, so std algorithms work over a slice, as in `std::sort(s.begin(), s.end())`. They are not a translation of a Go form.
+
+The slice helpers are function objects with the same collision rule as the string helpers (see [Strings](#strings)).
+
+Not covered yet: `for range` over a slice ([#84](https://github.com/conr2d/eo/issues/84)); keyed elements in a composite literal, such as `[]T{2: x}`; slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays; the `slices` package; and variadic calls in `go` and `defer` statements (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms)).
 
 ### Pointers and escaping variables
 
@@ -167,8 +214,9 @@ Go `*T` maps to `ptr<T>` from `<eo/ptr.h>`, which `<eo/core.h>` includes:
 | `&p.f`, where `p` is a pointer | `ptr(p, &p->f)` |
 | `&*p` | `p` |
 | `&p[i]`, where `p` is a pointer to an array | `ptr(p, &(*p)[i])` |
+| `&s[i]`, `&s[i].f`, where `s` is a slice | `ptr(s, &eo::at(s, i))`, `ptr(s, &eo::at(s, i).f)` |
 
-`&x.f` stands for the address of any part of `x`: `x` followed by field selectors and array indexes that stay inside `x`'s own storage, such as `x.f[i].g`. The `ptr(owner, address)` form keeps the whole target of `owner` alive, as Go does for a pointer into the middle of a variable.
+`&x.f` stands for the address of any part of `x`: `x` followed by field selectors and array indexes that stay inside `x`'s own storage, such as `x.f[i].g`. The `ptr(owner, address)` form keeps the whole target of `owner` alive, as Go does for a pointer into the middle of a variable. For a slice, the owner is its backing array, so `&s[i]` stays valid after `s` is assigned or goes out of scope, and still refers to the old array after an `append` past capacity, as in Go.
 
 A pointer from `New` owns its target, and every copy shares it. The target is destroyed when the last pointer to it is gone. A pointer from `ref` does not own its target. The rules below use `ref` only for storage that outlives every use of the pointer: package-level variables, and locals that are not boxed.
 
@@ -333,7 +381,7 @@ Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay m
 
 #### Not covered yet
 
-- pointers held inside slices, maps, and interfaces, whose own mappings are not frozen, and the C++ type of a slice of an array;
+- pointers held inside maps and interfaces, whose own mappings are not frozen, and slicing an array;
 - printing a pointer with `fmt`, which shows an address;
 - method values and method expressions, promoted methods of embedded fields, and conversions through `unsafe.Pointer` or `uintptr`.
 
@@ -651,7 +699,7 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- pointers held in slices, maps, and interfaces, printing a pointer, method values, method expressions, and promoted methods (see [Not covered yet](#not-covered-yet));
+- pointers held in maps and interfaces, printing a pointer, method values, method expressions, and promoted methods (see [Not covered yet](#not-covered-yet));
 - untyped complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));

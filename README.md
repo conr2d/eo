@@ -196,6 +196,28 @@ fmt::Println(eo::len(s), eo::at(s, 1), eo::substr(s, 1, 3));
 
 See `docs/TRANSLATION_RULES.md` for the literal escapes and the rest of the mapping.
 
+### Slices
+
+Go `[]T` is `slice<T>`, a view of a shared backing array, so copies and subslices share elements as in Go. `append` writes in place within capacity and copies past it, and indexing and slicing panic with Go's runtime error out of range.
+
+```go
+// Go
+a := []int{1, 2, 3}
+t := a[1:2]
+t = append(t, 7) // writes a[2]
+fmt.Println(a, len(t), cap(t))
+```
+
+```cpp
+// C++
+auto a = slice<int64_t>::of({1, 2, 3});
+auto t = eo::subslice(a, 1, 2);
+t = eo::append(t, {7}); // writes a[2]
+fmt::Println(a, eo::len(t), eo::cap(t));
+```
+
+`slice<T>{}` is the nil slice, and a composite literal is always `slice<T>::of({...})`, so `[]T{}` stays non-nil. See `docs/TRANSLATION_RULES.md` for the full mapping.
+
 ### Libraries
 
 Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling when it is a valid, non-reserved C++ identifier, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.

@@ -79,6 +79,27 @@ struct formatter<std::map<K, V>> {
   }
 };
 
+// Go's %v of a slice: the elements in brackets, separated by spaces, and [] for nil.
+template<typename T>
+struct formatter<eo::slice<T>> {
+  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    return ctx.end();
+  }
+  template<typename FormatContext>
+  auto format(const eo::slice<T>& s, FormatContext& ctx) const {
+    auto out = fmt::format_to(ctx.out(), "[");
+    bool first = true;
+    for (const auto& element : s) {
+      if (!first) {
+        out = fmt::format_to(out, " ");
+      }
+      out = fmt::format_to(out, "{}", element);
+      first = false;
+    }
+    return fmt::format_to(out, "]");
+  }
+};
+
 template<typename Clock>
 struct formatter<std::chrono::time_point<Clock>> {
   constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {

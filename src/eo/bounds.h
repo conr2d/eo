@@ -67,6 +67,29 @@ void check_slice(L low, H high, N limit, const char* limit_name = "length") {
   }
 }
 
+// s[low:high:max] of a slice whose capacity is `cap`. Go checks max first, then high, then low.
+template<go_integer L, go_integer H, go_integer M, go_integer N>
+void check_slice3(L low, H high, M max, N cap) {
+  if (std::cmp_less(max, 0)) {
+    panic_runtime_error(fmt::format("slice bounds out of range [::{}]", max));
+  }
+  if (std::cmp_greater(max, cap)) {
+    panic_runtime_error(fmt::format("slice bounds out of range [::{}] with capacity {}", max, cap));
+  }
+  if (std::cmp_less(high, 0)) {
+    panic_runtime_error(fmt::format("slice bounds out of range [:{}:]", high));
+  }
+  if (std::cmp_greater(high, max)) {
+    panic_runtime_error(fmt::format("slice bounds out of range [:{}:{}]", high, max));
+  }
+  if (std::cmp_less(low, 0)) {
+    panic_runtime_error(fmt::format("slice bounds out of range [{}::]", low));
+  }
+  if (std::cmp_greater(low, high)) {
+    panic_runtime_error(fmt::format("slice bounds out of range [{}:{}:]", low, high));
+  }
+}
+
 } // namespace eo::detail
 
 template<>

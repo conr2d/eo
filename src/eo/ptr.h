@@ -14,6 +14,9 @@
 
 namespace eo {
 
+template<typename T>
+class slice;
+
 namespace detail {
 
   inline auto nil_pointer_dereference() -> const Error& {
@@ -91,6 +94,10 @@ public:
   template<typename U>
   ptr(const ptr<U>& owner, T* target) noexcept: p_(owner.p_, target) {}
 
+  // &s[i]: a pointer to an element of the backing array of s, keeping that whole array alive.
+  template<typename U>
+  ptr(const slice<U>& owner, T* target) noexcept: p_(owner.data_.p_, target) {}
+
   auto operator*() const -> T& {
     return *checked();
   }
@@ -115,6 +122,8 @@ public:
 private:
   template<typename U>
   friend class ptr;
+  template<typename U>
+  friend class slice;
   template<typename U, typename... Args>
   friend auto New(Args&&... args) -> ptr<U>;
   template<typename U>
@@ -135,6 +144,9 @@ private:
 
 template<typename U, typename T>
 ptr(const ptr<U>&, T*) -> ptr<T>;
+
+template<typename U, typename T>
+ptr(const slice<U>&, T*) -> ptr<T>;
 
 // new(T), &T{...}, and a variable that Go moves to heap: a new owned T. With no arguments the
 // target is value-initialized, which is Go's zero value for the types Eo maps so far.

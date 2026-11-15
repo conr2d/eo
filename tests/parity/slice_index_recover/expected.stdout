@@ -1,0 +1,16 @@
+index runtime error: index out of range [5] with length 3
+negative runtime error: index out of range [-1]
+nil runtime error: index out of range [0] with length 0
+assign runtime error: index out of range [5] with length 3
+high runtime error: slice bounds out of range [:5] with capacity 3
+low runtime error: slice bounds out of range [5:3]
+inverted runtime error: slice bounds out of range [2:1]
+max runtime error: slice bounds out of range [::5] with capacity 3
+highAboveMax runtime error: slice bounds out of range [:3:2]
+lowAboveHigh runtime error: slice bounds out of range [2:1:]
+negativeLow3 runtime error: slice bounds out of range [-1::]
+negativeMax runtime error: slice bounds out of range [::-1]
+makeLen runtime error: makeslice: len out of range
+makeCap runtime error: makeslice: cap out of range
+[2 3] 3 [] [] 0
+ok <nil>
