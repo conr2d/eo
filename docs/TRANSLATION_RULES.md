@@ -194,7 +194,7 @@ Not covered yet: `for range` over a slice ([#84](https://github.com/conr2d/eo/is
 
 C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions and methods in lexical left-to-right order, but it does not specify when the other operands of an expression are read relative to those calls. The translation must not leave that order to the C++ compiler. A reference that `eo::at` returns before a call that frees its backing array refers to freed storage, and the two orders can print different values.
 
-Eo fixes one order: an expression's nested Go calls run first, left to right, and its other operands are read after them. When an expression contains a call to an `eo::` slice or string helper, or to `slice<T>::of`, save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
+Eo fixes one order: an expression's nested Go calls run first, left to right, and the operands that remain in the statement are read after them. When an expression contains a call to an `eo::` slice or string helper, or to `slice<T>::of`, save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
 
 ```go
 fmt.Println(s[0], g())
@@ -214,7 +214,7 @@ auto _eo_call_3 = g();
 eo::at(s, _eo_call_3) = h();
 ```
 
-The rule applies separately to each full expression that a statement evaluates: an expression statement, each side of an assignment, the initializer of a declaration, the operand of a `return`, the operands of a send, and the condition of an `if` or the tag of a `switch` without an init statement, whose temporaries go before the `if` or `switch`:
+The rule applies separately to each full expression that a statement evaluates: an expression statement, each side of an assignment, the initializer of a declaration, the operand of a `return`, and the condition of an `if` or the tag of a `switch` without an init statement, whose temporaries go before the `if` or `switch`:
 
 - A nested Go call is a Go function or method call that is an argument of another call, including an `eo::` helper, an operand of an operator, or the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. The outermost call of each full expression stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so `h()` runs after the saved `g()` and before the index check, as Go orders them.
 - Builtins and conversions, such as `len`, `cap`, `append`, and `string(b)`, are not Go calls for this rule. A call inside a function literal's body belongs to that body.
@@ -222,6 +222,7 @@ The rule applies separately to each full expression that a statement evaluates: 
 - Go evaluates the right operand of `&&` and `||` only when the left one does not decide the result, so a call is never moved out of either operand. Instead, a `&&` or `||` that contains a Go call and is nested in the expression is itself saved as one temporary, in its place in call order: `fmt.Println(s[0], f() && h(), g())` becomes `auto _eo_call_0 = f() && h();`, then `auto _eo_call_1 = g();`. Each operand is an expression in its own right, whose outermost call stays in place, so `i < len(t) && check(t[i])` needs no temporary. An operand that would need one is not covered yet.
 - In a `go` or `defer` statement, the saved calls come before the statement's function value, receiver, and argument temporaries.
 - An expression that no statement can precede is not covered yet: a loop condition or post statement, an `else if` condition, the condition of an `if` or `switch` with an init statement, and a `switch` case expression.
+- Also not covered yet, when the expression uses a helper: a send statement, whose channel and value operands C++ does not sequence; a receive operation, which Go orders with the calls; and a call that produces the receiver of a method call or the operand of a selector, as `p()` in `p().M(s[0], g())` or `p().f = s[0] + g()`. The general evaluation-order rule that would cover these, and expressions without helpers, is [#96](https://github.com/conr2d/eo/issues/96).
 
 The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
 
