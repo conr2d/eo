@@ -27,27 +27,27 @@ namespace detail {
   // non-escaping slice in a stack buffer, so a program cannot rely on it. Eo uses the formula
   // without the rounding.
   inline auto next_slice_cap(int64_t new_len, int64_t old_cap) -> int64_t {
-    auto new_cap = old_cap;
+    // Unsigned arithmetic wraps where Go's int does, instead of overflowing.
+    auto new_cap = static_cast<uint64_t>(old_cap);
     auto double_cap = new_cap + new_cap;
-    if (new_len > double_cap) {
+    if (new_len > static_cast<int64_t>(double_cap)) {
       return new_len;
     }
-    constexpr int64_t threshold = 256;
-    if (old_cap < threshold) {
-      return double_cap;
+    constexpr uint64_t threshold = 256;
+    if (static_cast<uint64_t>(old_cap) < threshold) {
+      return static_cast<int64_t>(double_cap);
     }
     // Go compares as unsigned, so a capacity that overflows ends the loop and falls back to new_len.
     while (true) {
-      new_cap =
-        static_cast<int64_t>(static_cast<uint64_t>(new_cap) + ((static_cast<uint64_t>(new_cap) + 3 * threshold) >> 2));
-      if (static_cast<uint64_t>(new_cap) >= static_cast<uint64_t>(new_len)) {
+      new_cap += (new_cap + 3 * threshold) >> 2;
+      if (new_cap >= static_cast<uint64_t>(new_len)) {
         break;
       }
     }
-    if (new_cap <= 0) {
+    if (static_cast<int64_t>(new_cap) <= 0) {
       return new_len;
     }
-    return new_cap;
+    return static_cast<int64_t>(new_cap);
   }
 
   // Copies n elements from src to dst, which may overlap, as Go's memmove does.

@@ -192,20 +192,38 @@ Not covered yet: `for range` over a slice ([#84](https://github.com/conr2d/eo/is
 
 #### Calls next to slice and string operands
 
-C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions left to right, and the gc compiler makes those calls before it reads the other operands of the expression. In `fmt.Println(s[0], g())`, where `g` assigns a new slice to `s`, Go prints the new `s[0]`, and in `ss[0][g()]`, where `g` assigns `ss`, Go indexes the new `ss`. In C++, the element reference could instead refer to an array that `g` has freed.
+C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions and methods in lexical left-to-right order, but it does not specify when the other operands of an expression are read relative to those calls. The translation must not leave that order to the C++ compiler. A reference that `eo::at` returns before a call that frees its backing array refers to freed storage, and the two orders can print different values.
 
-So when an expression contains a call to an `eo::` slice or string helper or to `slice<T>::of`, take each Go function or method call that is nested in it, as an argument or an operand of another call or operator, and save its result in a temporary immediately before the statement, in Go's order. Use the temporary in its place:
+Eo fixes one order: an expression's nested Go calls run first, left to right, and its other operands are read after them. When an expression contains a call to an `eo::` slice or string helper, or to `slice<T>::of`, save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
 
 ```go
 fmt.Println(s[0], g())
+s[0] = s[1] + g()
+x := f(s[0], g())
+s[g()] = h()
 ```
 
 ```cpp
 auto _eo_call_0 = g();
 fmt::Println(eo::at(s, 0), _eo_call_0);
+auto _eo_call_1 = g();
+eo::at(s, 0) = eo::at(s, 1) + _eo_call_1;
+auto _eo_call_2 = g();
+auto x = f(eo::at(s, 0), _eo_call_2);
+auto _eo_call_3 = g();
+eo::at(s, _eo_call_3) = h();
 ```
 
-`<n>` in `_eo_call_<n>` counts these temporaries from 0 in source order through the enclosing function. The outermost call of an expression statement, such as `fmt.Println` above, and a call that is the whole right side of an assignment stay in place, because their arguments are evaluated before they run. A call in a temporary's own initializer follows the rule again, so `fmt.Println(f(s[0]), g())` saves `f(eo::at(s, 0))` and then `g()`. Builtins and conversions, such as `len`, `append`, and `string(b)`, are not Go calls for this rule, and a call inside a function literal's body belongs to that body. The right operand of an assignment whose left side has no Go call needs no temporary, because C++ evaluates it first. An expression where no statement can precede it, such as a loop condition or an `else if` condition, is not covered yet.
+The rule applies separately to an expression statement, to each side of an assignment, and to the initializer of a declaration:
+
+- A nested Go call is a Go function or method call that is an argument of another call, including an `eo::` helper, or an operand of an operator. The outermost call of each side stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so `h()` runs after the saved `g()` and before the index check, as Go orders them.
+- Builtins and conversions, such as `len`, `cap`, `append`, and `string(b)`, are not Go calls for this rule. A call inside a function literal's body belongs to that body.
+- A temporary's initializer is an expression in its own right. If it contains a helper and a nested Go call, that call is saved first. Temporaries are declared in the order Go makes their calls, and `<n>` counts them from 0 in that order through the enclosing function, including the bodies of function literals inside it, so no name is reused. `fmt.Println(f(s[0], k()), g())` becomes `auto _eo_call_0 = k();`, then `auto _eo_call_1 = f(eo::at(s, 0), _eo_call_0);`, then `auto _eo_call_2 = g();`.
+- Each operand of `&&` and `||` is an expression in its own right, because Go evaluates the right operand only when the left one does not decide the result. A call is never moved out of a right operand. `i < len(t) && check(t[i])` needs no temporary, because `check` is the outermost call of its operand. A right operand that would need one is not covered yet.
+- In a `go` or `defer` statement, the saved calls come before the statement's argument temporaries.
+- An expression that no statement can precede is not covered yet: a loop condition or post statement, an `else if` condition, the condition of an `if` or `switch` with an init statement, and a `switch` case expression.
+
+The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable before them, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
 
 `ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved by the rule above first, so that the pointer's owner and target are the same array.
 

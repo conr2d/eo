@@ -84,7 +84,9 @@ int main() {
   check(eo::detail::next_slice_cap(1, 0) == 1 && eo::detail::next_slice_cap(4, 3) == 6 &&
       eo::detail::next_slice_cap(9, 3) == 9 && eo::detail::next_slice_cap(257, 256) == 512 &&
       eo::detail::next_slice_cap(513, 512) == 832 &&
-      eo::detail::next_slice_cap(std::numeric_limits<int64_t>::max(), 1 << 20) == std::numeric_limits<int64_t>::max(),
+      eo::detail::next_slice_cap(std::numeric_limits<int64_t>::max(), 1 << 20) == std::numeric_limits<int64_t>::max() &&
+      eo::detail::next_slice_cap(std::numeric_limits<int64_t>::max() - 1, (int64_t{1} << 62) - 1) ==
+        std::numeric_limits<int64_t>::max() - 1,
     "next_slice_cap");
 
   // append(s, s...) and overlapping copy behave as memmove
