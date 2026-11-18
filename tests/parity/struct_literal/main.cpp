@@ -35,7 +35,7 @@ void show(int64_t n, Point p) {
 }
 
 func<> eo_main() {
-  Labeled zero{};
+  Labeled zero;
   fmt::Println(zero);
   fmt::Println(zero.At == Point{}, zero.Name == ""s);
 
@@ -70,7 +70,7 @@ func<> eo_main() {
   auto in = Point{.X = trace("x"s, 4), .Y = trace("y"s, 5)};
   fmt::Println(in);
 
-  auto e = empty_struct{};
-  fmt::Println(e, e == empty_struct{});
+  auto e = eo::empty_struct{};
+  fmt::Println(e, e == eo::empty_struct{});
   co_return;
 }

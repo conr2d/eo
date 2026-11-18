@@ -21,7 +21,10 @@ inline constexpr bool is_std_array = false;
 template<typename T, std::size_t N>
 inline constexpr bool is_std_array<std::array<T, N>> = true;
 
-// A translated Go struct: a class aggregate, which Boost.PFR can visit field by field.
+// A translated Go struct: a class aggregate, which Boost.PFR can visit field by field. This also
+// matches other aggregates, so it is ambiguous with fmt's own formatters for aggregate types, such as
+// std::tm in <fmt/chrono.h>, std::monostate in <fmt/std.h>, and fmt::streamed. Eo uses none of them
+// for Go values.
 template<typename T>
 concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_array<T>;
 

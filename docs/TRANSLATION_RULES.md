@@ -92,7 +92,7 @@ A renamed variable is boxed by the same rules as any other, as in `auto _eo_shad
 
 ### Package-level names hidden by members
 
-Inside a struct definition, and inside the out-of-class definitions of its methods, C++ looks up a name among the struct's members before the package. Go does not: a method sees fields and other methods only through its receiver. C++ also rejects a struct definition in which a name means something else after a member of that name is declared, as in `struct Node { Config Config{}; };`. So inside a struct definition and the definitions of its methods, a package-level type, function, or variable whose name is also the name of a member of that struct (a field, an embedded field, or a method) is written with the global qualifier, as `::Config`. This includes the struct's own name when a field has it: `type T struct { T int }` declares `auto operator==(const ::T&) const -> bool = default;`. Names that no member shares stay unqualified:
+Inside a struct definition, and inside the out-of-class definitions of its methods, C++ looks up a name among the struct's members before the package. Go does not: a method sees fields and other methods only through its receiver. C++ also makes a struct definition ill-formed when a name used in it means something else after a member of that name is declared, as in `struct Node { Config Config{}; };`, which GCC rejects. So inside a struct definition and the definitions of its methods, a package-level type, function, variable, or constant whose name is also the name of a member of that struct (a field, an embedded field, or a method) is written with the global qualifier, as `::Config`. This includes the struct's own name when a field has it: `type T struct { T int }` declares `auto operator==(const ::T&) const -> bool = default;`. Names that no member shares stay unqualified:
 
 ```go
 type Node struct {
@@ -129,7 +129,11 @@ auto Node::Size(ptr<Node> n) -> int64_t {
 }
 ```
 
-A type that the translation spells where the Go source does not, such as the type of a boxed variable, is qualified in the same way when a local variable of the same name is in scope. The Go source cannot name the type there, but the translation can: `point := 1` followed by a boxed `p := mk(point)` is `auto p = New<::point>(mk(point));`.
+A type that the translation spells where the Go source does not, such as the type of a boxed variable, is qualified in the same way when a local variable of the same name is in scope, including the variable being declared, whose scope starts at its declarator. The Go source cannot name the type there, but the translation can: `point := 1` followed by a boxed `p := mk(point)` is `auto p = New<::point>(mk(point));`, and a boxed `point := mk()` is `auto point = New<::point>(mk());`.
+
+A member can also hide an Eo name that `using namespace eo;` makes visible, such as a field named `ptr`, `ref`, `slice`, or `New`. Inside such a struct and its method definitions, that Eo name is written `eo::ptr`, `eo::ref`, and so on (see [#83](https://github.com/conr2d/eo/issues/83) for Eo name collisions in general).
+
+`::` reaches only package-level names. A struct type declared inside a function is not one, so a local struct whose field or embedded field shares a name with another local type has no translation yet.
 
 `::` names the global namespace, where a translated package's declarations are until packages have a mapping of their own.
 
@@ -301,7 +305,7 @@ The rule applies separately to each full expression that a statement evaluates: 
 - Go evaluates the right operand of `&&` and `||` only when the left one does not decide the result, so a call is never moved out of either operand. Instead, a `&&` or `||` that contains a Go call and is nested in the expression is itself saved as one temporary, in its place in call order: `fmt.Println(s[0], f() && h(), g())` becomes `auto _eo_call_0 = f() && h();`, then `auto _eo_call_1 = g();`. Each operand is an expression in its own right, whose outermost call stays in place, so `i < len(t) && check(t[i])` needs no temporary. An operand that would need one is not covered yet.
 - In a `go` or `defer` statement, the saved calls come before the statement's function value, receiver, and argument temporaries.
 - An expression that no statement can precede is not covered yet: a loop condition or post statement, an `else if` condition, the condition of an `if` or `switch` with an init statement, and a `switch` case expression.
-- Also not covered yet, when the expression uses a helper: a send statement, whose channel and value operands C++ does not sequence; a receive operation, which Go orders with the calls; and a call that produces the receiver of a method call or the operand of a selector, as `p()` in `p().M(s[0], g())`, `p().f = s[0] + g()`, or `*p() = s[0] + g()`. The general evaluation-order rule that would cover these, and expressions without helpers, is [#96](https://github.com/conr2d/eo/issues/96).
+- Also not covered yet, when the expression uses a helper or contains a keyed struct literal out of declaration order: a send statement, whose channel and value operands C++ does not sequence; a receive operation, which Go orders with the calls; and a call that produces the receiver of a method call or the operand of a selector, as `p()` in `p().M(s[0], g())`, `p().f = s[0] + g()`, or `*p() = s[0] + g()`. The general evaluation-order rule that would cover these, and expressions without helpers, is [#96](https://github.com/conr2d/eo/issues/96).
 
 The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
 
@@ -309,7 +313,7 @@ The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a s
 
 ### Structs
 
-A Go struct type maps to a C++ aggregate of the same name. Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. Field tags are dropped. After the fields, every struct declares a defaulted `operator==`, and then its methods as static member functions (see [Methods](#methods)):
+A Go struct type maps to a C++ aggregate of the same name. Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. Field tags are dropped. After the fields, every struct declares a defaulted `operator==`, and then its methods as static member functions, in the order Go declares them (see [Methods](#methods)):
 
 ```go
 type Point struct {
@@ -344,7 +348,7 @@ struct Labeled {
 | Go | C++ |
 | --- | --- |
 | `type T struct { ... }` | `struct T { ... };` |
-| `var x T` | `T x{};`, or `auto x = New<T>();` when `x` is [boxed](#boxed-variables) |
+| `var x T` | `T x;`, as for a slice or a pointer, or `auto x = New<T>();` when `x` is [boxed](#boxed-variables) |
 | the zero value of `T`, `T{}` | `T{}` |
 | `T{a, b}` | `T{a, b}` |
 | `T{f: a, g: b}` | `T{.f = a, .g = b}`, with the fields in declaration order |
@@ -355,13 +359,13 @@ struct Labeled {
 
 Assigning, passing, and returning a struct copies its fields, as in Go. A pointer or slice field of the copy shares its target or backing array with the original.
 
-The defaulted `operator==` compares the fields in declaration order and stops at the first pair that differs, as Go does. If a field's type has no `==` in Go, such as a slice, the operator is deleted, so a comparison does not compile, as it does not in Go.
+The defaulted `operator==` compares the fields in declaration order and stops at the first pair that differs, as Go does. If a field's type has no `==` in Go, such as a slice, the operator is deleted, so a comparison does not compile, as it does not in Go. Clang warns about such a deleted operator with `-Wdefaulted-function-deleted`. The warning is expected.
 
 #### Composite literals
 
 A positional literal `T{a, b}` lists every field in order, as Go requires, and is the same aggregate initialization in C++. A keyed literal uses designated initializers, which C++ requires in declaration order, so the keys are reordered when Go lists them in another order. An omitted field keeps its `{}` zero value. A literal whose type Go elides spells it, as in [Slices](#slices): `[]Point{{1, 2}, {Y: 3}}` is `slice<Point>::of({Point{1, 2}, Point{.Y = 3}})`, and `[]*Point{{1, 2}}` is `slice<ptr<Point>>::of({New<Point>(Point{1, 2})})`.
 
-C++ evaluates the initializers of a braced list from left to right, so a literal whose keys are in declaration order makes its calls in Go's order. A keyed literal with keys out of declaration order would make them in another order. An expression that contains such a literal follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands): each nested Go call in the expression is saved in an `_eo_call_<n>` temporary, in Go's order, before the statement:
+C++ evaluates the initializers of a braced list from left to right, so a literal whose keys are in declaration order makes its own calls in Go's order. Their order relative to the other arguments of an enclosing call is the general evaluation-order question of [#96](https://github.com/conr2d/eo/issues/96), as for any argument. A keyed literal with keys out of declaration order would make its own calls in another order. An expression that contains such a literal follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands): each nested Go call in the expression is saved in an `_eo_call_<n>` temporary, in Go's order, before the statement:
 
 ```go
 r := Point{Y: f(), X: g()}
@@ -428,7 +432,8 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 - a struct with a `String` or `Error` method, which `fmt` prints by calling the method; embedded interfaces; method sets of embedded fields, which decide interface satisfaction; and comparison of interface fields, which can panic ([#89](https://github.com/conr2d/eo/issues/89));
 - defined types that are not structs, such as `type Celsius float64` ([#90](https://github.com/conr2d/eo/issues/90)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
-- a method named after its own struct, which C++ does not allow;
+- a method named after its own struct, which C++ does not allow, and a local struct whose member shares a name with another local type (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
+- generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
 - struct types declared in other files of the same package, which wait on a mapping of packages;
 - method values and method expressions, including promoted ones.
 
