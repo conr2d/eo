@@ -218,6 +218,30 @@ fmt::Println(a, eo::len(t), eo::cap(t));
 
 `slice<T>{}` is the nil slice, and a composite literal is always `slice<T>::of({...})`, so `[]T{}` stays non-nil. See `docs/TRANSLATION_RULES.md` for the full mapping.
 
+### Range loops
+
+`for range` over an integer, a slice, or a string is a range-based `for` over `eo::range(x)`, which evaluates `x` once and decodes a string as UTF-8, as Go does. Each iteration declares new variables.
+
+```go
+// Go
+for i, v := range s {
+	fmt.Println(i, v)
+}
+for i, r := range "h\u00e9" {
+	fmt.Println(i, r)
+}
+```
+
+```cpp
+// C++
+for (auto [i, v] : eo::range(s)) {
+  fmt::Println(i, v);
+}
+for (auto [i, r] : eo::range("h\u00e9"s)) {
+  fmt::Println(i, r);
+}
+```
+
 ### Libraries
 
 Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling when it is a valid, non-reserved C++ identifier, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.

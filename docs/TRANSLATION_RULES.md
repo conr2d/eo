@@ -123,7 +123,7 @@ Pass, return, and store strings by value, as `std::string`, never as `const std:
 
 `eo::len` of a string is an `int64_t`, which is the type that Eo's library uses for Go `int`. Arithmetic on the `uint8_t` that `eo::at` returns promotes to `int` in C++, so an expression such as `s[i] - '0'` is provisional until Go's integer arithmetic is mapped. The general mapping of Go `int` and the other basic types is not frozen yet (see [#90](https://github.com/conr2d/eo/issues/90)).
 
-The conversions between strings and `[]byte` or `[]rune` are in [Slices](#slices). Not covered yet: `for range` over a string, which decodes UTF-8 ([#84](https://github.com/conr2d/eo/issues/84)), and the `strings`, `strconv`, and `unicode/utf8` packages.
+The conversions between strings and `[]byte` or `[]rune` are in [Slices](#slices), and `for range` over a string is in [Range loops](#range-loops). Not covered yet: the `strings`, `strconv`, and `unicode/utf8` packages.
 
 #### String literals
 
@@ -188,7 +188,7 @@ Pass, return, and store slices by value, as `slice<T>`, never as `const slice<T>
 
 The slice helpers are function objects with the same collision rule as the string helpers (see [Strings](#strings)).
 
-Not covered yet: `for range` over a slice ([#84](https://github.com/conr2d/eo/issues/84)); keyed elements in a composite literal, such as `[]T{2: x}`, slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays ([#93](https://github.com/conr2d/eo/issues/93)); the `slices` package ([#94](https://github.com/conr2d/eo/issues/94)); and variadic calls in `go` and `defer` statements ([#95](https://github.com/conr2d/eo/issues/95)).
+`for range` over a slice is in [Range loops](#range-loops). Not covered yet: keyed elements in a composite literal, such as `[]T{2: x}`, slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays ([#93](https://github.com/conr2d/eo/issues/93)); the `slices` package ([#94](https://github.com/conr2d/eo/issues/94)); and variadic calls in `go` and `defer` statements ([#95](https://github.com/conr2d/eo/issues/95)).
 
 #### Calls next to slice and string operands
 
@@ -227,6 +227,72 @@ The rule applies separately to each full expression that a statement evaluates: 
 The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
 
 `ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved by the rule above first, so that the pointer's owner and target are the same array.
+
+### Range loops
+
+A `for range` loop over an integer, a slice, or a string maps to a C++ range-based `for` statement over `eo::range(x)`, from `<eo/range.h>`, which `<eo/core.h>` includes. C++ evaluates `eo::range(x)` once, before the first iteration, as Go evaluates the range expression, and the result keeps its own copy of `x`.
+
+| Go | C++ |
+| --- | --- |
+| `for i := range n`, where `n` is an integer | `for (auto i : eo::range(n))` |
+| `for i, v := range s`, where `s` is a slice | `for (auto [i, v] : eo::range(s))` |
+| `for _, v := range s` | `for (auto [_eo_range_blank, v] : eo::range(s))` |
+| `for i := range s` | `for (auto i : eo::range(eo::len(s)))` |
+| `for i, r := range str`, where `str` is a string | `for (auto [i, r] : eo::range(str))` |
+| `for _, r := range str` | `for (auto [_eo_range_blank, r] : eo::range(str))` |
+| `for i := range str` | `for (auto [i, _eo_range_blank] : eo::range(str))` |
+| `for range x` | `for ([[maybe_unused]] auto _eo_range_blank : eo::range(x))`, with `eo::len(s)` in place of a slice `s` |
+
+A blank variable is the same as an omitted one, so `for i, _ := range s` is `for i := range s`, and `for _ = range x` and `for _, _ = range x` are `for range x`.
+
+- An integer `n` may have any Go integer type, and `i` has the same type. It takes the values 0 through `n-1`, and none when `n` is 0 or negative. An untyped constant `n` is written `T{L}`, as in [Untyped constant arguments](#untyped-constant-arguments), where `T` is `int`, or the type of the variable in the assignment form below: `for i := range 3` is `for (auto i : eo::range(int64_t{3}))`.
+- For a slice, `i` is an `int64_t` and `v` is a copy of the element. `eo::range(s)` holds a copy of `s`, so the number of iterations is `len(s)` when the loop starts: assigning `s` or appending to it in the body does not change the loop. Each element is read from the original backing array when its iteration starts, so the loop sees what the body wrote to a later element, as in Go. `for i := range s` reads no element, as in Go, so it ranges over `eo::len(s)`.
+- For a string, `i` is the `int64_t` byte index of each UTF-8 sequence and `r` is its code point as an `int32_t`. A byte that does not start a valid sequence gives U+FFFD and advances one byte, as `[]rune(str)` does (see [Slices](#slices)). `eo::range(str)` holds a copy of `str`, so assigning `str` in the body does not change the loop.
+
+C++ declares the variables of a range-based `for` again for each iteration, as Go 1.22 does, so the loop's own update is not a write to the previous iteration's variables. A function literal that captures a range variable by reference and is not boxed captures it with `&`, as in `[=, &v]`, which C++20 allows for a structured binding.
+
+`break` and `continue` are C++ `break` and `continue`. The range expression is the argument of `eo::range` and follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_blank, v] : eo::range(next()))`.
+
+#### Boxed range variables
+
+A variable that a `range` clause declares is not boxed by rule 2 of [Boxed variables](#boxed-variables), because it is declared in the loop's own clause. When the escape facts report it moved to heap, the clause declares its value under the hidden name `_eo_range_<x>`, and the first statements of the body box it, in clause order:
+
+```go
+var values []*int
+for _, v := range []int{1, 2, 3} {
+	values = append(values, &v)
+}
+```
+
+```cpp
+slice<ptr<int64_t>> values;
+for (auto [_eo_range_blank, _eo_range_v] : eo::range(slice<int64_t>::of({1, 2, 3}))) {
+  auto v = New<int64_t>(_eo_range_v);
+  values = eo::append(values, {v});
+}
+```
+
+Each iteration boxes a new variable, so every pointer keeps its own value, as in Go. The box is made before the rest of the body, so `continue` cannot skip it.
+
+#### Assigning range values
+
+In the assignment form, `for k, v = range x`, the clause declares `_eo_range_k` and `_eo_range_v`, and the first statements of the body assign them to the variables, in order:
+
+```go
+for k, w = range words {
+}
+```
+
+```cpp
+for (auto [_eo_range_k, _eo_range_w] : eo::range(words)) {
+  k = _eo_range_k;
+  w = _eo_range_w;
+}
+```
+
+A boxed variable is assigned as `*k = _eo_range_k;`, and a blank one takes `_eo_range_blank` and is not assigned. After the loop, the variables hold the values of the last iteration, and a loop with no iterations leaves them unchanged, as in Go. A left operand that is not a variable, such as `s[i]`, `p.f`, or `*p`, is not covered yet.
+
+Not covered yet: `range` over a channel ([#97](https://github.com/conr2d/eo/issues/97)), a map ([#88](https://github.com/conr2d/eo/issues/88)), an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
 
 ### Pointers and escaping variables
 
@@ -356,7 +422,7 @@ This shape does not cover:
 - an init statement that declares variables of different translated types, or a boxed and an unboxed variable, because one C++ `auto` declaration cannot declare them together;
 - a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`.
 
-A variable that a `range` clause declares is not covered either, because `range` loops have no mapping yet (see [#84](https://github.com/conr2d/eo/issues/84)).
+A variable that a `range` clause declares is boxed as described in [Boxed range variables](#boxed-range-variables).
 
 #### Function literals
 
@@ -742,7 +808,7 @@ Examples currently requiring additional canonical rules include:
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
-- `range` loops, including a boxed variable that a `range` clause declares (see [#84](https://github.com/conr2d/eo/issues/84)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
+- `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - general zero-value construction for translated Go types;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 

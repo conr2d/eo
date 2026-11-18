@@ -1,0 +1,46 @@
+int 0
+int 1
+int 2
+uint8 0
+uint8 1
+count 4
+write 10
+write 11
+write 12
+assigned 2
+unchanged 2
+slice 0 10
+slice 1 20
+slice 2 99
+[10 -1 99 40]
+[0 0 0 1] 4
+next called
+once 1
+once 2
+once 3
+a!
+b!
+[a b]
+1 b
+captured 10
+captured 0
+captured 101
+captured 43
+by ref 6
+nested 0 10
+nested 0 -1
+nested 2 10
+nested 2 -1
+string 0 97
+string 1 233
+string 3 65533
+string 4 8364
+index 0
+index 1
+index 3
+index 4
+index 5
+x
+count 7
+byte 0 104
+byte 1 105

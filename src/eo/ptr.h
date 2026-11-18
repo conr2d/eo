@@ -29,16 +29,41 @@ namespace detail {
   // linked list would overflow the stack. Here a reference that would destroy its target while
   // another release is running on this thread is queued instead, and the outermost release destroys
   // the queued targets one at a time.
+  using release_queue = std::vector<std::shared_ptr<void>>;
+
+  // This thread's queue for release. The pointer is trivially destructible, so it stays readable
+  // after the thread's other thread-local objects are destroyed.
+  inline thread_local release_queue* pending_releases = nullptr;
+  inline thread_local bool release_queue_owner_destroyed = false;
+
+  // Frees the queue when the thread exits. A release after that, during the main thread's static
+  // destruction, allocates a queue that is never freed; it stays reachable from the thread.
+  struct release_queue_owner {
+    ~release_queue_owner() {
+      release_queue_owner_destroyed = true;
+      delete std::exchange(pending_releases, nullptr);
+    }
+  };
+
+  inline auto release_queue_for_thread() -> release_queue* {
+    if (pending_releases == nullptr) {
+      pending_releases = new release_queue{};
+      if (!release_queue_owner_destroyed) {
+        thread_local release_queue_owner owner;
+        (void)owner;
+      }
+    }
+    return pending_releases;
+  }
+
   inline void release(std::shared_ptr<void> p) noexcept {
     thread_local bool releasing = false;
-    // Never destroyed, so a release during static destruction, after thread-local objects are gone,
-    // still has a queue.
-    thread_local auto* pending = new std::vector<std::shared_ptr<void>>{};
     // use_count() == 1 is exact: this is the only owner, and Eo pointers have no weak references.
     if (p.use_count() != 1) {
       return; // dropping a shared reference destroys nothing, unless another thread drops the last
               // one concurrently; then this release destroys the target, which queues what it holds
     }
+    auto* pending = release_queue_for_thread();
     if (releasing) {
       pending->push_back(std::move(p));
       return;
