@@ -1,0 +1,6 @@
+(1,2) (1,2)
+{2} 2C
+fault 7
+<nil> %!v(PANIC=String method: boom)
+(1,2) <nil> [1 a <nil> 2.5 (1,2) 2C]
+{(1,2) 2C 3} [(1,2) (3,4)]

@@ -394,7 +394,7 @@ The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a s
 
 ### Structs
 
-A Go struct type maps to a C++ aggregate of the same name. Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. Field tags are dropped. After the fields, every struct declares a defaulted `operator==`, and then its methods as static member functions, in the order Go declares them (see [Methods](#methods)):
+A Go struct type maps to a C++ aggregate of the same name. A package-level struct first declares its Go type name, `_eo_name` (see [Method tables](#method-tables)). Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. Field tags are dropped. After the fields, every struct declares a defaulted `operator==`, then its methods as static member functions, in the order Go declares them (see [Methods](#methods)), then the forwarders of its promoted methods and the table of its methods, `_eo_methods`, if it has methods (see [Method tables](#method-tables)):
 
 ```go
 type Point struct {
@@ -411,12 +411,16 @@ type Labeled struct {
 
 ```cpp
 struct Point {
+  static constexpr std::string_view _eo_name = "main.Point";
+
   int64_t X{}, Y{};
 
   auto operator==(const Point&) const -> bool = default;
 };
 
 struct Labeled {
+  static constexpr std::string_view _eo_name = "main.Labeled";
+
   std::string Name{};
   Point At{};
   slice<std::string> Tags{};
@@ -467,10 +471,11 @@ show(_eo_call_2, Point{.X = _eo_call_4, .Y = _eo_call_3});
 
 Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated file therefore has:
 
-1. a forward declaration `struct T;` of every struct type the file declares, in source order;
-2. the struct definitions, in source order, except that a struct that another struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration;
-3. a prototype of each function that is called above its definition, in source order;
-4. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods.
+1. a forward declaration `struct T;` of every struct and interface type the file declares, in source order;
+2. the struct and interface definitions, in source order, except that a type that a struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct or interface it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration, and so does a type in an interface's method signatures;
+3. the definitions of the interface methods and of the forwarders of promoted methods (see [Interfaces](#interfaces)), in the order of their types' definitions, and for each type in the order it declares them;
+4. a prototype of each function that is called above its definition, in source order;
+5. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods.
 
 A comment on a type declaration moves with its definition. A struct type declared inside a function is a local struct at the place of its declaration. Go allows no methods on it, so its definition holds only the fields and `operator==`.
 
@@ -506,11 +511,11 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 
 #### Printing
 
-`fmt::Println` prints a struct as Go's `%v` does: its fields in braces, separated by spaces, with nested structs, slices, and maps printed the same way and a nil pointer as `<nil>`. An operand that is a pointer to a struct, slice, or map prints as `&` followed by its target, as `&{1 2}`. A pointer inside another value prints as an address, which differs from Go's, so parity cases do not print one. The fields are visited with Boost.PFR, which needs a struct to be an aggregate without base classes, as every translated struct is.
+`fmt::Println` prints a struct as Go's `%v` does: its fields in braces, separated by spaces, with nested structs, slices, and maps printed the same way and a nil pointer as `<nil>`. A struct whose method set has an `Error` or `String` method prints by calling it (see [Printing methods](#printing-methods)). An operand that is a pointer to a struct, slice, or map prints as `&` followed by its target, as `&{1 2}`. A pointer inside another value prints as an address, which differs from Go's, so parity cases do not print one. The fields are visited with Boost.PFR, which needs a struct to be an aggregate without base classes, as every translated struct is.
 
 #### Struct forms not covered yet
 
-- a struct with a `String` or `Error` method, which `fmt` prints by calling the method; embedded interfaces; method sets of embedded fields, which decide interface satisfaction; and comparison of interface fields, which can panic ([#89](https://github.com/conr2d/eo/issues/89));
+- printing a struct with an unexported field whose type has an `Error` or `String` method (see [Printing methods](#printing-methods));
 - defined types that are not structs, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
 - a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
@@ -791,13 +796,199 @@ Go does not specify whether `*p` in a value-receiver call is evaluated before or
 
 A promoted method is called on the path to its embedded field, as in [Embedded fields](#embedded-fields).
 
+A type with methods also lists them in its method table, `_eo_methods`, which interfaces and `fmt` use (see [Method tables](#method-tables)).
+
 Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay member functions, called as `x.M()` or `p->M()`.
 
 #### Not covered yet
 
-- pointers held inside maps and interfaces, whose own mappings are not frozen, and slicing an array;
+- pointers held inside maps, whose mapping is not frozen, and slicing an array;
 - printing a pointer with `fmt` inside another value, which shows an address;
 - method values and method expressions, and conversions through `unsafe.Pointer` or `uintptr`.
+
+### Interfaces
+
+A Go interface type maps to a C++ class derived from `eo::interface<I>`, from `<eo/interface.h>`, which `<eo/fmt.h>` includes. An interface value is nil, or holds a dynamic value and its type, as in Go. Satisfaction stays implicit: each translated type lists its methods in a table, and a conversion to an interface looks up the interface's methods in that table by name and signature, as Go's runtime does with its method tables. A conversion that Go checks at compile time is checked at compile time: it does not compile if the type lacks one of the methods. A type assertion, a type switch, or a conversion from one interface to another looks the methods up at run time and keeps the result, as Go's itab cache does.
+
+#### Method tables
+
+Every package-level struct type declares its Go type name as its first member. The name is the package name and the type name joined by a dot, as Go's runtime prints it:
+
+```cpp
+static constexpr std::string_view _eo_name = "main.Point";
+```
+
+A type whose method set, or whose pointer type's method set, is not empty declares the table of its methods as its last member: `using _eo_methods = eo::methods<...>;`, with one `eo::method<&T::M, "M">` for each static member function that translates a method, in the order the struct declares them. `"M"` is the Go method name. `eo::methods` and `eo::method` are always qualified, because a Go program can name a field `method`. A method whose receiver is `T` belongs to the method sets of `T` and of `ptr<T>`, and a method whose receiver is `ptr<T>` only to that of `ptr<T>`, as in Go. Calling a value-receiver method through an interface that holds a `ptr<T>` dereferences the pointer, which panics for nil, as Go's wrapper method does.
+
+A method promoted through an embedded field is in the table through a forwarder: a static member function with the method's name, parameters, and result, whose receiver parameter `_eo_receiver` is `T` if `go/types` puts the method in the method set of `T`, and `ptr<T>` if only in that of `*T`. The forwarders follow the struct's own methods, ordered by name. A forwarder returns the call of the promoted method on the path to its embedded field, with `_eo_receiver` as the receiver, as in [Embedded fields](#embedded-fields). A type named by an embedded field is also the name of a member, so it is written with `::`:
+
+```go
+type Item struct {
+	Base     // func (b Base) Describe() string, func (b *Base) Rename(name string)
+	*Counter // func (c *Counter) Inc() int
+	Labeler  // an interface with Label() string
+}
+```
+
+```cpp
+struct Item {
+  static constexpr std::string_view _eo_name = "main.Item";
+
+  ::Base Base{};
+  ptr<::Counter> Counter{};
+  ::Labeler Labeler{};
+
+  auto operator==(const Item&) const -> bool = default;
+
+  static auto Describe(Item _eo_receiver) -> std::string;
+  static auto Inc(Item _eo_receiver) -> int64_t;
+  static auto Label(Item _eo_receiver) -> std::string;
+  static void Rename(ptr<Item> _eo_receiver, std::string name);
+
+  using _eo_methods = eo::methods<eo::method<&Item::Describe, "Describe">, eo::method<&Item::Inc, "Inc">,
+    eo::method<&Item::Label, "Label">, eo::method<&Item::Rename, "Rename">>;
+};
+
+auto Item::Describe(Item _eo_receiver) -> std::string {
+  return ::Base::Describe(_eo_receiver.Base);
+}
+
+auto Item::Inc(Item _eo_receiver) -> int64_t {
+  return ::Counter::Inc(_eo_receiver.Counter);
+}
+
+auto Item::Label(Item _eo_receiver) -> std::string {
+  return _eo_receiver.Labeler.Label();
+}
+
+void Item::Rename(ptr<Item> _eo_receiver, std::string name) {
+  return ::Base::Rename(ptr(_eo_receiver, &_eo_receiver->Base), name);
+}
+```
+
+A call of a promoted method in the program is still written on the path to its embedded field, as in [Embedded fields](#embedded-fields). Only the table uses the forwarders.
+
+A struct type declared inside a function cannot have static data members in C++. It has no `_eo_name` and no forwarders, and converting it to an interface is not covered yet.
+
+#### Interface types
+
+An interface type is a class named after it, derived from `interface<I>`, which inherits its constructors and declares `_eo_name` like a struct. Each method of the interface is a `const` member function with the method's parameters and result, declared in the class and defined after the type definitions (see [Declaration order](#declaration-order)), because its parameter and result types may not be complete inside the class. Its body returns `_eo_call<&I::M>(args...)` with the parameters in order. An unnamed parameter is named `_eo_arg_<n>`, `n` being its position from 0. `_eo_methods` lists the methods in the order the interface declares them. An embedded interface contributes its methods at its position, in its own order, and a method that Go merges from two embedded interfaces is listed once, at its first position.
+
+```go
+type Shape interface {
+	Area() float64
+	Scale(k float64)
+}
+```
+
+```cpp
+struct Shape : interface<Shape> {
+  using interface::interface;
+  static constexpr std::string_view _eo_name = "main.Shape";
+
+  auto Area() const -> double;
+  void Scale(double k) const;
+
+  using _eo_methods = eo::methods<eo::method<&Shape::Area, "Area">, eo::method<&Shape::Scale, "Scale">>;
+};
+
+auto Shape::Area() const -> double {
+  return _eo_call<&Shape::Area>();
+}
+
+void Shape::Scale(double k) const {
+  return _eo_call<&Shape::Scale>(k);
+}
+```
+
+Go's `any` and `interface{}` map to `any`, Eo's empty interface, whose name is `interface {}`. Go's `fmt.Stringer` maps to `fmt::Stringer`. A package-level name that hides `any`, or a member named `any`, makes it `eo::any`, as for other Eo names (see [Package-level names hidden by members](#package-level-names-hidden-by-members)).
+
+#### Interface values
+
+| Go | C++ |
+| --- | --- |
+| `var x I` | `I x{};` |
+| `nil` as an interface value | `nullptr`, or `I{}` |
+| a conversion of `v` to `I`, implicit or written `I(v)` | `v` where C++ converts implicitly: an initializer, an assignment, an argument, a result, or an element of a braced list. `I(v)` where Go writes `I(v)`, and for an operand of `==` or `!=` |
+| `x == nil`, `x != nil` | `x == nullptr`, `x != nullptr` |
+| `x == y`, where both are interface values | `x == y` |
+| `x == v`, where `v` is not an interface value | `x == I(v)`, `I` being the type of `x` |
+| `x.M(args)` | `x.M(args)` |
+
+A conversion from a non-interface value holds a copy of the value, as in Go. Copies of an interface value share that copy, which is never modified, so they behave like Go's copies. An interface that holds a pointer shares the pointer's target. An untyped constant converted to an interface takes its default type and is written `T{L}`, as described in [Untyped constants](#untyped-constants): `var a any = 7` is `any a = int64_t{7};`.
+
+The dynamic type is the C++ type of the converted value, which must be a [basic type](#basic-types), a string, `eo::empty_struct`, a type that declares `_eo_name`, or a pointer, slice, or map of such types. Go's `int` and `int64` both map to `int64_t`, and `uint`, `uint64`, and `uintptr` to `uint64_t`, so an interface cannot tell them apart: an `int64` value converted to an interface holds an `int`. A program whose behavior depends on telling them apart, by an assertion, a type switch, or a comparison of interface values, is outside the mapping ([#107](https://github.com/conr2d/eo/issues/107)).
+
+Calling a method of a nil interface value panics with `runtime error: invalid memory address or nil pointer dereference`, which a deferred `recover()` can stop. An interface value that holds a nil pointer is not nil, as in Go. Its pointer-receiver methods receive the nil pointer, and its value-receiver methods panic as above.
+
+Two interface values are equal when both are nil, or when their dynamic types are identical and their values are equal. Values of different dynamic types are unequal. Comparing two values of the same uncomparable dynamic type, such as a slice, a map, or a struct whose `operator==` is deleted, panics with Go's `runtime error: comparing uncomparable type main.T`. A struct with an interface field compares it this way, and so can panic, as in Go.
+
+#### Type assertions
+
+| Go | C++ |
+| --- | --- |
+| `x.(T)` | `eo::type_assert<T>(x)` |
+| `v, ok := x.(T)`, where both variables are new | `auto [v, ok] = eo::type_assert_ok<T>(x);` |
+| `v, ok = x.(T)` | `std::tie(v, ok) = eo::type_assert_ok<T>(x);` |
+| `v, _ := x.(T)`, `_, ok := x.(T)` | `auto v = eo::type_assert_ok<T>(x).first;`, `auto ok = eo::type_assert_ok<T>(x).second;` |
+| `v, _ = x.(T)`, `_, ok = x.(T)` | `v = eo::type_assert_ok<T>(x).first;`, `ok = eo::type_assert_ok<T>(x).second;` |
+
+`T` is the translated type, a non-interface type or an interface type. `eo::type_assert_ok` returns a `std::pair` of the value and a `bool`, and on failure the zero value of `T` and `false`. `std::tie` needs `<tuple>`. A `:=` that declares only some of its variables, or a variable that is [boxed](#boxed-variables), declares each new variable first, as `T v{};` or `auto v = New<T>();`, and then uses the `std::tie` form, with `*v` for a boxed `v`.
+
+A failed `x.(T)` panics with Go's message, which a deferred `recover()` can stop:
+
+- `interface conversion: interface {} is string, not int`, naming the static type of `x`, its dynamic type or `nil`, and `T`, for a non-interface `T`;
+- `interface conversion: main.Rect is not main.Shape: missing method Scale`, naming the first missing method in name order, for an interface `T`;
+- `interface conversion: interface is nil, not main.Shape`, for a nil `x` and an interface `T`.
+
+#### Type switches
+
+A type switch maps to an `if` statement whose init statement saves the guard in `_eo_type_switch`, followed by an `else if` for each clause in source order and an `else` for `default`, wherever Go writes it. A clause's condition is `_eo_type_switch == nullptr` for `nil`, `eo::holds<T>(_eo_type_switch)` for a type `T`, and those conditions joined by `||` for a clause with several types. Go checks the clauses in source order and takes the first that matches, and so does the `if` chain. A clause that uses the variable of `switch v := x.(type)` declares it first: `auto v = eo::type_assert<T>(_eo_type_switch);` in a clause with a single type `T`, and `auto v = _eo_type_switch;` in the other clauses, as in Go:
+
+```go
+switch v := x.(type) {
+case nil:
+	fmt.Println("nil")
+case int, string:
+	fmt.Println("int or string", v)
+case Rect:
+	fmt.Println("rect", v.W)
+default:
+	fmt.Println("other")
+}
+```
+
+```cpp
+if (auto _eo_type_switch = x; _eo_type_switch == nullptr) {
+  fmt::Println("nil"s);
+} else if (eo::holds<int64_t>(_eo_type_switch) || eo::holds<std::string>(_eo_type_switch)) {
+  auto v = _eo_type_switch;
+  fmt::Println("int or string"s, v);
+} else if (eo::holds<Rect>(_eo_type_switch)) {
+  auto v = eo::type_assert<Rect>(_eo_type_switch);
+  fmt::Println("rect"s, v.W);
+} else {
+  fmt::Println("other"s);
+}
+```
+
+The variable of each clause is a new variable, which is boxed by the same rules as any other. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`.
+
+#### Printing methods
+
+`fmt::Println` prints an interface value as its dynamic value, and a nil interface value as `<nil>`. It prints a value whose method set has `Error() string` by calling `Error`, and otherwise one whose method set has `String() string` by calling `String`, as Go's fmt does. This applies to operands, to elements of slices and maps, and to struct fields, and the method set is the static type's: a `T` whose `String` has a pointer receiver prints as a struct, and a `ptr<T>` calls `String`. A panic in the method prints `%!v(PANIC=String method: message)`, or `<nil>` if the receiver is a nil pointer, as in Go.
+
+Go calls these methods only for exported struct fields, and for the fields of structs reached through them. Eo calls them for every field. A program that prints a struct with an unexported field whose type has an `Error` or `String` method is not covered yet.
+
+#### Interfaces not covered yet
+
+- the `error` interface, the `errors` package, `fmt.Errorf`, and the type of a recovered panic value ([#89](https://github.com/conr2d/eo/issues/89));
+- interface methods with several results ([#106](https://github.com/conr2d/eo/issues/106)), and methods translated as coroutines, whose signatures differ from the interface's ([#108](https://github.com/conr2d/eo/issues/108));
+- method values and method expressions of interfaces, and `go` and `defer` launches of interface method calls ([#67](https://github.com/conr2d/eo/issues/67));
+- interface values as map keys ([#88](https://github.com/conr2d/eo/issues/88)), `%T`, and `fmt` functions other than `Println`;
+- generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
+- interface types declared inside a function, local struct types held in an interface, a method named after its own interface, and methods with unexported names of interfaces from other packages;
+- a `break` inside a type switch clause, which would leave an enclosing loop.
 
 ### Goroutine
 
@@ -1113,14 +1304,15 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- pointers held in maps and interfaces, printing a pointer inside another value, method values, and method expressions (see [Not covered yet](#not-covered-yet));
+- pointers held in maps, printing a pointer inside another value, method values, and method expressions (see [Not covered yet](#not-covered-yet));
+- the interface forms in [Interfaces not covered yet](#interfaces-not-covered-yet);
 - the struct forms in [Struct forms not covered yet](#struct-forms-not-covered-yet), such as anonymous struct types and blank fields;
 - untyped complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
 - `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
-- zero-value construction for translated types other than basic types, strings, slices, pointers, and structs;
+- zero-value construction for translated types other than basic types, strings, slices, pointers, structs, and interfaces;
 - constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 
