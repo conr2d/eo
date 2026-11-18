@@ -1,0 +1,14 @@
+nested 20
+inner 2
+outer 1
+else 2
+range 4
+range nested 500
+range 5
+[0 1 4]
+copy 21
+copy 31
+8
+9
+20
+30

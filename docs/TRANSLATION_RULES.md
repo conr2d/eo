@@ -54,6 +54,42 @@ If an identifier must change because of C++ syntax, a reserved identifier, a sem
 
 A translator must not rename identifiers merely to follow a C++ naming convention.
 
+### Redeclared names
+
+Go lets a local variable hide a variable of the same name from an enclosing block or the package. C++ allows the same hiding, with two differences, so a hiding declaration of `x` is renamed in two cases:
+
+1. The declaration refers to the hidden `x`, as in `x := x` or `x, y := x+1, 0`, at any block depth. In C++ the scope of a variable starts at its declarator, so `auto x = x;` would read the new variable instead of the old one.
+2. The declaration is directly in the body of a statement whose own clause declares `x`. C++ rejects such a declaration. This covers:
+   - the body of a three-clause `for` or a `range` loop whose clause declares `x`;
+   - the `if` and `else` branches of an `if` whose init statement declares `x`;
+   - a case of a `switch` whose init statement declares `x`.
+
+The renamed variable is `_eo_shadow_<x>`. If the variable it hides is itself `_eo_shadow_<x>`, it becomes `_eo_shadow_<x>_2`, and each further level counts up by one. Every use of the variable in its scope uses the new name. The initializer and other uses of the hidden variable keep the hidden variable's own C++ name:
+
+```go
+x := 1
+if x > 0 {
+	x := x + 1
+	{
+		x := x * 10
+		fmt.Println(x)
+	}
+}
+```
+
+```cpp
+auto x = int64_t{1};
+if (x > 0) {
+  auto _eo_shadow_x = x + 1;
+  {
+    auto _eo_shadow_x_2 = _eo_shadow_x * 10;
+    fmt::Println(_eo_shadow_x_2);
+  }
+}
+```
+
+A renamed variable is boxed by the same rules as any other, as in `auto _eo_shadow_v = New<int64_t>(v);`, and a boxed hidden variable is read through its box, as in `auto _eo_shadow_v = *v;`. Any other hiding declaration keeps its Go name.
+
 ## Canonical construct mappings
 
 Only mappings that have been explicitly frozen are canonical.
@@ -294,7 +330,7 @@ A boxed variable is assigned as `*k = _eo_range_key;`, and a blank one is not as
 
 #### Clause variables redeclared in the body
 
-A loop body is a block inside the loop's clause in Go, so the body may declare a variable with the name of a clause variable, as in the idiom `v := v`. C++ does not allow a declaration in the outermost block of a `for` body to reuse a name that the `for` statement declares. Such a variable is renamed `_eo_shadow_<x>` from its declaration to the end of the body, in a three-clause loop as well as in a `range` loop. Its initializer still refers to the clause variable:
+A loop body may declare a variable with the name of a clause variable, as in the idiom `v := v`. C++ rejects that declaration, so it is renamed as described in [Redeclared names](#redeclared-names):
 
 ```go
 for _, v := range s {
@@ -309,8 +345,6 @@ for (auto [_eo_range_key, v] : eo::range(s)) {
   fmt::Println(_eo_shadow_v);
 }
 ```
-
-The rename applies to the outermost block of the body only. A declaration in a nested block hides the clause variable in C++ as it does in Go, and keeps its name. A boxed clause variable is declared in the body under its own name, so a body declaration of the same name is renamed too, and its initializer reads the box, as in `auto _eo_shadow_v = *v;`.
 
 Not covered yet: `range` over a channel ([#97](https://github.com/conr2d/eo/issues/97)), a map ([#88](https://github.com/conr2d/eo/issues/88)), an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
 
@@ -442,7 +476,7 @@ This shape does not cover:
 - an init statement that declares variables of different translated types, or a boxed and an unboxed variable, because one C++ `auto` declaration cannot declare them together;
 - a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`.
 
-A variable that a `range` clause declares is boxed as described in [Boxed range variables](#boxed-range-variables). A body that declares a variable with the name of a clause variable renames it as described in [Clause variables redeclared in the body](#clause-variables-redeclared-in-the-body).
+A variable that a `range` clause declares is boxed as described in [Boxed range variables](#boxed-range-variables). A body that declares a variable with the name of a clause variable renames it as described in [Redeclared names](#redeclared-names).
 
 #### Function literals
 

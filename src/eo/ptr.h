@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <new>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -24,6 +25,59 @@ namespace detail {
     return err;
   }
 
+  // The targets that a release has yet to destroy. The first few are held inline, in storage that is
+  // constructed only when used, so a release that queues only a handful, as freeing a small struct
+  // does, neither allocates nor initializes the whole buffer.
+  class release_queue {
+  public:
+    release_queue() noexcept = default;
+    release_queue(const release_queue&) = delete;
+    auto operator=(const release_queue&) -> release_queue& = delete;
+
+    ~release_queue() {
+      while (inline_size_ > 0) {
+        slot(--inline_size_)->~shared_ptr();
+      }
+    }
+
+    void push(std::shared_ptr<void> p) {
+      if (inline_size_ < inline_capacity) {
+        std::construct_at(slot(inline_size_), std::move(p));
+        ++inline_size_;
+      } else {
+        overflow_.push_back(std::move(p));
+      }
+    }
+
+    // Moves the most recently queued target into out, or returns false when the queue is empty.
+    auto pop(std::shared_ptr<void>& out) noexcept -> bool {
+      if (!overflow_.empty()) {
+        out = std::move(overflow_.back());
+        overflow_.pop_back();
+        return true;
+      }
+      if (inline_size_ > 0) {
+        auto* last = slot(--inline_size_);
+        out = std::move(*last);
+        std::destroy_at(last);
+        return true;
+      }
+      return false;
+    }
+
+  private:
+    using entry = std::shared_ptr<void>;
+    static constexpr std::size_t inline_capacity = 8;
+
+    auto slot(std::size_t i) noexcept -> entry* {
+      return std::launder(reinterpret_cast<entry*>(storage_) + i);
+    }
+
+    alignas(entry) std::byte storage_[inline_capacity * sizeof(entry)];
+    std::size_t inline_size_ = 0;
+    std::vector<entry> overflow_;
+  };
+
   // Drops one owning reference without recursion. Destroying a target destroys the pointers it holds,
   // and a shared_ptr would destroy their targets from inside that destructor, so freeing a long
   // linked list would overflow the stack. Here a reference that would destroy its target while
@@ -32,22 +86,20 @@ namespace detail {
   // keeps a queue after its releases finish, including during thread exit and static destruction.
   inline void release(std::shared_ptr<void> p) noexcept {
     // Trivially destructible, so it stays usable while thread-local and static objects are destroyed.
-    thread_local std::vector<std::shared_ptr<void>>* pending = nullptr;
+    thread_local release_queue* pending = nullptr;
     // use_count() == 1 is exact: this is the only owner, and Eo pointers have no weak references.
     if (p.use_count() != 1) {
       return; // dropping a shared reference destroys nothing, unless another thread drops the last
               // one concurrently; then this release destroys the target, which queues what it holds
     }
     if (pending != nullptr) {
-      pending->push_back(std::move(p));
+      pending->push(std::move(p));
       return;
     }
-    auto queue = std::vector<std::shared_ptr<void>>{};
+    auto queue = release_queue{};
     pending = &queue;
     p.reset();
-    while (!queue.empty()) {
-      auto next = std::move(queue.back());
-      queue.pop_back();
+    for (auto next = std::shared_ptr<void>{}; queue.pop(next);) {
       next.reset();
     }
     pending = nullptr;
