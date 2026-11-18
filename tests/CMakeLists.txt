@@ -131,6 +131,11 @@ target_link_libraries(eo_slice PRIVATE eo::eo)
 
 add_test(NAME eo.slice COMMAND eo_slice)
 
+add_executable(eo_range range.cpp)
+target_link_libraries(eo_range PRIVATE eo::eo)
+
+add_test(NAME eo.range COMMAND eo_range)
+
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
 

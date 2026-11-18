@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_set>
 
 using namespace eo;
@@ -179,6 +180,18 @@ void test_pointers_hash_by_address() {
   check(set.size() == 2, "equal pointers hash differently");
 }
 
+// A thread that releases pointers keeps no release queue after it exits. Only LeakSanitizer sees a
+// leaked queue, so the sanitizer build is what checks this.
+void test_release_on_an_exiting_thread() {
+  auto worker = std::thread([] {
+    auto head = New<Node>();
+    head->next = New<Node>();
+    head = nullptr;
+  });
+  worker.join();
+  check(Node::live == 0, "the nodes released on the thread outlived it");
+}
+
 int main() {
   test_nil_is_the_zero_value();
   test_new_is_zeroed_and_shared_by_copies();
@@ -188,4 +201,5 @@ int main() {
   test_long_chain_is_freed_without_recursion();
   test_self_assignment_keeps_the_target();
   test_pointers_hash_by_address();
+  test_release_on_an_exiting_thread();
 }
