@@ -37,14 +37,16 @@ namespace detail {
 
 } // namespace detail
 
+// The operands are taken by value, as Go passes them. A reference would refer into a slice's backing
+// array, which another operand's call can free before the line is formatted.
 template<typename... T>
-void Println(T&&... args) {
-  detail::print_line(stdout, std::forward<T>(args)...);
+void Println(T... args) {
+  detail::print_line(stdout, std::move(args)...);
 }
 
 template<typename... T>
-void Fprintln(std::FILE* f, T&&... args) {
-  detail::print_line(f, std::forward<T>(args)...);
+void Fprintln(std::FILE* f, T... args) {
+  detail::print_line(f, std::move(args)...);
 }
 
 template<typename K, typename V>
@@ -73,6 +75,27 @@ struct formatter<std::map<K, V>> {
         out = fmt::format_to(out, " ");
       }
       out = fmt::format_to(out, "{}", entry);
+      first = false;
+    }
+    return fmt::format_to(out, "]");
+  }
+};
+
+// Go's %v of a slice: the elements in brackets, separated by spaces, and [] for nil.
+template<typename T>
+struct formatter<eo::slice<T>> {
+  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    return ctx.end();
+  }
+  template<typename FormatContext>
+  auto format(const eo::slice<T>& s, FormatContext& ctx) const {
+    auto out = fmt::format_to(ctx.out(), "[");
+    bool first = true;
+    for (const auto& element : s) {
+      if (!first) {
+        out = fmt::format_to(out, " ");
+      }
+      out = fmt::format_to(out, "{}", element);
       first = false;
     }
     return fmt::format_to(out, "]");

@@ -119,7 +119,7 @@ void T::Start(ptr<T> s) {
 
 The saved `s` keeps the target alive whatever the caller passed. A caller that writes `var t T; t.Start()` boxes `t`, because `Start` keeps its receiver.
 
-Every address and every held pointer at a `go` statement is therefore frozen, whatever its source: an argument, a receiver, a capture, or a parameter of the launching function. The boundary still applies to values that refer to storage through a type whose mapping is not frozen, such as a slice of a local array, a string view, or an interface. Those launches are provisional until the mapping of that type defines how it keeps its storage alive.
+Every address and every held pointer at a `go` statement is therefore frozen, whatever its source: an argument, a receiver, a capture, or a parameter of the launching function. A slice is frozen in the same way, because it owns a share of its backing array (see [Slices](./TRANSLATION_RULES.md#slices)). The boundary still applies to values that refer to storage through a type whose mapping is not frozen, such as a slice of a local array, a string view, or an interface. Those launches are provisional until the mapping of that type defines how it keeps its storage alive.
 
 ## Function literals
 
@@ -237,7 +237,7 @@ The following are not covered by this contract yet:
 
 - method expressions such as `go T.M(x)` or `go (*T).M(&x)`;
 - method calls on interface values, where Go evaluates the method value, and panics on a nil interface, in the launching goroutine;
-- calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, because Eo has no frozen mapping for the variadic slice that Go builds or passes in the launching goroutine;
+- calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, where Go builds or passes the variadic slice in the launching goroutine; an ordinary variadic call is mapped in [Slices](./TRANSLATION_RULES.md#slices), but its argument temporaries are not ([#95](https://github.com/conr2d/eo/issues/95));
 - multi-value calls such as `go f(g())`, where one call supplies several arguments;
 - untyped complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
 - a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`.

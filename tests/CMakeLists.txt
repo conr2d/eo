@@ -123,7 +123,13 @@ add_test(
   NAME eo.string.collision
   COMMAND
     ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR} -DTARGET=eo_string_collision
-    "-DNAMES=len;at;substr;string_from_rune" -P ${CMAKE_CURRENT_SOURCE_DIR}/expect_ambiguous.cmake)
+    "-DNAMES=len;at;substr;string_from_rune;cap;subslice;append;append_slice;copy;clear;bytes_from_string;string_from_bytes;runes_from_string;string_from_runes"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/expect_ambiguous.cmake)
+
+add_executable(eo_slice slice.cpp)
+target_link_libraries(eo_slice PRIVATE eo::eo)
+
+add_test(NAME eo.slice COMMAND eo_slice)
 
 add_executable(eo_waitgroup waitgroup.cpp)
 target_link_libraries(eo_waitgroup PRIVATE eo::eo)
