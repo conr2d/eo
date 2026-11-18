@@ -162,7 +162,7 @@ int main() {
   check(fmt::format("{}", eo::detail::go_print(list, true)) == "[1 <nil> s R3x4]", "slice of any");
   check(eo::detail::type_name<slice<ptr<Rect>>>() == "[]*main.Rect", "type names");
 
-  // A pointer to an interface has no methods, and prints as an address.
+  // A pointer to an interface has no methods.
   auto shape_pointer = New<Shape>(s);
   any holds_pointer = shape_pointer;
   check(eo::type_assert<ptr<Shape>>(holds_pointer) == shape_pointer && !eo::holds<Named>(holds_pointer),

@@ -974,7 +974,7 @@ if (auto _eo_type_switch = x; _eo_type_switch == nullptr) {
 }
 ```
 
-The variable of each clause is a new variable, which is boxed by the same rules as any other. Go reports `moved to heap: v` for it at the position of the clause's first type, such as `int` in `case int:`, and that report applies to the variable of that clause. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`.
+The variable of each clause is a new variable, which is boxed by the same rules as any other. Go reports `moved to heap: v` for it at the position of the clause's first type, such as `int` in `case int:`, of `nil` in `case nil:`, or of the `default` keyword, and that report applies to the variable of that clause. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`.
 
 #### Printing methods
 
