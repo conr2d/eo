@@ -1,4 +1,3 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
@@ -21,7 +20,7 @@ func<> eo_main() {
   for (auto i : eo::range(int64_t{3})) {
     fmt::Println("int"s, i);
   }
-  auto n = uint8_t{2};
+  uint8_t n = 2;
   for (auto i : eo::range(n)) {
     fmt::Println("uint8"s, i);
   }

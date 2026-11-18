@@ -1,0 +1,7 @@
+div runtime error: integer divide by zero
+rem runtime error: integer divide by zero
+div_assign runtime error: integer divide by zero
+shift runtime error: negative shift amount
+shift_assign runtime error: negative shift amount
+3 0
+ok <nil>

@@ -1,5 +1,6 @@
 #include <eo/fmt.h>
 
+#include <cstdint>
 #include <string>
 
 using namespace eo;
@@ -7,7 +8,7 @@ using namespace eo;
 func<> eo_main() {
   eo_defer_scope;
   try {
-    for (auto i = 0; i < 3; i++) {
+    for (auto i = int64_t{0}; i < 3; i++) {
       auto _eo_defer_arg_0_0 = std::string{"deferred"s};
       auto _eo_defer_arg_0_1 = i;
       eo_defer([=] { fmt::Println(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });

@@ -1,9 +1,12 @@
+// Provisional: channel creation, operations, and close are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 func<> eo_main() {
-  auto ch = make_chan<int>(3);
+  auto ch = make_chan<int64_t>(3);
   co_await (ch << 1);
   co_await (ch << 2);
   co_await (ch << 3);

@@ -3,10 +3,12 @@
 //
 #pragma once
 #include <eo/core.h>
+#include <eo/float.h>
 
 #include <boost/pfr.hpp>
 #include <fmt/format.h>
 #include <array>
+#include <concepts>
 #include <cstdio>
 #include <iterator>
 #include <map>
@@ -67,7 +69,7 @@ namespace detail {
           return;
         }
       }
-      fmt::format_to(std::back_inserter(buf), "{}", std::forward<decltype(arg)>(arg));
+      fmt::format_to(std::back_inserter(buf), "{}", eo::detail::go_value(arg));
       first = false;
     };
     (print_arg(std::forward<T>(args)), ...);
@@ -99,7 +101,7 @@ struct formatter<std::pair<K, V>> {
   }
   template<typename FormatContext>
   auto format(const std::pair<K, V>& p, FormatContext& ctx) const {
-    return fmt::format_to(ctx.out(), "{}:{}", p.first, p.second);
+    return fmt::format_to(ctx.out(), "{}:{}", eo::detail::go_value(p.first), eo::detail::go_value(p.second));
   }
 };
 
@@ -138,7 +140,7 @@ struct formatter<eo::slice<T>> {
       if (!first) {
         out = fmt::format_to(out, " ");
       }
-      out = fmt::format_to(out, "{}", element);
+      out = fmt::format_to(out, "{}", eo::detail::go_value(element));
       first = false;
     }
     return fmt::format_to(out, "]");
@@ -159,7 +161,7 @@ struct formatter<T> {
       if (!first) {
         out = fmt::format_to(out, " ");
       }
-      out = fmt::format_to(out, "{}", field);
+      out = fmt::format_to(out, "{}", eo::detail::go_value(field));
       first = false;
     });
     return fmt::format_to(out, "}}");

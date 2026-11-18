@@ -1,5 +1,4 @@
-// Provisional: func() as std::function, the C++ type of Go int, and untyped constants in composite
-// literals and assignments are not frozen mappings (see ../README.md).
+// Provisional: func() as std::function is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>

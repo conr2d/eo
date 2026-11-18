@@ -1,9 +1,11 @@
 // Provisional: channel creation and close are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
+#include <cstdint>
+
 using namespace eo;
 
-void closeTwice(chan<int> ch) {
+void closeTwice(chan<int64_t> ch) {
   eo_defer_scope;
   try {
     eo_defer([&] {
@@ -19,7 +21,7 @@ void closeTwice(chan<int> ch) {
 }
 
 func<> eo_main() {
-  closeTwice(make_chan<int>());
+  closeTwice(make_chan<int64_t>());
   fmt::Println("main continues"s);
   co_return;
 }

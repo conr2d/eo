@@ -1,12 +1,13 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 struct Node;
 
 struct Node {
-  ptr<int> p{};
+  ptr<int64_t> p{};
   ptr<Node> next{};
 
   auto operator==(const Node&) const -> bool = default;
@@ -24,7 +25,7 @@ void show(ptr<Node> head) {
 
 void steps() {
   ptr<Node> head;
-  for (auto i = New<int>(0); *i < 8; i = New<int>(*i), (*i)++) {
+  for (auto i = New<int64_t>(0); *i < 8; i = New<int64_t>(*i), (*i)++) {
     head = New<Node>(Node{.p = i, .next = head});
     if (*i % 3 == 1) {
       (*i)++;
@@ -37,7 +38,7 @@ void steps() {
 
 void pairs() {
   ptr<Node> head;
-  for (auto i = New<int>(0), j = New<int>(10); *i < *j; i = New<int>(*i), j = New<int>(*j)) {
+  for (auto i = New<int64_t>(0), j = New<int64_t>(10); *i < *j; i = New<int64_t>(*i), j = New<int64_t>(*j)) {
     head = New<Node>(Node{.p = i, .next = head});
     head = New<Node>(Node{.p = j, .next = head});
     *i += 3;

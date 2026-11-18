@@ -1,4 +1,3 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>

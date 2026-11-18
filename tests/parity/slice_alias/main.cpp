@@ -1,5 +1,3 @@
-// Provisional: the C++ type of Go int, and untyped constants in composite literals, appends, and
-// assignments, are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
@@ -66,7 +64,7 @@ func<> eo_main() {
   fmt::Println(words, eo::len(eo::at(words, 2)), eo::at(words, 2) == nullptr, eo::at(eo::at(words, 1), 0));
 
   auto bs = eo::bytes_from_string("héllo"s);
-  eo::at(bs, 0) = 'H';
+  eo::at(bs, 0) = 72;
   bs = eo::append_slice(bs, " world"s);
   fmt::Println(eo::subslice(bs, 0, 3), eo::string_from_bytes(bs));
   n = eo::copy(bs, "J"s);

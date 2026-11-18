@@ -141,11 +141,92 @@ A member can also hide an Eo name that `using namespace eo;` makes visible, such
 
 Only mappings that have been explicitly frozen are canonical.
 
+### Basic types
+
+Go's basic types map to fixed-width C++ types. Eo targets 64-bit platforms, where Go's `int` and `uint` have 64 bits, and `<eo/integer.h>`, which `<eo/core.h>` includes, checks that `float` and `double` are IEEE 754 binary32 and binary64.
+
+| Go | C++ |
+| --- | --- |
+| `bool` | `bool` |
+| `int`, `uint` | `int64_t`, `uint64_t` |
+| `int8`, `int16`, `int32`, `int64` | `int8_t`, `int16_t`, `int32_t`, `int64_t` |
+| `uint8`, `uint16`, `uint32`, `uint64` | `uint8_t`, `uint16_t`, `uint32_t`, `uint64_t` |
+| `byte`, `rune` | `uint8_t`, `int32_t` |
+| `uintptr` | `uintptr_t` |
+| `float32`, `float64` | `float`, `double` |
+| `string` | `std::string` (see [Strings](#strings)) |
+
+The zero value is written with `{}`: `var n int` is `int64_t n{};`, and `var f float64` is `double f{};`. `int64_t n;` would leave `n` indeterminate. A boxed variable is `New<int64_t>()` (see [Boxed variables](#boxed-variables)).
+
+#### Arithmetic operators
+
+Go's signed `+`, `-`, `*`, and unary `-` wrap on overflow. C++ leaves signed overflow undefined, so Eo requires `-fwrapv`, under which GCC and Clang wrap. The `eo` CMake target passes it as a public compile option to every target that links it. Translated code compiled without `-fwrapv` is outside the mapping. With it, UBSan does not report signed overflow, which is not undefined there.
+
+| Go | C++ |
+| --- | --- |
+| `x + y`, `x - y`, `x * y`, `-x`, `+x` | the same |
+| `x & y`, `x \| y`, `x ^ y` | the same |
+| `^x` | `~x` |
+| `x &^ y` | `x & ~y` |
+| `x / y`, `x % y` of integers | `eo::div(x, y)`, `eo::rem(x, y)`, or `x / y`, `x % y` when `y` is a constant other than `-1` |
+| `x / y` of floats | `x / y` |
+| `x << n`, `x >> n` | `eo::shl(x, n)`, `eo::shr(x, n)`, or `x << n`, `x >> n` when `n` is a constant less than the width of `x`'s type |
+| `x /= y`, `x %= y` of integers, `x <<= n`, `x >>= n` | `eo::div_assign(x, y)`, `eo::rem_assign(x, y)`, `eo::shl_assign(x, n)`, `eo::shr_assign(x, n)`, or the C++ operator under the condition above |
+| `x &^= y` | `x &= ~y` |
+| the other compound assignments, `x++`, `x--` | the same |
+| `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `\|\|`, `!` | the same |
+
+`eo::div` and `eo::rem` panic with `runtime error: integer divide by zero` when `y` is 0. For the most negative value of a signed type divided by `-1`, `eo::div` returns that value, and `eo::rem` returns 0, as Go does; C++ leaves both undefined. Go rejects a constant divisor of 0, and `-1` is never an unsigned divisor, so a constant divisor needs a helper only when it is `-1`. Both round toward zero, and the remainder has the sign of `x`, as in C++.
+
+`eo::shl` and `eo::shr` take a count of any integer type and panic with `runtime error: negative shift amount` when it is negative. A count of at least the width shifts every bit out: `eo::shl` gives 0, and `eo::shr` gives -1 for a negative signed `x` and 0 otherwise. C++ leaves such a shift undefined. `>>` of a signed value is arithmetic in both languages. Go rejects a negative constant count, so a constant count needs a helper only when it is at least the width, which Go allows when `x` is not a constant.
+
+The helpers return the type of `x`. They are function objects, called qualified, with the same collision rule as the string helpers (see [Strings](#strings)). The `_assign` forms take `x` by reference and evaluate it once, as Go does: `s[i] /= d` is `eo::div_assign(eo::at(s, i), d)`. Their arguments follow [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), like those of any helper.
+
+C++ converts an operand narrower than `int` to `int` before an arithmetic or bitwise operator, so the result of `a + b` for two `int8` values is an `int`, which can be outside `int8`'s range. When the Go type of an operator expression in the table is `int8`, `int16`, `uint8`, or `uint16`, convert its result back: `a + b` is `int8_t(a + b)`, `^b` is `uint8_t(~b)`, and `s[i] - '0'` is `uint8_t(eo::at(s, i) - '0')`. The conversion wraps modulo 2<sup>N</sup>, as Go's arithmetic does. A helper already returns the type of `x`, and a compound assignment, `++`, and `--` convert when they assign, so none of them needs a conversion. A comparison yields `bool` and needs none either.
+
+Go's operator precedence differs from C++'s for the bitwise operators and shifts: Go groups `<<`, `>>`, `&`, and `&^` with `*`, and `|` and `^` with `+`, all above the comparisons, while C++ places the shifts below `+` and `&`, `^`, and `|` below the comparisons. So an operand that is itself a binary operator expression is written in parentheses when either operator is `<<`, `>>`, `&`, `&^`, `|`, or `^`, even where Go has none: `a + b<<c` is `a + (b << c)`, `x&mask == 0` is `(x & mask) == 0`, and `a &^ b + c` is `(a & ~b) + c`. Parentheses in the Go source are kept, except around an expression that is a whole argument of a helper or a conversion, which already delimits it: `(a+b)/2` of `int8` values is `int8_t(int8_t(a + b) / 2)`, and `7/(n+2)` is `eo::div(int64_t{7}, n + 2)`.
+
+#### Conversions
+
+| Go | C++ |
+| --- | --- |
+| `T(x)` between integer types | `T(x)`, as in `int8_t(x)` and `uint64_t(i)` |
+| `T(x)` from an integer type to a float type | `double(x)`, `float(x)` |
+| `T(x)` from a float type to an integer type | `T(x)`, as in `int64_t(f)` |
+| `float64(x)`, `float32(x)` between float types | `double(x)`, `float(x)` |
+
+A conversion between integer types keeps the low N bits, sign-extending a signed source, as both languages do. A conversion to a float type rounds to the nearest value, ties to even. A conversion from a float type truncates toward zero. When the result is out of the integer type's range, or the value is NaN, Go leaves the result to the implementation and C++ leaves it undefined, so a program that converts such a value is outside the mapping. A `float64` beyond `float32`'s range converts to an infinity in both languages.
+
+A conversion of a constant is a constant, so it is written as described in [Untyped constants](#untyped-constants), not as a conversion. Conversions to and from strings are in [Strings](#strings) and [Slices](#slices).
+
+#### Untyped constants
+
+Go evaluates a constant expression exactly and converts an untyped constant to a type only where it is used. C++ would evaluate the same expression in fixed-width types with C++ precedence: `1<<2 + 1` is 5 in Go and 8 in C++, and `x := 1 << 40` overflows a C++ `int`. So the translation writes a constant from its value, which the Go type checker records (`go/types` `TypeAndValue.Value`), rather than from its source. `T{L}` below is the form in [Untyped constant arguments](#untyped-constant-arguments): `T` is the translated type that the constant converts to, and `L` is a C++ literal of the folded value.
+
+- A variable declared without a type, `x := c` or `var x = c`, is `auto x = T{L};`, where `T` is the type of a typed constant `c`, as in `x := int8(1)`, which is `auto x = int8_t{1};`, or the default type of an untyped one: `int64_t` for an integer constant, `int32_t` for a rune constant, and `double` for a floating-point one. `n := 10` is `auto n = int64_t{10};`, `r := 'a'` is `auto r = int32_t{97};`, and `f := 1.5` is `auto f = double{1.5};`. A boolean constant is `true` or `false`, and a string constant follows [Strings](#strings), so their C++ types are already Go's: `ok := true` is `auto ok = true;`.
+- A numeric constant converted to an interface, such as an operand of `fmt.Println`, also takes its default type and is written `T{L}`: `fmt.Println(1, 'a', 2.5)` is `fmt::Println(int64_t{1}, int32_t{97}, double{2.5})`.
+- A constant that is the first operand of `eo::div`, `eo::rem`, `eo::shl`, or `eo::shr` is written `T{L}`, because the helper takes its type from that operand: `1 << n` with an `int64` result is `eo::shl(int64_t{1}, n)`.
+- Anywhere else, Go converts the constant to the type of the context, such as the other operand of an operator, a parameter, an assigned or declared variable, a result, or a slice element. The constant is written as in the source when it is a single literal, or a single literal after `-`, of one of these kinds:
+
+  - an integer literal whose value is from -2147483647 to 2147483647, so that C++ reads it as an `int`, converted to an integer type or to `float64`: `i < 10`, `x * -2`, `New<int64_t>(0)`;
+  - a rune literal whose value is below `0x80`, as an operand of an operator that the translation writes as a C++ operator, where C++ promotes the `char` to `int`: `b == 'a'`, `s[i] - '0'`. A rune literal anywhere else, such as an index or an argument, is written as its decimal value, because the helpers reject a `char`: `table['a']` is `eo::at(table, 97)`, and `x << 'a'` is `eo::shl(x, 97)`;
+  - a floating-point literal converted to a float type: `f * 0.5`. A literal whose value rounds to zero in the target type drops a leading `-`, because a Go constant has no negative zero: `f * -0.0` is `f * 0.0`, and `-1e-400` converted to `float64` is `0.0`.
+
+  `_` digit separators are removed, an octal prefix `0o` or `0O` is written `0`, and a floating-point literal converted to `float32` gets an `f` suffix, as in `0.25f`. The usual arithmetic conversions of C++ then give the operation Go's type, and a narrow result is converted back as described in [Arithmetic operators](#arithmetic-operators). Any other constant is written `T{L}`: `x + 1<<20` is `x + int64_t{1048576}`, `u & 0xffffffff` with a `uint32` `u` is `u & uint32_t{4294967295u}`, `n * 2.0` with an `int` `n` is `n * int64_t{2}`, and `[]float32{16777217}` is `slice<float>::of({float{1.6777216e+07f}})`.
+
+A constant that names a declared constant, such as `N` after `const N = 10`, or an expression that contains one, is not covered yet, because constant declarations have no mapping ([#68](https://github.com/conr2d/eo/issues/68)). The argument temporaries of `go` and `defer` statements are always `T{L}`, even for a single literal (see [Untyped constant arguments](#untyped-constant-arguments)).
+
+#### Printing numbers
+
+`fmt.Println` prints every integer type in decimal, including `int8_t` and `uint8_t`, which a C++ stream would print as characters. It prints a `float` or `double` as Go's `%v` does, which differs from fmt's `{}`: the shortest decimal that reads back as the same value, in exponent form when the decimal exponent is below -4 or at least 6, as in `1e+06` and `1.234567e+06`, and `+Inf`, `-Inf`, and `NaN`. Floats inside slices, maps, and structs print the same way.
+
+Not covered yet: `complex64` and `complex128`, constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), defined types whose underlying type is a basic type, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), and the `math` package.
+
 ### Untyped constant arguments
 
 Go evaluates an untyped constant expression exactly, in its own kind, and only then converts its value to the type the context requires. For a call argument, that type is the parameter type, or, for an interface parameter, the constant's default type (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), which is then converted to the interface.
 
-This rule applies to the argument temporaries of `go` and `defer` statements. The same hazard exists for untyped constants in ordinary calls, assignments, and comparisons; a general rule for those is future work.
+This rule applies to the argument temporaries of `go` and `defer` statements, which are always written `T{L}`, even for a single literal. Every other constant follows [Untyped constants](#untyped-constants).
 
 Do not translate the source expression of an untyped constant argument. C++ would evaluate it in a fixed-width type with its own operator precedence. Instead, write the folded constant value that the Go type checker reports for the argument (`go/types` `TypeAndValue.Value`) as `T{L}`, where `T` is the translated target type, including a translated defined type such as `type Celsius float64`, and `L` is a C++ literal of the value:
 
@@ -204,7 +285,7 @@ These four helpers are function objects, and a translation always calls them qua
 
 Pass, return, and store strings by value, as `std::string`, never as `const std::string&`. A reference parameter would see a later assignment to the caller's variable, which a Go parameter does not.
 
-`eo::len` of a string is an `int64_t`, which is the type that Eo's library uses for Go `int`. Arithmetic on the `uint8_t` that `eo::at` returns promotes to `int` in C++, so an expression such as `s[i] - '0'` is provisional until Go's integer arithmetic is mapped. The general mapping of Go `int` and the other basic types is not frozen yet (see [#90](https://github.com/conr2d/eo/issues/90)).
+`eo::len` of a string is an `int64_t`, Go's `int`. Arithmetic on the `uint8_t` that `eo::at` returns is converted back to `uint8_t`, as in `uint8_t(eo::at(s, i) - '0')` (see [Arithmetic operators](#arithmetic-operators)).
 
 The conversions between strings and `[]byte` or `[]rune` are in [Slices](#slices), and `for range` over a string is in [Range loops](#range-loops). Not covered yet: the `strings`, `strconv`, and `unicode/utf8` packages.
 
@@ -430,7 +511,7 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 #### Struct forms not covered yet
 
 - a struct with a `String` or `Error` method, which `fmt` prints by calling the method; embedded interfaces; method sets of embedded fields, which decide interface satisfaction; and comparison of interface fields, which can panic ([#89](https://github.com/conr2d/eo/issues/89));
-- defined types that are not structs, such as `type Celsius float64` ([#90](https://github.com/conr2d/eo/issues/90)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
+- defined types that are not structs, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
 - a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
@@ -774,8 +855,8 @@ The stack stores deferred calls but does not execute them from its destructor. E
 A panic is a C++ exception, so the function also catches it and runs its deferred calls with `eo_defer_panic` (see [Panic and recover](#panic-and-recover)). The full shape of a function with a `defer` statement is:
 
 ```cpp
-auto f(int x) -> int {
-  int _eo_result_0{};
+auto f(int64_t x) -> int64_t {
+  int64_t _eo_result_0{};
   eo_defer_scope;
   // statements before the first statement that contains a defer
   try {
@@ -1039,7 +1120,8 @@ Examples currently requiring additional canonical rules include:
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
 - `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
-- zero-value construction for translated types other than strings, slices, pointers, and structs;
+- zero-value construction for translated types other than basic types, strings, slices, pointers, and structs;
+- constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 
 ## Unsupported constructs

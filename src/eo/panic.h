@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/defer.h>
+#include <eo/float.h>
 
 #include <fmt/format.h>
 
@@ -90,7 +91,7 @@ namespace detail {
     if constexpr (std::is_convertible_v<const T&, std::string_view>) {
       return std::string{std::string_view{value}};
     } else if constexpr (fmt::is_formattable<T>::value) {
-      return fmt::format("{}", value);
+      return fmt::format("{}", go_value(value));
     } else {
       return "(unprintable panic value)";
     }

@@ -1,12 +1,13 @@
 #include <eo/fmt.h>
 
+#include <cstdint>
 #include <string>
 
 using namespace eo;
 
 func<> eo_main() {
   eo_defer_scope;
-  auto x = 10;
+  auto x = int64_t{10};
   try {
     auto _eo_defer_arg_0_0 = std::string{"first deferred, x ="s};
     auto _eo_defer_arg_0_1 = x;

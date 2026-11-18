@@ -1,5 +1,4 @@
-// Provisional: func() as std::function, the C++ types of Go int and uint, and untyped constant arithmetic are not
-// frozen mappings (see ../README.md).
+// Provisional: func() as std::function is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
@@ -23,7 +22,7 @@ func<> eo_main() {
   auto s = "abc"s;
   auto i = int64_t{5};
   auto j = int64_t{-1};
-  auto u = uint64_t{9223372036854775808u};
+  uint64_t u = uint64_t{9223372036854775808u};
   attempt("index"s, [=]() mutable { fmt::Println(eo::at(s, i)); });
   attempt("negative"s, [=]() mutable { fmt::Println(eo::at(s, j)); });
   attempt("high"s, [=]() mutable { fmt::Println(eo::substr(s, 0, i)); });

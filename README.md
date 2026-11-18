@@ -14,12 +14,12 @@ Eo is under active development and its APIs are not stable.
 
 ## Requirements
 
-- C++23
+- C++23 on a 64-bit platform, with GCC or Clang, which accept `-fwrapv`
 - Boost.Asio with coroutine, experimental channel, and awaitable-operator support
 - fmt
 - CMake 3.25+
 
-Dependencies are discovered through standard CMake `find_package` calls. Eo no longer downloads or configures a package manager during CMake configuration.
+The `eo` target adds `-fwrapv` to every target that links it, so signed overflow wraps as in Go. Dependencies are discovered through standard CMake `find_package` calls. Eo no longer downloads or configures a package manager during CMake configuration.
 
 To build with sanitizers, pass the `-fsanitize=` list as `EO_SANITIZE`, for example `-DEO_SANITIZE=address,undefined` or `-DEO_SANITIZE=thread`. CI runs the test suite both ways, once with the default worker count and once with `EOMAXPROCS=1`.
 
@@ -155,6 +155,26 @@ func<> f() {
 ```
 
 Deferred method receivers follow Go's receiver binding: value receivers save a value, while pointer receivers on addressable values save the corresponding address. A deferred closure uses `eo_defer([&] { ... });` when every variable it captures lives until the function-level drain, and copies the variables declared inside the `try` block otherwise. See `docs/TRANSLATION_RULES.md` for the canonical source-order, receiver, and return translation shapes.
+
+### Basic types
+
+Go `int` is `int64_t`, and the other basic types map to their fixed-width C++ types. Division, remainder, and shifts go through functions that panic and wrap as Go does, and an untyped constant is written from its folded value where C++ would compute it differently.
+
+```go
+// Go
+n := 10
+var b int8 = 100
+fmt.Println(n/d, n<<k, b+b, 1<<40)
+```
+
+```cpp
+// C++
+auto n = int64_t{10};
+int8_t b = 100;
+fmt::Println(eo::div(n, d), eo::shl(n, k), int8_t(b + b), int64_t{1099511627776});
+```
+
+See `docs/TRANSLATION_RULES.md` for the full mapping, including printing floats as Go does.
 
 ### Pointers
 

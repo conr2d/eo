@@ -1,13 +1,15 @@
-// Provisional: channels and Go int are not frozen mappings (see ../README.md).
+// Provisional: channels are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 struct Pair;
 
 struct Pair {
-  int a{};
-  int b{};
+  int64_t a{};
+  int64_t b{};
 
   auto operator==(const Pair&) const -> bool = default;
 };

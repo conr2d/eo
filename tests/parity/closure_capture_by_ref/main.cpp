@@ -1,13 +1,14 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 func<> eo_main() {
-  auto x = 0;
-  auto y = 5;
+  auto x = int64_t{0};
+  auto y = int64_t{5};
   auto inc = [=, &x]() mutable { x++; };
-  auto get = [=, &x]() mutable -> int { return x + y; };
+  auto get = [=, &x]() mutable -> int64_t { return x + y; };
   inc();
   inc();
   fmt::Println(x, get());

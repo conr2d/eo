@@ -221,7 +221,7 @@ for i := 0; i < n; i++ {
 ```
 
 ```cpp
-for (int i = 0; i < n; i++) {
+for (auto i = int64_t{0}; i < n; i++) {
   go([=]() mutable -> func<> {
     use(i);
     co_return;

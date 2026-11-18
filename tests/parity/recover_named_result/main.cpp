@@ -1,9 +1,11 @@
 #include <eo/fmt.h>
 
+#include <cstdint>
+
 using namespace eo;
 
-auto divide(int a, int b) -> int {
-  int q{};
+auto divide(int64_t a, int64_t b) -> int64_t {
+  int64_t q{};
   eo_defer_scope;
   try {
     eo_defer([&] {
@@ -15,7 +17,7 @@ auto divide(int a, int b) -> int {
     if (b == 0) {
       panic("division by zero"s);
     }
-    q = a / b;
+    q = eo::div(a, b);
     eo_defer_run;
     return q;
   } catch (...) {
@@ -24,8 +26,8 @@ auto divide(int a, int b) -> int {
   return q;
 }
 
-auto set() -> int {
-  int n{};
+auto set() -> int64_t {
+  int64_t n{};
   eo_defer_scope;
   try {
     eo_defer([&] { recover(); });

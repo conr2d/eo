@@ -1,14 +1,15 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
-auto newCounter() -> ptr<int> {
-  auto n = New<int>(0);
+auto newCounter() -> ptr<int64_t> {
+  auto n = New<int64_t>(0);
   return n;
 }
 
-void incr(ptr<int> p) {
+void incr(ptr<int64_t> p) {
   (*p)++;
 }
 
