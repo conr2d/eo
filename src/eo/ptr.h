@@ -8,7 +8,6 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
-#include <new>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -25,24 +24,25 @@ namespace detail {
     return err;
   }
 
-  // The targets that a release has yet to destroy. The first few are held inline, in storage that is
+  // The targets that a release has yet to destroy. The first few are held in inline slots that are
   // constructed only when used, so a release that queues only a handful, as freeing a small struct
   // does, neither allocates nor initializes the whole buffer.
   class release_queue {
   public:
-    release_queue() noexcept = default;
+    // User-provided, so a release_queue is never zero-initialized.
+    release_queue() noexcept {}
     release_queue(const release_queue&) = delete;
     auto operator=(const release_queue&) -> release_queue& = delete;
 
     ~release_queue() {
       while (inline_size_ > 0) {
-        slot(--inline_size_)->~shared_ptr();
+        std::destroy_at(&slots_[--inline_size_].entry);
       }
     }
 
     void push(std::shared_ptr<void> p) {
       if (inline_size_ < inline_capacity) {
-        std::construct_at(slot(inline_size_), std::move(p));
+        std::construct_at(&slots_[inline_size_].entry, std::move(p));
         ++inline_size_;
       } else {
         overflow_.push_back(std::move(p));
@@ -57,25 +57,26 @@ namespace detail {
         return true;
       }
       if (inline_size_ > 0) {
-        auto* last = slot(--inline_size_);
-        out = std::move(*last);
-        std::destroy_at(last);
+        auto& last = slots_[--inline_size_].entry;
+        out = std::move(last);
+        std::destroy_at(&last);
         return true;
       }
       return false;
     }
 
   private:
-    using entry = std::shared_ptr<void>;
-    static constexpr std::size_t inline_capacity = 8;
+    // Holds an entry only between push and pop; the union leaves it unconstructed otherwise.
+    union slot {
+      slot() noexcept {}
+      ~slot() {}
+      std::shared_ptr<void> entry;
+    };
 
-    auto slot(std::size_t i) noexcept -> entry* {
-      return std::launder(reinterpret_cast<entry*>(storage_) + i);
-    }
-
-    alignas(entry) std::byte storage_[inline_capacity * sizeof(entry)];
+    static constexpr std::size_t inline_capacity = 16;
+    slot slots_[inline_capacity];
     std::size_t inline_size_ = 0;
-    std::vector<entry> overflow_;
+    std::vector<std::shared_ptr<void>> overflow_;
   };
 
   // Drops one owning reference without recursion. Destroying a target destroys the pointers it holds,
@@ -96,7 +97,7 @@ namespace detail {
       pending->push(std::move(p));
       return;
     }
-    auto queue = release_queue{};
+    release_queue queue;
     pending = &queue;
     p.reset();
     for (auto next = std::shared_ptr<void>{}; queue.pop(next);) {

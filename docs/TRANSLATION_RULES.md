@@ -56,15 +56,15 @@ A translator must not rename identifiers merely to follow a C++ naming conventio
 
 ### Redeclared names
 
-Go lets a local variable hide a variable of the same name from an enclosing block or the package. C++ allows the same hiding, with two differences, so a hiding declaration of `x` is renamed in two cases:
+Go lets a local variable hide anything of the same name from an enclosing block or the package: a variable, a constant, a function, or a type. C++ allows the same hiding, with two differences, so a local variable declaration of `x` that hides another `x` is renamed in two cases:
 
-1. The declaration refers to the hidden `x`, as in `x := x` or `x, y := x+1, 0`, at any block depth. In C++ the scope of a variable starts at its declarator, so `auto x = x;` would read the new variable instead of the old one.
+1. The declaration refers to the hidden `x`, at any block depth, as in `x := x`, `x, y := x+1, 0`, `g := g()` for a function `g`, or `point := point{1, 2}` for a type `point`. In C++ the scope of a variable starts at its declarator, so the `x` in its own initializer names the new variable, and `auto x = x;` and `auto g = g();` are ill-formed.
 2. The declaration is directly in the body of a statement whose own clause declares `x`. C++ rejects such a declaration. This covers:
    - the body of a three-clause `for` or a `range` loop whose clause declares `x`;
    - the `if` and `else` branches of an `if` whose init statement declares `x`;
-   - a case of a `switch` whose init statement declares `x`.
+   - a case of a `switch` whose init statement declares `x`, if the translated case body is not a block of its own.
 
-The renamed variable is `_eo_shadow_<x>`. If the variable it hides is itself `_eo_shadow_<x>`, it becomes `_eo_shadow_<x>_2`, and each further level counts up by one. Every use of the variable in its scope uses the new name. The initializer and other uses of the hidden variable keep the hidden variable's own C++ name:
+The renamed variable is `_eo_shadow_<x>`. If what it hides is itself `_eo_shadow_<x>`, it becomes `_eo_shadow_<x>_2`, and each further level counts up by one. Every use of the variable in its scope uses the new name. The initializer and other uses of the hidden variable keep the hidden variable's own C++ name:
 
 ```go
 x := 1
@@ -330,7 +330,7 @@ A boxed variable is assigned as `*k = _eo_range_key;`, and a blank one is not as
 
 #### Clause variables redeclared in the body
 
-A loop body may declare a variable with the name of a clause variable, as in the idiom `v := v`. C++ rejects that declaration, so it is renamed as described in [Redeclared names](#redeclared-names):
+A loop body may declare a variable with the name of a clause variable, as in the idiom `v := v`. C++ rejects that declaration directly in the body, and its initializer would refer to itself at any depth, so it is renamed as described in [Redeclared names](#redeclared-names):
 
 ```go
 for _, v := range s {

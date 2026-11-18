@@ -9,6 +9,10 @@ func g() int {
 	return 3
 }
 
+func three() int {
+	return 3
+}
+
 func main() {
 	// A declaration that reads the variable it hides, at any depth.
 	x := 1
@@ -67,4 +71,8 @@ func main() {
 	for _, p := range ptrs {
 		fmt.Println(*p)
 	}
+
+	// A variable that hides a package-level function it calls.
+	three := three()
+	fmt.Println("function", three)
 }

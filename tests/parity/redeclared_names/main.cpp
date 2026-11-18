@@ -10,6 +10,10 @@ auto g() -> int64_t {
   return 3;
 }
 
+auto three() -> int64_t {
+  return 3;
+}
+
 func<> eo_main() {
   // A declaration that reads the variable it hides, at any depth.
   auto x = int64_t{1};
@@ -77,5 +81,9 @@ func<> eo_main() {
   for (auto [_eo_range_key, p] : eo::range(ptrs)) {
     fmt::Println(*p);
   }
+
+  // A variable that hides a package-level function it calls.
+  auto _eo_shadow_three = three();
+  fmt::Println("function"s, _eo_shadow_three);
   co_return;
 }
