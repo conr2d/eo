@@ -90,15 +90,9 @@ namespace detail {
   template<typename T>
   inline constexpr bool is_slice<slice<T>> = true;
 
-  template<typename T>
-  inline constexpr bool is_map = false;
-
-  template<typename K, typename V>
-  inline constexpr bool is_map<std::map<K, V>> = true;
-
   // Whether T is a translated Go type, which has a Go type name and so can be held in an interface:
-  // a basic type, a string, struct{}, a type that declares _eo_name, or a pointer, slice, or map of
-  // such types.
+  // a basic type, a string, struct{}, a type that declares _eo_name, or a pointer or slice of such
+  // types. Maps wait on their own mapping.
   template<typename T>
   consteval auto is_go_type() -> bool {
     if constexpr (requires { T::_eo_name; }) {
@@ -113,8 +107,6 @@ namespace detail {
       return is_go_type<typename pointee<T>::type>();
     } else if constexpr (is_slice<T>) {
       return is_go_type<typename T::value_type>();
-    } else if constexpr (is_map<T>) {
-      return is_go_type<typename T::key_type>() && is_go_type<typename T::mapped_type>();
     } else {
       return false;
     }
@@ -209,7 +201,7 @@ namespace detail {
     static constexpr auto entries = [] {
       auto result = std::array<const entry_base*, count>{};
       auto i = std::size_t{0};
-      auto add = [&]<typename Method>() {
+      [[maybe_unused]] auto add = [&]<typename Method>() {
         if constexpr (in_method_set<D, Method>()) {
           result[i++] = &entry_for<D, Method>;
         }
@@ -224,8 +216,11 @@ namespace detail {
     using type = methods<>;
   };
 
+  struct interface_base;
+
+  // A pointer to an interface has no methods in Go.
   template<typename D>
-    requires has_methods<typename pointee<D>::type>
+    requires has_methods<typename pointee<D>::type> && (!std::is_base_of_v<interface_base, typename pointee<D>::type>)
   struct methods_of<D> {
     using type = typename pointee<D>::type::_eo_methods;
   };
@@ -241,7 +236,7 @@ namespace detail {
     auto position = std::size_t{0};
     auto result = no_method;
     auto done = false;
-    auto check = [&]<typename Method>() {
+    [[maybe_unused]] auto check = [&]<typename Method>() {
       if constexpr (in_method_set<D, Method>()) {
         if (!done && Method::name == name) {
           done = true;
@@ -273,12 +268,9 @@ namespace detail {
     std::span<const entry_base* const> methods;
   };
 
-  // Go's comparable types. A map is comparable in C++ but not in Go.
+  // Go's comparable types.
   template<typename T>
   inline constexpr bool go_comparable = std::equality_comparable<T>;
-
-  template<typename K, typename V>
-  inline constexpr bool go_comparable<std::map<K, V>> = false;
 
   template<typename D>
   auto equal_values(const void* a, const void* b) -> bool {
@@ -307,8 +299,6 @@ namespace detail {
     method_set<D>::entries,
   };
 
-  struct interface_base;
-
   template<typename T>
   concept interface_type = std::is_base_of_v<interface_base, T>;
 
@@ -332,7 +322,7 @@ namespace detail {
   consteval auto method_index(methods<Ms...>) -> std::size_t {
     auto i = std::size_t{0};
     auto found = sizeof...(Ms);
-    auto check = [&]<typename Method>() {
+    [[maybe_unused]] auto check = [&]<typename Method>() {
       if constexpr (std::is_same_v<decltype(M), std::remove_cv_t<decltype(Method::fn)>>) {
         if (Method::fn == M) {
           found = i;
@@ -370,6 +360,18 @@ namespace detail {
     }
   };
 
+  // Whether interface J has every method of interface I, as Go requires of an assignment of a J to
+  // an I.
+  template<typename Signature, typename... N>
+  consteval auto lists_method(std::string_view name, methods<N...>) -> bool {
+    return (... || (N::name == name && std::is_same_v<signature_of<N>, Signature>));
+  }
+
+  template<typename J, typename... M>
+  consteval auto has_all_methods(methods<M...>) -> bool {
+    return (... && lists_method<signature_of<M>>(M::name, typename J::_eo_methods{}));
+  }
+
   // The methods of interface I, ordered by name, as Go reports the first missing one.
   template<typename I, typename List = typename I::_eo_methods>
   struct interface_methods;
@@ -394,9 +396,15 @@ namespace detail {
   // the first method it lacks. Tables are built once per pair and kept, as Go's itab cache does.
   template<typename I>
   auto dynamic_table(const type_descriptor* type, std::string_view* missing) -> const std::vector<const entry_base*>* {
-    static std::shared_mutex mutex;
-    static std::map<const type_descriptor*, std::vector<const entry_base*>> tables;
-    static const auto wanted = interface_methods<I>::sorted();
+    if constexpr (method_count<typename I::_eo_methods> == 0) {
+      // Every type has the methods of an empty interface, such as any.
+      static const auto& none = *new std::vector<const entry_base*>;
+      return &none;
+    }
+    // Never destroyed, so a thread that still runs during static destruction can use them.
+    static auto& mutex = *new std::shared_mutex;
+    static auto& tables = *new std::map<const type_descriptor*, std::vector<const entry_base*>>;
+    static const auto& wanted = *new std::vector(interface_methods<I>::sorted());
     {
       auto lock = std::shared_lock{mutex};
       if (auto it = tables.find(type); it != tables.end()) {
@@ -444,6 +452,8 @@ public:
   template<detail::interface_type J>
     requires(!std::is_base_of_v<interface, J>)
   interface(const J& other) {
+    static_assert(detail::has_all_methods<J>(typename I::_eo_methods{}),
+      "the interface does not have every method of the interface it is converted to");
     if (other._eo_type == nullptr) {
       return;
     }
@@ -606,8 +616,6 @@ namespace detail {
       return "*" + type_name<typename pointee<U>::type>();
     } else if constexpr (is_slice<U>) {
       return "[]" + type_name<typename U::value_type>();
-    } else if constexpr (is_map<U>) {
-      return "map[" + type_name<typename U::key_type>() + "]" + type_name<typename U::mapped_type>();
     } else {
       static_assert(sizeof(U) == 0, "a type held in an interface needs a Go type name");
     }

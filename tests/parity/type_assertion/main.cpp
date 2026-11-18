@@ -35,8 +35,7 @@ struct Namer : interface<Namer> {
 struct Rect {
   static constexpr std::string_view _eo_name = "main.Rect";
 
-  int64_t W{};
-  int64_t H{};
+  int64_t W{}, H{};
 
   auto operator==(const Rect&) const -> bool = default;
 

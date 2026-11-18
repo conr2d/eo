@@ -46,6 +46,12 @@ type Bag struct {
 	Items []int
 }
 
+// Resizer embeds Areaer, so it has the same methods as Shape.
+type Resizer interface {
+	Areaer
+	Scale(k int)
+}
+
 func total(shapes []Areaer) int {
 	sum := 0
 	for _, s := range shapes {
@@ -97,4 +103,9 @@ func main() {
 	s.Scale(3)
 	var l Labeler = c
 	fmt.Println(s.Area(), c.W, l.Label(), c.Label())
+
+	var rz Resizer = r
+	rz.Scale(2)
+	s = rz
+	fmt.Println(rz.Area(), s.Area(), r.W, r.H)
 }

@@ -161,5 +161,12 @@ int main() {
   auto list = slice<any>::of({any(int64_t{1}), any{}, any(std::string{"s"}), any(Rect{.W = 3, .H = 4})});
   check(fmt::format("{}", eo::detail::go_print(list, true)) == "[1 <nil> s R3x4]", "slice of any");
   check(eo::detail::type_name<slice<ptr<Rect>>>() == "[]*main.Rect", "type names");
+
+  // A pointer to an interface has no methods, and prints as an address.
+  auto shape_pointer = New<Shape>(s);
+  any holds_pointer = shape_pointer;
+  check(eo::type_assert<ptr<Shape>>(holds_pointer) == shape_pointer && !eo::holds<Named>(holds_pointer),
+    "pointer to an interface");
+  check(eo::detail::type_name<ptr<Shape>>() == "*main.Shape", "pointer to an interface name");
   return 0;
 }

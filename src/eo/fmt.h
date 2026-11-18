@@ -119,8 +119,6 @@ namespace detail {
 
 } // namespace detail
 
-// The operands are taken by value, as Go passes them. A reference would refer into a slice's backing
-// array, which another operand's call can free before the line is formatted.
 // Go's fmt.Stringer.
 struct Stringer : eo::interface<Stringer> {
   using interface::interface;
@@ -133,6 +131,8 @@ inline auto Stringer::String() const -> std::string {
   return _eo_call<&Stringer::String>();
 }
 
+// The operands are taken by value, as Go passes them. A reference would refer into a slice's backing
+// array, which another operand's call can free before the line is formatted.
 template<typename... T>
 void Println(T... args) {
   detail::print_line(stdout, std::move(args)...);

@@ -95,12 +95,12 @@ auto Boom::String(Boom _eo_receiver) -> std::string {
 }
 
 func<> eo_main() {
-  auto p = Point{.X = 1, .Y = 2};
-  fmt::Println(p, ref(p));
+  auto p = New<Point>(Point{.X = 1, .Y = 2});
+  fmt::Println(*p, p);
 
   // String has a pointer receiver, so a Temp value prints as a struct.
-  auto t = Temp{.C = 2};
-  fmt::Println(t, ref(t));
+  auto t = New<Temp>(Temp{.C = 2});
+  fmt::Println(*t, t);
 
   // Error is preferred to String.
   fmt::Println(Fault{.Code = 7});
@@ -109,9 +109,9 @@ func<> eo_main() {
   ptr<Point> nilTemp{};
   fmt::Println(nilTemp, Boom{});
 
-  fmt::Stringer s = p;
+  fmt::Stringer s = *p;
   any e{};
-  fmt::Println(s, e, slice<any>::of({int64_t{1}, "a"s, nullptr, double{2.5}, p, ref(t)}));
-  fmt::Println(Pair{.A = p, .B = ref(t), .N = 3}, slice<Point>::of({p, Point{.X = 3, .Y = 4}}));
+  fmt::Println(s, e, slice<any>::of({int64_t{1}, "a"s, nullptr, double{2.5}, *p, t}));
+  fmt::Println(Pair{.A = *p, .B = t, .N = 3}, slice<Point>::of({*p, Point{.X = 3, .Y = 4}}));
   co_return;
 }

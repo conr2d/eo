@@ -15,6 +15,7 @@ struct Labeler;
 struct Tag;
 struct Card;
 struct Bag;
+struct Resizer;
 
 struct Shape : interface<Shape> {
   using interface::interface;
@@ -38,8 +39,7 @@ struct Areaer : interface<Areaer> {
 struct Rect {
   static constexpr std::string_view _eo_name = "main.Rect";
 
-  int64_t W{};
-  int64_t H{};
+  int64_t W{}, H{};
 
   auto operator==(const Rect&) const -> bool = default;
 
@@ -95,6 +95,17 @@ struct Bag {
   auto operator==(const Bag&) const -> bool = default;
 };
 
+// Resizer embeds Areaer, so it has the same methods as Shape.
+struct Resizer : interface<Resizer> {
+  using interface::interface;
+  static constexpr std::string_view _eo_name = "main.Resizer";
+
+  auto Area() const -> int64_t;
+  void Scale(int64_t k) const;
+
+  using _eo_methods = eo::methods<eo::method<&Resizer::Area, "Area">, eo::method<&Resizer::Scale, "Scale">>;
+};
+
 auto Shape::Area() const -> int64_t {
   return _eo_call<&Shape::Area>();
 }
@@ -121,6 +132,14 @@ auto Card::Label(Card _eo_receiver) -> std::string {
 
 void Card::Scale(Card _eo_receiver, int64_t k) {
   return ::Rect::Scale(_eo_receiver.Rect, k);
+}
+
+auto Resizer::Area() const -> int64_t {
+  return _eo_call<&Resizer::Area>();
+}
+
+void Resizer::Scale(int64_t k) const {
+  return _eo_call<&Resizer::Scale>(k);
 }
 
 auto Rect::Area(Rect r) -> int64_t {
@@ -196,5 +215,10 @@ func<> eo_main() {
   s.Scale(3);
   Labeler l = c;
   fmt::Println(s.Area(), c.Rect->W, l.Label(), c.Labeler.Label());
+
+  Resizer rz = r;
+  rz.Scale(2);
+  s = rz;
+  fmt::Println(rz.Area(), s.Area(), r->W, r->H);
   co_return;
 }

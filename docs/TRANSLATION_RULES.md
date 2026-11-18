@@ -796,6 +796,8 @@ Go does not specify whether `*p` in a value-receiver call is evaluated before or
 
 A promoted method is called on the path to its embedded field, as in [Embedded fields](#embedded-fields).
 
+An unnamed or blank receiver, as in `func (Boom) String()`, is named `_eo_receiver`, and an unnamed or blank parameter of a method, a forwarder, or an interface method is named `_eo_arg_<n>`, `n` being its position among the parameters after the receiver, from 0.
+
 A type with methods also lists them in its method table, `_eo_methods`, which interfaces and `fmt` use (see [Method tables](#method-tables)).
 
 Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay member functions, called as `x.M()` or `p->M()`.
@@ -872,7 +874,7 @@ A struct type declared inside a function cannot have static data members in C++.
 
 #### Interface types
 
-An interface type is a class named after it, derived from `interface<I>`, which inherits its constructors and declares `_eo_name` like a struct. Each method of the interface is a `const` member function with the method's parameters and result, declared in the class and defined after the type definitions (see [Declaration order](#declaration-order)), because its parameter and result types may not be complete inside the class. Its body returns `_eo_call<&I::M>(args...)` with the parameters in order. An unnamed parameter is named `_eo_arg_<n>`, `n` being its position from 0. `_eo_methods` lists the methods in the order the interface declares them. An embedded interface contributes its methods at its position, in its own order, and a method that Go merges from two embedded interfaces is listed once, at its first position.
+An interface type is a class named after it, derived from `interface<I>`, which inherits its constructors and declares `_eo_name` like a struct. Each method of the interface is a `const` member function with the method's parameters and result, declared in the class and defined after the type definitions (see [Declaration order](#declaration-order)), because its parameter and result types may not be complete inside the class. Its body returns `_eo_call<&I::M>(args...)` with the parameters in order. An unnamed parameter is named `_eo_arg_<n>` (see [Methods](#methods)). The class declares the methods in the order the interface declares them, and `_eo_methods` lists them in that order. An embedded interface contributes its methods at its position, in its own order: the class declares and defines each of them as its own member function, as if the interface had declared it. A method that Go merges from two embedded interfaces is declared and listed once, at its first position. `type ReadWriter interface { Reader; Writer }` thus declares `Read`, then `Write`.
 
 ```go
 type Shape interface {
@@ -908,16 +910,16 @@ Go's `any` and `interface{}` map to `any`, Eo's empty interface, whose name is `
 | Go | C++ |
 | --- | --- |
 | `var x I` | `I x{};` |
-| `nil` as an interface value | `nullptr`, or `I{}` |
+| `nil` as an interface value | `nullptr` where it converts, and `I{}` otherwise |
 | a conversion of `v` to `I`, implicit or written `I(v)` | `v` where C++ converts implicitly: an initializer, an assignment, an argument, a result, or an element of a braced list. `I(v)` where Go writes `I(v)`, and for an operand of `==` or `!=` |
 | `x == nil`, `x != nil` | `x == nullptr`, `x != nullptr` |
 | `x == y`, where both are interface values | `x == y` |
-| `x == v`, where `v` is not an interface value | `x == I(v)`, `I` being the type of `x` |
+| `x == v`, `v == x`, where `v` is not an interface value | `x == I(v)`, `I(v) == x`, `I` being the type of `x` |
 | `x.M(args)` | `x.M(args)` |
 
-A conversion from a non-interface value holds a copy of the value, as in Go. Copies of an interface value share that copy, which is never modified, so they behave like Go's copies. An interface that holds a pointer shares the pointer's target. An untyped constant converted to an interface takes its default type and is written `T{L}`, as described in [Untyped constants](#untyped-constants): `var a any = 7` is `any a = int64_t{7};`.
+A conversion from a non-interface value holds a copy of the value, as in Go. Copies of an interface value share that copy, which is never modified, so they behave like Go's copies. An interface that holds a pointer shares the pointer's target. A variable whose address is converted to an interface is usually moved to heap by Go, and so [boxed](#boxed-variables), so the interface holds an owning pointer: `var p Point; var s fmt.Stringer = &p` is `auto p = New<Point>();`, then `fmt::Stringer s = p;`. An untyped constant converted to an interface takes its default type and is written `T{L}`, as described in [Untyped constants](#untyped-constants): `var a any = 7` is `any a = int64_t{7};`.
 
-The dynamic type is the C++ type of the converted value, which must be a [basic type](#basic-types), a string, `eo::empty_struct`, a type that declares `_eo_name`, or a pointer, slice, or map of such types. Go's `int` and `int64` both map to `int64_t`, and `uint`, `uint64`, and `uintptr` to `uint64_t`, so an interface cannot tell them apart: an `int64` value converted to an interface holds an `int`. A program whose behavior depends on telling them apart, by an assertion, a type switch, or a comparison of interface values, is outside the mapping ([#107](https://github.com/conr2d/eo/issues/107)).
+The dynamic type is the C++ type of the converted value, which must be a [basic type](#basic-types), a string, `eo::empty_struct`, a type that declares `_eo_name`, or a pointer or slice of such types. Maps wait on their own mapping ([#88](https://github.com/conr2d/eo/issues/88)). Go's `int` and `int64` both map to `int64_t`, and `uint`, `uint64`, and `uintptr` to `uint64_t`, so an interface cannot tell them apart: an `int64` value converted to an interface holds an `int`. A program whose behavior depends on telling them apart, by an assertion, a type switch, or a comparison of interface values, is outside the mapping ([#107](https://github.com/conr2d/eo/issues/107)).
 
 Calling a method of a nil interface value panics with `runtime error: invalid memory address or nil pointer dereference`, which a deferred `recover()` can stop. An interface value that holds a nil pointer is not nil, as in Go. Its pointer-receiver methods receive the nil pointer, and its value-receiver methods panic as above.
 
@@ -943,7 +945,7 @@ A failed `x.(T)` panics with Go's message, which a deferred `recover()` can stop
 
 #### Type switches
 
-A type switch maps to an `if` statement whose init statement saves the guard in `_eo_type_switch`, followed by an `else if` for each clause in source order and an `else` for `default`, wherever Go writes it. A clause's condition is `_eo_type_switch == nullptr` for `nil`, `eo::holds<T>(_eo_type_switch)` for a type `T`, and those conditions joined by `||` for a clause with several types. Go checks the clauses in source order and takes the first that matches, and so does the `if` chain. A clause that uses the variable of `switch v := x.(type)` declares it first: `auto v = eo::type_assert<T>(_eo_type_switch);` in a clause with a single type `T`, and `auto v = _eo_type_switch;` in the other clauses, as in Go:
+A type switch maps to an `if` statement whose init statement saves the guard in `_eo_type_switch`, followed by an `else if` for each clause in source order and an `else` for `default`, wherever Go writes it. A clause's condition is `_eo_type_switch == nullptr` for `nil`, `eo::holds<T>(_eo_type_switch)` for a type `T`, and those conditions joined by `||` for a clause with several types. Go checks the clauses in source order and takes the first that matches, and so does the `if` chain. A clause that uses the variable of `switch v := x.(type)` declares it first: `auto v = eo::type_assert<T>(_eo_type_switch);` in a clause with a single type `T`, and `auto v = _eo_type_switch;` in the other clauses, `case nil:` and `default:` included, where Go gives `v` the guard's type:
 
 ```go
 switch v := x.(type) {
@@ -972,7 +974,7 @@ if (auto _eo_type_switch = x; _eo_type_switch == nullptr) {
 }
 ```
 
-The variable of each clause is a new variable, which is boxed by the same rules as any other. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`.
+The variable of each clause is a new variable, which is boxed by the same rules as any other. Go reports `moved to heap: v` for it at the position of the clause's first type, such as `int` in `case int:`, and that report applies to the variable of that clause. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`.
 
 #### Printing methods
 
@@ -988,7 +990,9 @@ Go calls these methods only for exported struct fields, and for the fields of st
 - interface values as map keys ([#88](https://github.com/conr2d/eo/issues/88)), `%T`, and `fmt` functions other than `Println`;
 - generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
 - interface types declared inside a function, local struct types held in an interface, a method named after its own interface, and methods with unexported names of interfaces from other packages;
-- a `break` inside a type switch clause, which would leave an enclosing loop.
+- a `break` inside a type switch clause, which would leave an enclosing loop;
+- comparing interface values that hold a struct with a `sync.Mutex` or another Eo library type without `==`, which Go compares and Eo reports as uncomparable;
+- a pointer to an interface, `*I`, beyond holding it, comparing it, and printing it as an address.
 
 ### Goroutine
 

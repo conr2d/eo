@@ -9,3 +9,4 @@ true false true false
 uncomparable recovered: runtime error: comparing uncomparable type main.Bag
 false
 36 12 #go #go
+24 24 2 12
