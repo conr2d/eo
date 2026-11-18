@@ -3,6 +3,7 @@
 //
 #include <eo/fmt.h>
 
+#include <cstdint>
 #include <cstdio>
 #include <map>
 #include <memory>
@@ -87,6 +88,58 @@ void test_prints_error_message() {
   check(read_file(file.get()) == "x bad 42\n", "Fprintln should print an error's message");
 }
 
+struct Inner {
+  int64_t A{}, B{};
+
+  auto operator==(const Inner&) const -> bool = default;
+};
+
+struct Outer {
+  std::string Name{};
+  Inner In{};
+  eo::slice<int64_t> Items{};
+  eo::ptr<Outer> Next{};
+  bool Valid{};
+};
+
+void test_prints_struct_fields() {
+  auto file = make_file();
+  fmt::Fprintln(file.get(),
+    Inner{1, 2},
+    Outer{},
+    Outer{.Name = "a", .In = Inner{3, 4}, .Items = eo::slice<int64_t>::of({5})});
+
+  check(read_file(file.get()) == "{1 2} { {0 0} [] <nil> false} {a {3 4} [5] <nil> false}\n",
+    "Fprintln should print a struct's fields in braces, like Go's %v");
+}
+
+void test_prints_slice_of_structs_and_empty_struct() {
+  auto file = make_file();
+  fmt::Fprintln(file.get(), eo::slice<Inner>::of({Inner{1, 2}, Inner{}}), eo::empty_struct{});
+
+  check(read_file(file.get()) == "[{1 2} {0 0}] {}\n",
+    "Fprintln should print structs inside a slice, and struct{} as {}");
+}
+
+void test_prints_pointer_operand_as_its_target() {
+  auto file = make_file();
+  auto p = eo::New<Inner>(Inner{7, 8});
+  fmt::Fprintln(file.get(), p, eo::ptr<Inner>{}, eo::New<eo::slice<int64_t>>(eo::slice<int64_t>::of({1, 2})));
+
+  check(read_file(file.get()) == "&{7 8} <nil> &[1 2]\n",
+    "Fprintln should print a pointer operand to a struct or slice as & and its target, and nil as <nil>");
+}
+
+void test_prints_nested_pointer_as_address() {
+  auto file = make_file();
+  auto next = eo::New<Outer>();
+  fmt::Fprintln(file.get(), Outer{.Next = next}, eo::New<int64_t>(1) == nullptr);
+
+  auto out = read_file(file.get());
+  check(out.starts_with("{ {0 0} [] 0x") && out.ends_with(" false} false\n"),
+    "Fprintln should print a pointer inside a struct as an address");
+}
+
 int main() {
   test_adds_spaces_between_operands();
   test_does_not_interpret_format_strings();
@@ -95,4 +148,8 @@ int main() {
   test_prints_nested_and_empty_maps();
   test_prints_map_of_strings();
   test_prints_error_message();
+  test_prints_struct_fields();
+  test_prints_slice_of_structs_and_empty_struct();
+  test_prints_pointer_operand_as_its_target();
+  test_prints_nested_pointer_as_address();
 }

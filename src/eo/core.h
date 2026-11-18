@@ -13,3 +13,4 @@
 #include <eo/select.h>
 #include <eo/slice.h>
 #include <eo/string.h>
+#include <eo/struct.h>

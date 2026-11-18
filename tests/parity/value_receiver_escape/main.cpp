@@ -1,10 +1,14 @@
-// Provisional: struct types, composite literals, channels, and Go int are not frozen mappings (see ../README.md).
+// Provisional: channels and Go int are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 using namespace eo;
 
+struct T;
+
 struct T {
   int n{};
+
+  auto operator==(const T&) const -> bool = default;
 
   static void Start(T t, chan<int> results);
   static auto addr(T _eo_param_t) -> ptr<int>;
