@@ -9,6 +9,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 
 void check(bool condition, const char* message) {
   if (!condition) {
@@ -43,6 +44,18 @@ void test_adds_spaces_between_operands() {
   fmt::Fprintln(file.get(), "hello", "world", 42, true);
 
   check(read_file(file.get()) == "hello world 42 true\n", "Fprintln should separate all operands with spaces");
+}
+
+auto results() -> std::tuple<int64_t, std::string> {
+  return {7, "seven"};
+}
+
+// Go's fmt.Fprintln(w, f()) is not valid, but std::apply works on the function objects in general.
+void test_applies_to_several_results() {
+  auto file = make_file();
+  std::apply(fmt::Fprintln, std::tuple_cat(std::tuple<std::FILE*>{file.get()}, results()));
+
+  check(read_file(file.get()) == "7 seven\n", "std::apply should pass each result as an operand");
 }
 
 void test_does_not_interpret_format_strings() {
@@ -180,6 +193,7 @@ void test_panic_value_prints_float_like_go() {
 int main() {
   test_adds_spaces_between_operands();
   test_does_not_interpret_format_strings();
+  test_applies_to_several_results();
   test_empty_call_writes_newline();
   test_prints_map_in_key_order();
   test_prints_nested_and_empty_maps();

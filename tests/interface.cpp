@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 
 using namespace eo;
 
@@ -57,6 +58,16 @@ struct Areaer : interface<Areaer> {
   using _eo_methods = eo::methods<eo::method<&Areaer::Area, "Area">>;
 };
 
+// A method with several results.
+struct Splitter : interface<Splitter> {
+  using interface::interface;
+  static constexpr std::string_view _eo_name = "main.Splitter";
+  auto Split(int64_t n) const -> std::tuple<int64_t, int64_t> {
+    return _eo_call<&Splitter::Split>(n);
+  }
+  using _eo_methods = eo::methods<eo::method<&Splitter::Split, "Split">>;
+};
+
 struct Rect {
   static constexpr std::string_view _eo_name = "main.Rect";
   int64_t W{};
@@ -66,10 +77,12 @@ struct Rect {
   static void Scale(ptr<Rect> r, int64_t k);
   static auto Name(Rect r) -> std::string;
   static auto String(Rect r) -> std::string;
+  static auto Split(Rect r, int64_t n) -> std::tuple<int64_t, int64_t>;
   using _eo_methods = eo::methods<eo::method<&Rect::Area, "Area">,
     eo::method<&Rect::Scale, "Scale">,
     eo::method<&Rect::Name, "Name">,
-    eo::method<&Rect::String, "String">>;
+    eo::method<&Rect::String, "String">,
+    eo::method<&Rect::Split, "Split">>;
 };
 
 auto Rect::Area(Rect r) -> int64_t {
@@ -87,6 +100,10 @@ auto Rect::Name(Rect) -> std::string {
 
 auto Rect::String(Rect r) -> std::string {
   return fmt::format("R{}x{}", r.W, r.H);
+}
+
+auto Rect::Split(Rect r, int64_t n) -> std::tuple<int64_t, int64_t> {
+  return {n * r.W, n * r.H};
 }
 
 struct Bag {
@@ -168,5 +185,12 @@ int main() {
   check(eo::type_assert<ptr<Shape>>(holds_pointer) == shape_pointer && !eo::holds<Named>(holds_pointer),
     "pointer to an interface");
   check(eo::detail::type_name<ptr<Shape>>() == "*main.Shape", "pointer to an interface name");
+
+  // Methods with several results, through a static and a run-time table.
+  Splitter splitter = Rect{.W = 2, .H = 5};
+  auto [w, h] = splitter.Split(3);
+  check(w == 6 && h == 15, "static table, several results");
+  auto [found, found_ok] = eo::type_assert_ok<Splitter>(any(Rect{.W = 1, .H = 4}));
+  check(found_ok && found.Split(2) == std::tuple<int64_t, int64_t>{2, 8}, "run-time table, several results");
   return 0;
 }
