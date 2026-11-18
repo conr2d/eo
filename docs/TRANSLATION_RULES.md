@@ -133,7 +133,7 @@ A type that the translation spells where the Go source does not, such as the typ
 
 A member can also hide an Eo name that `using namespace eo;` makes visible, such as a field named `ptr`, `ref`, `slice`, or `New`. Inside such a struct and its method definitions, that Eo name is written `eo::ptr`, `eo::ref`, and so on (see [#83](https://github.com/conr2d/eo/issues/83) for Eo name collisions in general).
 
-`::` reaches only package-level names. A struct type declared inside a function is not one, so a local struct whose field or embedded field shares a name with another local type has no translation yet.
+`::` reaches only package-level names. A struct type declared inside a function is not one, so a local struct type that a member or a local variable hides where the translation spells it has no translation yet: a field or embedded field named after another local type or after its own struct, and a boxed variable named after its local type.
 
 `::` names the global namespace, where a translated package's declarations are until packages have a mapping of their own.
 
@@ -432,7 +432,7 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 - a struct with a `String` or `Error` method, which `fmt` prints by calling the method; embedded interfaces; method sets of embedded fields, which decide interface satisfaction; and comparison of interface fields, which can panic ([#89](https://github.com/conr2d/eo/issues/89));
 - defined types that are not structs, such as `type Celsius float64` ([#90](https://github.com/conr2d/eo/issues/90)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
-- a method named after its own struct, which C++ does not allow, and a local struct whose member shares a name with another local type (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
+- a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
 - struct types declared in other files of the same package, which wait on a mapping of packages;
 - method values and method expressions, including promoted ones.
