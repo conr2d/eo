@@ -2,6 +2,7 @@
 #include <eo/sync.h>
 
 #include <cstdint>
+#include <string_view>
 
 using namespace eo;
 
@@ -11,12 +12,16 @@ struct Node;
 struct point;
 
 struct Config {
+  static constexpr std::string_view _eo_name = "main.Config";
+
   int64_t Depth{};
 
   auto operator==(const Config&) const -> bool = default;
 };
 
 struct Hash {
+  static constexpr std::string_view _eo_name = "main.Hash";
+
   int64_t Lo{}, Hi{};
 
   auto operator==(const Hash&) const -> bool = default;
@@ -24,6 +29,8 @@ struct Hash {
 
 // Node has a field named after its type and a method named after another type.
 struct Node {
+  static constexpr std::string_view _eo_name = "main.Node";
+
   ::Config Config{};
   int64_t Value{};
 
@@ -32,9 +39,14 @@ struct Node {
   static auto Hash(Node n) -> ::Hash;
   static auto Size(ptr<Node> n) -> int64_t;
   static void Reset(ptr<Node> n);
+
+  using _eo_methods =
+    eo::methods<eo::method<&Node::Hash, "Hash">, eo::method<&Node::Size, "Size">, eo::method<&Node::Reset, "Reset">>;
 };
 
 struct point {
+  static constexpr std::string_view _eo_name = "main.point";
+
   int64_t x{}, y{};
 
   auto operator==(const point&) const -> bool = default;

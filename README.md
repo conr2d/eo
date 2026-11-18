@@ -280,6 +280,8 @@ fmt.Println(p, *q == p, q)
 ```cpp
 // C++
 struct Point {
+  static constexpr std::string_view _eo_name = "main.Point";
+
   int64_t X{}, Y{};
 
   auto operator==(const Point&) const -> bool = default;
@@ -291,6 +293,61 @@ fmt::Println(p, *q == p, q); // {0 2} false &{1 2}
 ```
 
 See `docs/TRANSLATION_RULES.md` for declaration order, embedding, and names that members hide.
+
+### Interfaces
+
+A Go interface is a class derived from `eo::interface<I>`. A translated type lists its methods in `_eo_methods`, and a conversion finds the interface's methods there by name, so satisfaction stays implicit, as in Go. Nil and typed nil, equality, type assertions, and type switches behave as in Go, and `fmt::Println` calls `Error` and `String` methods.
+
+```go
+// Go
+type Shape interface {
+	Area() int
+}
+
+func (r Rect) Area() int { return r.W * r.H }
+
+var s Shape = Rect{W: 2, H: 3}
+r, ok := s.(Rect)
+fmt.Println(s.Area(), r.W, ok)
+```
+
+```cpp
+// C++
+struct Shape : interface<Shape> {
+  using interface::interface;
+  static constexpr std::string_view _eo_name = "main.Shape";
+
+  auto Area() const -> int64_t;
+
+  using _eo_methods = eo::methods<eo::method<&Shape::Area, "Area">>;
+};
+
+struct Rect {
+  static constexpr std::string_view _eo_name = "main.Rect";
+
+  int64_t W{}, H{};
+
+  auto operator==(const Rect&) const -> bool = default;
+
+  static auto Area(Rect r) -> int64_t;
+
+  using _eo_methods = eo::methods<eo::method<&Rect::Area, "Area">>;
+};
+
+auto Shape::Area() const -> int64_t {
+  return _eo_call<&Shape::Area>();
+}
+
+auto Rect::Area(Rect r) -> int64_t {
+  return r.W * r.H;
+}
+
+Shape s = Rect{.W = 2, .H = 3};
+auto [r, ok] = eo::type_assert_ok<Rect>(s);
+fmt::Println(s.Area(), r.W, ok); // 6 2 true
+```
+
+See `docs/TRANSLATION_RULES.md` for method tables, promoted methods, and type switches.
 
 ### Libraries
 

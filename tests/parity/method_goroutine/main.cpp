@@ -2,12 +2,15 @@
 #include <eo/fmt.h>
 
 #include <cstdint>
+#include <string_view>
 
 using namespace eo;
 
 struct Counter;
 
 struct Counter {
+  static constexpr std::string_view _eo_name = "main.Counter";
+
   int64_t n{};
   chan<int64_t> results{};
 
@@ -15,6 +18,8 @@ struct Counter {
 
   static auto loop(ptr<Counter> c) -> func<>;
   static void Start(ptr<Counter> c);
+
+  using _eo_methods = eo::methods<eo::method<&Counter::loop, "loop">, eo::method<&Counter::Start, "Start">>;
 };
 
 auto Counter::loop(ptr<Counter> c) -> func<> {

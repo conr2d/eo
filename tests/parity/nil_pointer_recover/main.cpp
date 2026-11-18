@@ -1,12 +1,15 @@
 #include <eo/fmt.h>
 
 #include <cstdint>
+#include <string_view>
 
 using namespace eo;
 
 struct T;
 
 struct T {
+  static constexpr std::string_view _eo_name = "main.T";
+
   int64_t n{};
 
   auto operator==(const T&) const -> bool = default;

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 using namespace eo;
 
@@ -9,12 +10,16 @@ struct Point;
 struct Labeled;
 
 struct Point {
+  static constexpr std::string_view _eo_name = "main.Point";
+
   int64_t X{}, Y{};
 
   auto operator==(const Point&) const -> bool = default;
 };
 
 struct Labeled {
+  static constexpr std::string_view _eo_name = "main.Labeled";
+
   std::string Name{};
   Point At{};
   slice<std::string> Tags{};

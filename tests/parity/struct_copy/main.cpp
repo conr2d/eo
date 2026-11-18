@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 using namespace eo;
 
@@ -11,6 +12,8 @@ struct Parent;
 struct Child;
 
 struct Inner {
+  static constexpr std::string_view _eo_name = "main.Inner";
+
   int64_t A{}, B{};
 
   auto operator==(const Inner&) const -> bool = default;
@@ -18,6 +21,8 @@ struct Inner {
 
 // Outer holds an Inner by value before Inner is declared.
 struct Outer {
+  static constexpr std::string_view _eo_name = "main.Outer";
+
   std::string Name{};
   Inner In{};
   ptr<int64_t> Count{};
@@ -28,6 +33,8 @@ struct Outer {
 
 // Parent and Child refer to each other through pointers.
 struct Parent {
+  static constexpr std::string_view _eo_name = "main.Parent";
+
   std::string Name{};
   ptr<Child> First{};
 
@@ -35,6 +42,8 @@ struct Parent {
 };
 
 struct Child {
+  static constexpr std::string_view _eo_name = "main.Child";
+
   std::string Name{};
   ptr<::Parent> Parent{};
   ptr<Child> Next{};

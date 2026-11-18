@@ -1,0 +1,12 @@
+24 4 6
+24 6
+6 37
+true false true
+nil interface recovered: runtime error: invalid memory address or nil pointer dereference
+nil pointer recovered: runtime error: invalid memory address or nil pointer dereference
+true false false true
+true false true false
+uncomparable recovered: runtime error: comparing uncomparable type main.Bag
+false
+36 12 #go #go
+24 24 2 12

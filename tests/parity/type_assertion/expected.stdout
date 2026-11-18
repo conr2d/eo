@@ -1,0 +1,17 @@
+2 3
+true false
+1 true
+circle true
+false
+8
+wrong type recovered: interface conversion: interface {} is int, not string
+nil recovered: interface conversion: interface {} is nil, not int
+named interface recovered: interface conversion: main.Shape is main.Rect, not *main.Circle
+missing method recovered: interface conversion: int is not main.Shape: missing method Area
+nil to interface recovered: interface conversion: interface is nil, not main.Namer
+nil
+int or string 1
+int or string s
+rect 1 1
+namer circle
+other

@@ -1,12 +1,15 @@
 #include <eo/fmt.h>
 
 #include <cstdint>
+#include <string_view>
 
 using namespace eo;
 
 struct Node;
 
 struct Node {
+  static constexpr std::string_view _eo_name = "main.Node";
+
   ptr<int64_t> p{};
   ptr<Node> next{};
 

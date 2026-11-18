@@ -2,12 +2,15 @@
 #include <eo/fmt.h>
 
 #include <cstdint>
+#include <string_view>
 
 using namespace eo;
 
 struct Pair;
 
 struct Pair {
+  static constexpr std::string_view _eo_name = "main.Pair";
+
   int64_t a{};
   int64_t b{};
 
