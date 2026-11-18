@@ -44,3 +44,16 @@ x
 count 7
 byte 0 104
 byte 1 105
+next called
+g called
+tail 2
+tail 3
+rune a
+rune b
+shadow 100
+shadow -10
+shadow 990
+shadow 400
+shadow 100
+shadow 101
+twice 8

@@ -7,6 +7,11 @@ func next() []int {
 	return []int{1, 2, 3}
 }
 
+func g() int {
+	fmt.Println("g called")
+	return 1
+}
+
 func main() {
 	// range over an integer
 	for i := range 3 {
@@ -112,4 +117,30 @@ func main() {
 	for i, b := range []byte("hi") {
 		fmt.Println("byte", i, b)
 	}
+
+	// a nested call in the range expression runs once, before the loop
+	for _, v := range next()[g():] {
+		fmt.Println("tail", v)
+	}
+
+	// an untyped rune constant ranges over rune values
+	for r := range 'c' - 'a' {
+		fmt.Println("rune", string(r+'a'))
+	}
+
+	// a body may redeclare a clause variable
+	for _, v := range s {
+		v := v * 10
+		fmt.Println("shadow", v)
+	}
+	for i := 0; i < 2; i++ {
+		i := i + 100
+		fmt.Println("shadow", i)
+	}
+
+	// the same variable on both sides is assigned the index, then the element
+	var x int
+	for x, x = range []int{7, 8} {
+	}
+	fmt.Println("twice", x)
 }

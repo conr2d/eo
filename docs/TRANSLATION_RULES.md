@@ -236,26 +236,26 @@ A `for range` loop over an integer, a slice, or a string maps to a C++ range-bas
 | --- | --- |
 | `for i := range n`, where `n` is an integer | `for (auto i : eo::range(n))` |
 | `for i, v := range s`, where `s` is a slice | `for (auto [i, v] : eo::range(s))` |
-| `for _, v := range s` | `for (auto [_eo_range_blank, v] : eo::range(s))` |
+| `for _, v := range s` | `for (auto [_eo_range_key, v] : eo::range(s))` |
 | `for i := range s` | `for (auto i : eo::range(eo::len(s)))` |
 | `for i, r := range str`, where `str` is a string | `for (auto [i, r] : eo::range(str))` |
-| `for _, r := range str` | `for (auto [_eo_range_blank, r] : eo::range(str))` |
-| `for i := range str` | `for (auto [i, _eo_range_blank] : eo::range(str))` |
-| `for range x` | `for ([[maybe_unused]] auto _eo_range_blank : eo::range(x))`, with `eo::len(s)` in place of a slice `s` |
+| `for _, r := range str` | `for (auto [_eo_range_key, r] : eo::range(str))` |
+| `for i := range str` | `for (auto [i, _eo_range_value] : eo::range(str))` |
+| `for range x` | `for ([[maybe_unused]] auto _eo_range_key : eo::range(x))`, with `eo::len(s)` in place of a slice `s` |
 
-A blank variable is the same as an omitted one, so `for i, _ := range s` is `for i := range s`, and `for _ = range x` and `for _, _ = range x` are `for range x`.
+A blank variable is the same as an omitted one, so `for i, _ := range s` is `for i := range s`, and `for _ = range x` and `for _, _ = range x` are `for range x`. Where the clause needs a C++ name that the Go source does not give, it uses the hidden name of the position: `_eo_range_key` for the first variable and `_eo_range_value` for the second. A clause never declares the same hidden name twice.
 
-- An integer `n` may have any Go integer type, and `i` has the same type. It takes the values 0 through `n-1`, and none when `n` is 0 or negative. An untyped constant `n` is written `T{L}`, as in [Untyped constant arguments](#untyped-constant-arguments), where `T` is `int`, or the type of the variable in the assignment form below: `for i := range 3` is `for (auto i : eo::range(int64_t{3}))`.
+- An integer `n` may have any Go integer type, and `i` has the same type. It takes the values 0 through `n-1`, and none when `n` is 0 or negative. An untyped constant `n` is written `T{L}`, as in [Untyped constant arguments](#untyped-constant-arguments), where `T` is the constant's default type, or the type of the variable in the assignment form below: `for i := range 3` is `for (auto i : eo::range(int64_t{3}))`, and `for i := range 'c' - 'a'` is `for (auto i : eo::range(int32_t{2}))`, because the default type of a rune constant is `rune`.
 - For a slice, `i` is an `int64_t` and `v` is a copy of the element. `eo::range(s)` holds a copy of `s`, so the number of iterations is `len(s)` when the loop starts: assigning `s` or appending to it in the body does not change the loop. Each element is read from the original backing array when its iteration starts, so the loop sees what the body wrote to a later element, as in Go. `for i := range s` reads no element, as in Go, so it ranges over `eo::len(s)`.
 - For a string, `i` is the `int64_t` byte index of each UTF-8 sequence and `r` is its code point as an `int32_t`. A byte that does not start a valid sequence gives U+FFFD and advances one byte, as `[]rune(str)` does (see [Slices](#slices)). `eo::range(str)` holds a copy of `str`, so assigning `str` in the body does not change the loop.
 
 C++ declares the variables of a range-based `for` again for each iteration, as Go 1.22 does, so the loop's own update is not a write to the previous iteration's variables. A function literal that captures a range variable by reference and is not boxed captures it with `&`, as in `[=, &v]`, which C++20 allows for a structured binding.
 
-`break` and `continue` are C++ `break` and `continue`. The range expression is the argument of `eo::range` and follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_blank, v] : eo::range(next()))`.
+`break` and `continue` are C++ `break` and `continue`. The range expression is the argument of `eo::range` and follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_key, v] : eo::range(next()))`. A nested Go call in the range expression is saved before the `for` statement, as in `for _, v := range next()[g():]`, which is `auto _eo_call_0 = next();`, `auto _eo_call_1 = g();`, and `for (auto [_eo_range_key, v] : eo::range(eo::subslice(_eo_call_0, _eo_call_1)))`.
 
 #### Boxed range variables
 
-A variable that a `range` clause declares is not boxed by rule 2 of [Boxed variables](#boxed-variables), because it is declared in the loop's own clause. When the escape facts report it moved to heap, the clause declares its value under the hidden name `_eo_range_<x>`, and the first statements of the body box it, in clause order:
+A variable that a `range` clause declares is not boxed by rule 2 of [Boxed variables](#boxed-variables), because it is declared in the loop's own clause. When the escape facts report it moved to heap, the clause declares its value under the hidden name of its position, and the first statements of the body box it, in clause order:
 
 ```go
 var values []*int
@@ -266,8 +266,8 @@ for _, v := range []int{1, 2, 3} {
 
 ```cpp
 slice<ptr<int64_t>> values;
-for (auto [_eo_range_blank, _eo_range_v] : eo::range(slice<int64_t>::of({1, 2, 3}))) {
-  auto v = New<int64_t>(_eo_range_v);
+for (auto [_eo_range_key, _eo_range_value] : eo::range(slice<int64_t>::of({1, 2, 3}))) {
+  auto v = New<int64_t>(_eo_range_value);
   values = eo::append(values, {v});
 }
 ```
@@ -276,7 +276,7 @@ Each iteration boxes a new variable, so every pointer keeps its own value, as in
 
 #### Assigning range values
 
-In the assignment form, `for k, v = range x`, the clause declares `_eo_range_k` and `_eo_range_v`, and the first statements of the body assign them to the variables, in order:
+In the assignment form, `for k, v = range x`, the clause declares `_eo_range_key` and `_eo_range_value`, and the first statements of the body assign them to the variables, in order:
 
 ```go
 for k, w = range words {
@@ -284,13 +284,33 @@ for k, w = range words {
 ```
 
 ```cpp
-for (auto [_eo_range_k, _eo_range_w] : eo::range(words)) {
-  k = _eo_range_k;
-  w = _eo_range_w;
+for (auto [_eo_range_key, _eo_range_value] : eo::range(words)) {
+  k = _eo_range_key;
+  w = _eo_range_value;
 }
 ```
 
-A boxed variable is assigned as `*k = _eo_range_k;`, and a blank one takes `_eo_range_blank` and is not assigned. After the loop, the variables hold the values of the last iteration, and a loop with no iterations leaves them unchanged, as in Go. A left operand that is not a variable, such as `s[i]`, `p.f`, or `*p`, is not covered yet.
+A boxed variable is assigned as `*k = _eo_range_key;`, and a blank one is not assigned. The same variable may appear on both sides, as in `for i, i = range s`, and is assigned twice, in order, as in Go. After the loop, the variables hold the values of the last iteration, and a loop with no iterations leaves them unchanged, as in Go. A left operand that is not a variable, such as `s[i]`, `p.f`, or `*p`, is not covered yet.
+
+#### Clause variables redeclared in the body
+
+A loop body is a block inside the loop's clause in Go, so the body may declare a variable with the name of a clause variable, as in the idiom `v := v`. C++ does not allow a declaration in the outermost block of a `for` body to reuse a name that the `for` statement declares. Such a variable is renamed `_eo_shadow_<x>` from its declaration to the end of the body, in a three-clause loop as well as in a `range` loop. Its initializer still refers to the clause variable:
+
+```go
+for _, v := range s {
+	v := v * 10
+	fmt.Println(v)
+}
+```
+
+```cpp
+for (auto [_eo_range_key, v] : eo::range(s)) {
+  auto _eo_shadow_v = v * 10;
+  fmt::Println(_eo_shadow_v);
+}
+```
+
+The rename applies to the outermost block of the body only. A declaration in a nested block hides the clause variable in C++ as it does in Go, and keeps its name. A boxed clause variable is declared in the body under its own name, so a body declaration of the same name is renamed too, and its initializer reads the box, as in `auto _eo_shadow_v = *v;`.
 
 Not covered yet: `range` over a channel ([#97](https://github.com/conr2d/eo/issues/97)), a map ([#88](https://github.com/conr2d/eo/issues/88)), an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
 
@@ -422,7 +442,7 @@ This shape does not cover:
 - an init statement that declares variables of different translated types, or a boxed and an unboxed variable, because one C++ `auto` declaration cannot declare them together;
 - a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`.
 
-A variable that a `range` clause declares is boxed as described in [Boxed range variables](#boxed-range-variables).
+A variable that a `range` clause declares is boxed as described in [Boxed range variables](#boxed-range-variables). A body that declares a variable with the name of a clause variable renames it as described in [Clause variables redeclared in the body](#clause-variables-redeclared-in-the-body).
 
 #### Function literals
 

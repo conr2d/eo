@@ -11,6 +11,11 @@ auto next() -> slice<int64_t> {
   return slice<int64_t>::of({1, 2, 3});
 }
 
+auto g() -> int64_t {
+  fmt::Println("g called"s);
+  return 1;
+}
+
 func<> eo_main() {
   // range over an integer
   for (auto i : eo::range(int64_t{3})) {
@@ -21,7 +26,7 @@ func<> eo_main() {
     fmt::Println("uint8"s, i);
   }
   auto count = int64_t{0};
-  for ([[maybe_unused]] auto _eo_range_blank : eo::range(int64_t{4})) {
+  for ([[maybe_unused]] auto _eo_range_key : eo::range(int64_t{4})) {
     count++;
   }
   fmt::Println("count"s, count);
@@ -33,12 +38,12 @@ func<> eo_main() {
     fmt::Println("negative"s, i);
   }
   auto j = int64_t{7};
-  for (auto _eo_range_j : eo::range(int64_t{3})) {
-    j = _eo_range_j;
+  for (auto _eo_range_key : eo::range(int64_t{3})) {
+    j = _eo_range_key;
   }
   fmt::Println("assigned"s, j);
-  for (auto _eo_range_j : eo::range(int64_t{0})) {
-    j = _eo_range_j;
+  for (auto _eo_range_key : eo::range(int64_t{0})) {
+    j = _eo_range_key;
   }
   fmt::Println("unchanged"s, j);
 
@@ -58,7 +63,7 @@ func<> eo_main() {
     u = eo::append(u, {i});
   }
   fmt::Println(u, eo::len(u));
-  for (auto [_eo_range_blank, v] : eo::range(next())) {
+  for (auto [_eo_range_key, v] : eo::range(next())) {
     fmt::Println("once"s, v);
   }
   slice<std::string> none;
@@ -66,23 +71,23 @@ func<> eo_main() {
     fmt::Println("never"s, i);
   }
   auto words = slice<std::string>::of({"a"s, "b"s});
-  for (auto [_eo_range_blank, w] : eo::range(words)) {
+  for (auto [_eo_range_key, w] : eo::range(words)) {
     w += "!"s;
     fmt::Println(w);
   }
   fmt::Println(words);
   int64_t k{};
   std::string w;
-  for (auto [_eo_range_k, _eo_range_w] : eo::range(words)) {
-    k = _eo_range_k;
-    w = _eo_range_w;
+  for (auto [_eo_range_key, _eo_range_value] : eo::range(words)) {
+    k = _eo_range_key;
+    w = _eo_range_value;
   }
   fmt::Println(k, w);
   for (auto [i, v] : eo::range(s)) {
     auto sum = [=]() mutable -> int64_t { return i + v; };
     fmt::Println("captured"s, sum());
   }
-  for (auto [_eo_range_blank, v] : eo::range(slice<int64_t>::of({5}))) {
+  for (auto [_eo_range_key, v] : eo::range(slice<int64_t>::of({5}))) {
     auto inc = [=, &v]() mutable { v++; };
     inc();
     fmt::Println("by ref"s, v);
@@ -93,7 +98,7 @@ func<> eo_main() {
     if (i == 1) {
       continue;
     }
-    for (auto [_eo_range_blank, v] : eo::range(s)) {
+    for (auto [_eo_range_key, v] : eo::range(s)) {
       if (v > 50) {
         break;
       }
@@ -106,19 +111,49 @@ func<> eo_main() {
     fmt::Println("string"s, i, r);
   }
   auto str = "h\u00e9llo"s;
-  for (auto [i, _eo_range_blank] : eo::range(str)) {
+  for (auto [i, _eo_range_value] : eo::range(str)) {
     if (i == 0) {
       str = "x"s;
     }
     fmt::Println("index"s, i);
   }
   fmt::Println(str);
-  for ([[maybe_unused]] auto _eo_range_blank : eo::range("abc"s)) {
+  for ([[maybe_unused]] auto _eo_range_key : eo::range("abc"s)) {
     count++;
   }
   fmt::Println("count"s, count);
   for (auto [i, b] : eo::range(eo::bytes_from_string("hi"s))) {
     fmt::Println("byte"s, i, b);
   }
+
+  // a nested call in the range expression runs once, before the loop
+  auto _eo_call_0 = next();
+  auto _eo_call_1 = g();
+  for (auto [_eo_range_key, v] : eo::range(eo::subslice(_eo_call_0, _eo_call_1))) {
+    fmt::Println("tail"s, v);
+  }
+
+  // an untyped rune constant ranges over rune values
+  for (auto r : eo::range(int32_t{2})) {
+    fmt::Println("rune"s, eo::string_from_rune(r + 'a'));
+  }
+
+  // a body may redeclare a clause variable
+  for (auto [_eo_range_key, v] : eo::range(s)) {
+    auto _eo_shadow_v = v * 10;
+    fmt::Println("shadow"s, _eo_shadow_v);
+  }
+  for (auto i = int64_t{0}; i < 2; i++) {
+    auto _eo_shadow_i = i + 100;
+    fmt::Println("shadow"s, _eo_shadow_i);
+  }
+
+  // the same variable on both sides is assigned the index, then the element
+  int64_t x{};
+  for (auto [_eo_range_key, _eo_range_value] : eo::range(slice<int64_t>::of({7, 8}))) {
+    x = _eo_range_key;
+    x = _eo_range_value;
+  }
+  fmt::Println("twice"s, x);
   co_return;
 }

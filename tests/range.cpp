@@ -32,7 +32,7 @@ int main() {
   }
   check(int8_count == 127, "range of int8 maximum");
   auto uint8_count = 0;
-  for ([[maybe_unused]] auto _eo_range_blank : eo::range(uint8_t{255})) {
+  for ([[maybe_unused]] auto _eo_range_key : eo::range(uint8_t{255})) {
     ++uint8_count;
   }
   check(uint8_count == 255, "range of uint8 maximum");

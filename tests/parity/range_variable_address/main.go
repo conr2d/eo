@@ -54,4 +54,11 @@ func main() {
 		fmt.Println("last", *q)
 	}
 	fmt.Println(*q)
+
+	// The assignment form writes a boxed variable through its box.
+	var k int
+	values = append(values, &k)
+	for k = range 3 {
+	}
+	fmt.Println("boxed", *values[len(values)-1], k)
 }

@@ -180,7 +180,8 @@ void test_pointers_hash_by_address() {
   check(set.size() == 2, "equal pointers hash differently");
 }
 
-// A thread that releases pointers frees its release queue when it exits, which LeakSanitizer checks.
+// A thread that releases pointers keeps no release queue after it exits. Only LeakSanitizer sees a
+// leaked queue, so the sanitizer build is what checks this.
 void test_release_on_an_exiting_thread() {
   auto worker = std::thread([] {
     auto head = New<Node>();
