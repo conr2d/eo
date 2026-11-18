@@ -1,10 +1,11 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 func<> eo_main() {
-  ptr<int> p;
+  ptr<int64_t> p;
   fmt::Println("before"s);
   fmt::Println(*p);
   fmt::Println("after"s);

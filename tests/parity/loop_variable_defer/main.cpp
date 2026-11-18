@@ -1,12 +1,13 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 void count() {
   eo_defer_scope;
   try {
-    for (auto i = New<int>(0); *i < 6; i = New<int>(*i), (*i)++) {
+    for (auto i = New<int64_t>(0); *i < 6; i = New<int64_t>(*i), (*i)++) {
       eo_defer([&, i]() mutable { fmt::Println("deferred"s, *i); });
       (*i)++;
     }

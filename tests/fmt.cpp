@@ -140,6 +140,33 @@ void test_prints_nested_pointer_as_address() {
     "Fprintln should print a pointer inside a struct as an address");
 }
 
+struct Point {
+  double X{};
+  float Y{};
+
+  auto operator==(const Point&) const -> bool = default;
+};
+
+void test_prints_floats_like_go() {
+  auto file = make_file();
+  auto zero = 0.0;
+  fmt::Fprintln(file.get(), 1e6, 123456.0, 1234567.0, 1e-4, 1e-5, 0.1, 3.0, -zero, 1 / zero, -1 / zero, zero / zero);
+  fmt::Fprintln(file.get(), 0.1f, 16777216.0f, 1.0f / 3, 5e-324, 1.7976931348623157e308);
+  fmt::Fprintln(file.get(),
+    eo::slice<double>::of({0.5, 2e21}),
+    Point{.X = 1e6, .Y = 0.25f},
+    std::map<double, float>{{1.5, 1e-7f}},
+    int8_t{-56},
+    uint8_t{200});
+
+  // Each line is Go's output for the same values.
+  check(read_file(file.get()) ==
+      "1e+06 123456 1.234567e+06 0.0001 1e-05 0.1 3 -0 +Inf -Inf NaN\n"
+      "0.1 1.6777216e+07 0.33333334 5e-324 1.7976931348623157e+308\n"
+      "[0.5 2e+21] {1e+06 0.25} map[1.5:1e-07] -56 200\n",
+    "Fprintln should print floats like Go's %v, also inside other values");
+}
+
 int main() {
   test_adds_spaces_between_operands();
   test_does_not_interpret_format_strings();
@@ -152,4 +179,5 @@ int main() {
   test_prints_slice_of_structs_and_empty_struct();
   test_prints_pointer_operand_as_its_target();
   test_prints_nested_pointer_as_address();
+  test_prints_floats_like_go();
 }

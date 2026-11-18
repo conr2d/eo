@@ -1,13 +1,15 @@
-// Provisional: a nil channel field, channels, and Go int are not frozen mappings (see ../README.md).
+// Provisional: a nil channel field and channels are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 struct Counter;
 
 struct Counter {
-  int n{};
-  chan<int> results{};
+  int64_t n{};
+  chan<int64_t> results{};
 
   auto operator==(const Counter&) const -> bool = default;
 
@@ -26,7 +28,7 @@ void Counter::Start(ptr<Counter> c) {
 }
 
 // spawn returns before the goroutine that Start launches has run, so c must outlive spawn.
-void spawn(chan<int> results, int n) {
+void spawn(chan<int64_t> results, int64_t n) {
   auto c = New<Counter>();
   c->n = n;
   c->results = results;
@@ -34,7 +36,7 @@ void spawn(chan<int> results, int n) {
 }
 
 func<> eo_main() {
-  auto results = make_chan<int>();
+  auto results = make_chan<int64_t>();
   spawn(results, 1);
   spawn(results, 2);
   fmt::Println("sum"s, co_await *results + co_await *results);

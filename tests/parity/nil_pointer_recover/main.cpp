@@ -1,18 +1,19 @@
-// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 struct T;
 
 struct T {
-  int n{};
+  int64_t n{};
 
   auto operator==(const T&) const -> bool = default;
 };
 
-auto read(ptr<T> p) -> int {
-  int n{};
+auto read(ptr<T> p) -> int64_t {
+  int64_t n{};
   eo_defer_scope;
   try {
     eo_defer([&] {

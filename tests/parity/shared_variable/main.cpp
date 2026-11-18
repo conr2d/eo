@@ -1,10 +1,12 @@
-// Provisional: channel operations and the C++ type of Go int are not frozen mappings (see ../README.md).
+// Provisional: channel operations are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 func<> eo_main() {
-  auto x = New<int>(0);
+  auto x = New<int64_t>(0);
   auto done = make_chan<bool>();
   go([=]() mutable -> func<> {
     *x = 42;

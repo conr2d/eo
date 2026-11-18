@@ -1,5 +1,3 @@
-// Provisional: the C++ type of Go int, and untyped constants in composite literals, appends, and
-// assignments, are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>

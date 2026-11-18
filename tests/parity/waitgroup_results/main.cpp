@@ -1,14 +1,16 @@
-// Provisional: channel operations and the C++ type of Go int are not frozen mappings (see ../README.md).
+// Provisional: channel operations are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/sync.h>
+
+#include <cstdint>
 
 using namespace eo;
 
 func<> eo_main() {
-  auto results = make_chan<int>(5);
+  auto results = make_chan<int64_t>(5);
   auto wg = New<sync::WaitGroup>();
 
-  for (auto i = 1; i <= 5; i++) {
+  for (auto i = int64_t{1}; i <= 5; i++) {
     wg->Add(1);
     go([=]() mutable -> func<> {
       eo_defer_scope;
@@ -27,8 +29,8 @@ func<> eo_main() {
   co_await wg->Wait();
   results.close();
 
-  auto sum = 0;
-  for (auto j = 0; j < 5; j++) {
+  auto sum = int64_t{0};
+  for (auto j = int64_t{0}; j < 5; j++) {
     sum += co_await *results;
   }
   fmt::Println("sum"s, sum);
