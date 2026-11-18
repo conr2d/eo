@@ -1014,7 +1014,7 @@ A function or method with more than one result returns a `std::tuple` of the tra
 
 `return {a, b};` initializes the tuple from a braced list, which C++ evaluates left to right, as Go evaluates the operands of `return`. A coroutine names the tuple type, because `co_return` passes its operand to a function template of `func<T>`, which cannot deduce a type from a braced list. For [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), the list of a `return` is one full expression with no outermost call.
 
-A function with named results declares each of them at the start of its body, as `T name{};` in order, whether or not it has a `defer` statement. A bare `return` returns them, as `return {q, r};` for several results and `return q;` for one. A function with a `defer` statement also assigns them differently, as described in [Defer](#defer).
+A function with named results declares each of them at the start of its body, as `T name{};` in order, whether or not it has a `defer` statement. A named result that is [boxed](#boxed-variables) is declared as `auto name = New<T>();` and returned as `*name`, and a result named `_` is an unnamed result, `_eo_result_N`. A bare `return` returns them, as `return {q, r};` for several results and `return q;` for one. A function with a `defer` statement also assigns them differently, as described in [Defer](#defer).
 
 #### Declaring and assigning several results
 
@@ -1039,7 +1039,7 @@ std::string n{};
 std::tie(k, std::ignore, n) = h();
 ```
 
-A structured binding's names are ordinary variables for the other rules: a lambda copies one with `[=]` or captures it by reference with `[&v]`, and `ref(v)` takes its address. The init statement of an `if` or `switch` declares new variables only, so it uses form 1 or 2: `if _, ok := f(); ok` is `if (auto ok = std::get<1>(f()); ok)`, and `if v, ok := f(); ok` is `if (auto [v, ok] = f(); ok)`.
+A structured binding's names are ordinary variables for the other rules: a lambda copies one with `[=]` or captures it by reference with `[&v]`, and `ref(v)` takes its address. A `:=` in the init statement of an `if` or `switch` declares new variables only, so it uses form 1 or 2: `if _, ok := f(); ok` is `if (auto ok = std::get<1>(f()); ok)`, and `if v, ok := f(); ok` is `if (auto [v, ok] = f(); ok)`. An assignment there keeps its form: `if v, err = f(); err != nil` is `if (std::tie(v, err) = f(); err != nullptr)`.
 
 The comma-ok form of a type assertion follows the same forms with a `std::pair`, whose single-operand form is written with `.first` and `.second` (see [Type assertions](#type-assertions)).
 
@@ -1047,7 +1047,7 @@ The comma-ok form of a type assertion follows the same forms with a `std::pair`,
 
 Go's `h(f())` passes each result of `f` as an argument of `h`. It is `std::apply(h, f())`, where `h` is a package-level function, or an Eo library function such as `fmt.Println`, which is a function object for this reason: `fmt.Println(f())` is `std::apply(fmt::Println, f())`. A coroutine `h` is called as `co_await std::apply(h, f())`, and a coroutine `f` as `std::apply(h, co_await f())`. For [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), `std::apply(h, f())` is the call of `h`.
 
-`go h(f())` and `defer h(f())` evaluate `f()` when the statement runs. Each argument temporary is declared with the value type of the parameter of `h` it is passed to, as `go` temporaries are (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)), and is then assigned from `f()` by the `std::tie` form:
+`go h(f())` and `defer h(f())` evaluate `f()` when the statement runs. Each argument temporary is declared with the value type of the parameter of `h` it is passed to, as `go` temporaries are (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)), and is then assigned from `f()` by the `std::tie` form. When `h` is an Eo library function object, such as `fmt::Println`, whose parameters are templates, each temporary takes the type of the result of `f` it holds:
 
 ```go
 defer show(pair(n)) // func show(n int, s string)
@@ -1064,9 +1064,11 @@ eo_defer([=] { show(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 
 #### Multiple results not covered yet
 
-- an assignment or declaration of several values that are not one call, such as `a, b = b, a` and `x, y := 1, 2`;
+- an assignment or declaration of several values that are not one call, such as `a, b = b, a` and `x, y := 1, 2` ([#111](https://github.com/conr2d/eo/issues/111));
 - an assignment `=` whose left side has an operand other than a variable or `_`, such as `x.f`, `*p`, or `s[i]`: Go evaluates the index and pointer operands on the left before the call and assigns the operands left to right, while C++ evaluates the operands of `std::tie` after the call, so a nil `*p` or an index out of range would panic before the operands to its left are assigned;
-- an init statement of an `if` or `switch` that would need form 3, because one of its variables is boxed or it has `_` and at least two other operands;
+- an assignment that names the same variable twice, as in `x, x = f()`, where Go keeps the last value and `std::tuple` does not specify the order in which it assigns its elements;
+- a `:=` in the init statement of an `if` or `switch` that would need form 3, because one of its variables is boxed or it has `_` and at least two other operands, and a `for` init statement with several results;
+- `return a, b` in a function without a `defer` statement whose named results a function literal or a pointer can reach: Go assigns the named results before returning, and a goroutine that shares them can observe it, while `return {a, b};` leaves them unchanged;
 - `h(f())` where `h` is a method, a function value, or a variadic Go function, and `go` or `defer` statements of such calls.
 
 ### Goroutine
