@@ -1,3 +1,4 @@
+// Provisional: channel creation, operations, and close are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>

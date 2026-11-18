@@ -3,17 +3,15 @@
 //
 #pragma once
 #include <eo/core.h>
+#include <eo/float.h>
 
 #include <boost/pfr.hpp>
 #include <fmt/format.h>
 #include <array>
-#include <charconv>
-#include <cmath>
 #include <concepts>
 #include <cstdio>
 #include <iterator>
 #include <map>
-#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -47,22 +45,6 @@ inline constexpr bool is_pointer_to_composite = false;
 // Go's fmt prints an operand that points to a struct, slice, or map as & followed by its target.
 template<typename T>
 inline constexpr bool is_pointer_to_composite<eo::ptr<T>> = is_composite<T>;
-
-// A float32 or float64 value printed as Go's %v prints it, which differs from fmt's {}.
-template<std::floating_point F>
-struct go_float {
-  F value;
-};
-
-// The value to format with {} for Go's %v: a float wrapped in go_float, and anything else itself.
-template<typename T>
-auto go_value(const T& v) -> decltype(auto) {
-  if constexpr (std::floating_point<T>) {
-    return go_float<T>{v};
-  } else {
-    return (v);
-  }
-}
 
 } // namespace eo::detail
 
@@ -162,43 +144,6 @@ struct formatter<eo::slice<T>> {
       first = false;
     }
     return fmt::format_to(out, "]");
-  }
-};
-
-// Go's %v of a float, which is strconv.FormatFloat(v, 'g', -1, bits): the shortest decimal that reads
-// back as the same value, in exponent form when the exponent is below -4 or at least 6, as in 1e+06,
-// and +Inf, -Inf, and NaN.
-template<std::floating_point F>
-struct formatter<eo::detail::go_float<F>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const eo::detail::go_float<F>& f, FormatContext& ctx) const {
-    auto v = f.value;
-    if (std::isnan(v)) {
-      return fmt::format_to(ctx.out(), "NaN");
-    }
-    if (std::isinf(v)) {
-      return fmt::format_to(ctx.out(), "{}", v > 0 ? "+Inf" : "-Inf");
-    }
-    char buf[64];
-    // The shortest scientific form, such as 1.234567e+06 or 1e-05, has Go's digits and Go's
-    // exponent of at least two digits.
-    auto scientific = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::scientific);
-    auto text = std::string_view(buf, scientific.ptr);
-    auto e = text.find('e');
-    auto digits = text.substr(e + 2);
-    int exponent = 0;
-    std::from_chars(digits.data(), digits.data() + digits.size(), exponent);
-    if (text[e + 1] == '-') {
-      exponent = -exponent;
-    }
-    if (exponent < -4 || exponent >= 6) {
-      return fmt::format_to(ctx.out(), "{}", text);
-    }
-    auto fixed = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::fixed);
-    return fmt::format_to(ctx.out(), "{}", std::string_view(buf, fixed.ptr));
   }
 };
 

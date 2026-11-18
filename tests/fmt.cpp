@@ -167,6 +167,16 @@ void test_prints_floats_like_go() {
     "Fprintln should print floats like Go's %v, also inside other values");
 }
 
+void test_panic_value_prints_float_like_go() {
+  try {
+    eo::panic(1e6);
+  } catch (const eo::Panic& p) {
+    check(p.message() == "1e+06", "a float panic value should print like Go's %v");
+    return;
+  }
+  check(false, "expected a panic");
+}
+
 int main() {
   test_adds_spaces_between_operands();
   test_does_not_interpret_format_strings();
@@ -180,4 +190,5 @@ int main() {
   test_prints_pointer_operand_as_its_target();
   test_prints_nested_pointer_as_address();
   test_prints_floats_like_go();
+  test_panic_value_prints_float_like_go();
 }

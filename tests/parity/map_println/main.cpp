@@ -1,3 +1,4 @@
+// Provisional: map as std::map is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>

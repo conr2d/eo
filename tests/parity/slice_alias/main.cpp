@@ -64,7 +64,7 @@ func<> eo_main() {
   fmt::Println(words, eo::len(eo::at(words, 2)), eo::at(words, 2) == nullptr, eo::at(eo::at(words, 1), 0));
 
   auto bs = eo::bytes_from_string("héllo"s);
-  eo::at(bs, 0) = 'H';
+  eo::at(bs, 0) = 72;
   bs = eo::append_slice(bs, " world"s);
   fmt::Println(eo::subslice(bs, 0, 3), eo::string_from_bytes(bs));
   n = eo::copy(bs, "J"s);
