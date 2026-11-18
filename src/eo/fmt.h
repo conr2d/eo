@@ -131,17 +131,30 @@ inline auto Stringer::String() const -> std::string {
   return _eo_call<&Stringer::String>();
 }
 
-// The operands are taken by value, as Go passes them. A reference would refer into a slice's backing
-// array, which another operand's call can free before the line is formatted.
-template<typename... T>
-void Println(T... args) {
-  detail::print_line(stdout, std::move(args)...);
-}
+namespace detail {
 
-template<typename... T>
-void Fprintln(std::FILE* f, T... args) {
-  detail::print_line(f, std::move(args)...);
-}
+  // The operands are taken by value, as Go passes them. A reference would refer into a slice's backing
+  // array, which another operand's call can free before the line is formatted.
+  struct println_fn {
+    template<typename... T>
+    void operator()(T... args) const {
+      print_line(stdout, std::move(args)...);
+    }
+  };
+
+  struct fprintln_fn {
+    template<typename... T>
+    void operator()(std::FILE* f, T... args) const {
+      print_line(f, std::move(args)...);
+    }
+  };
+
+} // namespace detail
+
+// Function objects rather than function templates, so that Go's fmt.Println(f()), where f has several
+// results, translates to std::apply(fmt::Println, f()).
+inline constexpr detail::println_fn Println{};
+inline constexpr detail::fprintln_fn Fprintln{};
 
 template<typename K, typename V>
 struct formatter<std::pair<K, V>> {

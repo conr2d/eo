@@ -349,6 +349,32 @@ fmt::Println(s.Area(), r.W, ok); // 6 2 true
 
 See `docs/TRANSLATION_RULES.md` for method tables, promoted methods, and type switches.
 
+### Multiple results
+
+A Go function with several results returns a `std::tuple`. The results are declared with a structured binding, assigned with `std::tie`, and passed on to another call with `std::apply`.
+
+```go
+// Go
+func divmod(a, b int) (int, int) {
+	return a / b, a % b
+}
+
+q, r := divmod(17, 5)
+q, _ = divmod(9, 4)
+fmt.Println(divmod(7, 2))
+```
+
+```cpp
+// C++
+auto divmod(int64_t a, int64_t b) -> std::tuple<int64_t, int64_t> {
+  return {eo::div(a, b), eo::rem(a, b)};
+}
+
+auto [q, r] = divmod(17, 5);
+q = std::get<0>(divmod(9, 4));
+std::apply(fmt::Println, divmod(7, 2)); // 3 1
+```
+
 ### Libraries
 
 Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling when it is a valid, non-reserved C++ identifier, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.

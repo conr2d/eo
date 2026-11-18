@@ -985,7 +985,7 @@ Go calls these methods only for exported struct fields, and for the fields of st
 #### Interfaces not covered yet
 
 - the `error` interface, the `errors` package, `fmt.Errorf`, and the type of a recovered panic value ([#89](https://github.com/conr2d/eo/issues/89));
-- interface methods with several results ([#106](https://github.com/conr2d/eo/issues/106)), and methods translated as coroutines, whose signatures differ from the interface's ([#108](https://github.com/conr2d/eo/issues/108));
+- methods translated as coroutines, whose signatures differ from the interface's ([#108](https://github.com/conr2d/eo/issues/108));
 - method values and method expressions of interfaces, and `go` and `defer` launches of interface method calls ([#67](https://github.com/conr2d/eo/issues/67));
 - interface values as map keys ([#88](https://github.com/conr2d/eo/issues/88)), `%T`, and `fmt` functions other than `Println`;
 - generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
@@ -993,6 +993,83 @@ Go calls these methods only for exported struct fields, and for the fields of st
 - a `break` inside a type switch clause, which would leave an enclosing loop;
 - comparing interface values that hold a struct with a `sync.Mutex` or another Eo library type without `==`, which Go compares and Eo reports as uncomparable;
 - a pointer to an interface, `*I`, beyond holding it, comparing it, and printing it as an address.
+
+### Multiple results
+
+A function or method with more than one result returns a `std::tuple` of the translated result types, in order, from `<tuple>`. A coroutine returns `func<std::tuple<...>>`. A function with one result keeps that result's type. A method of an interface type returns the same type as the methods that implement it (see [Interface types](#interface-types)).
+
+| Go | C++ |
+| --- | --- |
+| `func f() (int, string)` | `auto f() -> std::tuple<int64_t, std::string>` |
+| `return a, b` | `return {a, b};`, and `co_return std::tuple<T0, T1>{a, b};` in a coroutine |
+| `return g()`, where `g` has several results | `return g();` |
+| `v, w := f()`, `var v, w = f()` | `auto [v, w] = f();` |
+| `v, w = f()` | `std::tie(v, w) = f();` |
+| `v, _ := f()`, `_, w := f()` | `auto v = std::get<0>(f());`, `auto w = std::get<1>(f());` |
+| `v, _ = f()`, `_, w = f()` | `v = std::get<0>(f());`, `w = std::get<1>(f());` |
+| `_, _ = f()` | `f();` |
+| `h(f())` | `std::apply(h, f())` |
+
+`f()` stands for any call with several results, including a method call, an interface method call, and `co_await g()` for a coroutine `g`. A `return` is `co_return` in a coroutine, as for any result.
+
+`return {a, b};` initializes the tuple from a braced list, which C++ evaluates left to right, as Go evaluates the operands of `return`. A coroutine names the tuple type, because `co_return` passes its operand to a function template of `func<T>`, which cannot deduce a type from a braced list. For [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), the list of a `return` is one full expression with no outermost call.
+
+A function with named results declares each of them at the start of its body, as `T name{};` in order, whether or not it has a `defer` statement. A named result that is [boxed](#boxed-variables) is declared as `auto name = New<T>();` and returned as `*name`, and a result named `_` is an unnamed result, `_eo_result_N`. A bare `return` returns them, as `return {q, r};` for several results and `return q;` for one. A function with a `defer` statement also assigns them differently, as described in [Defer](#defer).
+
+#### Declaring and assigning several results
+
+A `:=`, a `var` without a type, or an assignment `=` whose right side is one call with several results takes the first of these forms that applies:
+
+1. Exactly one operand on the left is not `_`: the `std::get<I>` form, where `I` is that operand's position, from 0. A boxed variable is declared as `auto v = New<T>(std::get<I>(f()));`, and assigned as `*v = std::get<I>(f());`.
+2. A `:=` or `var` whose operands on the left are all new variables, none of them `_` or [boxed](#boxed-variables): a structured binding, `auto [v, w] = f();`.
+3. Otherwise, each new variable is declared first, in order, as `T v{};`, or `auto v = New<T>();` when it is boxed, and the `std::tie` form then assigns every operand. `_` is `std::ignore`, and a boxed `v` is `*v`. This covers a `:=` that declares only some of its variables, a `:=` with `_` and at least two other operands, and `var v, w T = f()`, which names the type.
+
+```go
+a, err := f()
+b, err := g() // err is not new
+k, _, n := h()
+```
+
+```cpp
+auto [a, err] = f();
+int64_t b{};
+std::tie(b, err) = g();
+int64_t k{};
+std::string n{};
+std::tie(k, std::ignore, n) = h();
+```
+
+A structured binding's names are ordinary variables for the other rules: a lambda copies one with `[=]` or captures it by reference with `[&v]`, and `ref(v)` takes its address. A `:=` in the init statement of an `if` or `switch` declares new variables only, so it uses form 1 or 2: `if _, ok := f(); ok` is `if (auto ok = std::get<1>(f()); ok)`, and `if v, ok := f(); ok` is `if (auto [v, ok] = f(); ok)`. An assignment there keeps its form: `if v, err = f(); err != nil` is `if (std::tie(v, err) = f(); err != nullptr)`.
+
+The comma-ok form of a type assertion follows the same forms with a `std::pair`, whose single-operand form is written with `.first` and `.second` (see [Type assertions](#type-assertions)).
+
+#### Calls with the results of another call
+
+Go's `h(f())` passes each result of `f` as an argument of `h`. It is `std::apply(h, f())`, where `h` is a package-level function, or an Eo library function such as `fmt.Println`, which is a function object for this reason: `fmt.Println(f())` is `std::apply(fmt::Println, f())`. A coroutine `h` is called as `co_await std::apply(h, f())`, and a coroutine `f` as `std::apply(h, co_await f())`. For [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), `std::apply(h, f())` is the call of `h`.
+
+`go h(f())` and `defer h(f())` evaluate `f()` when the statement runs. Each argument temporary is declared with the value type of the parameter of `h` it is passed to, as `go` temporaries are (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)), and is then assigned from `f()` by the `std::tie` form. When `h` is an Eo library function object, such as `fmt::Println`, whose parameters are templates, each temporary takes the type of the result of `f` it holds:
+
+```go
+defer show(pair(n)) // func show(n int, s string)
+```
+
+```cpp
+int64_t _eo_defer_arg_0_0{};
+std::string _eo_defer_arg_0_1{};
+std::tie(_eo_defer_arg_0_0, _eo_defer_arg_0_1) = pair(n);
+eo_defer([=] { show(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
+```
+
+`go show(pair(n))` declares `_eo_go_arg_0_0` and `_eo_go_arg_0_1` the same way and launches `go([=]() mutable { return show(_eo_go_arg_0_0, _eo_go_arg_0_1); });`.
+
+#### Multiple results not covered yet
+
+- an assignment or declaration of several values that are not one call, such as `a, b = b, a` and `x, y := 1, 2` ([#111](https://github.com/conr2d/eo/issues/111));
+- an assignment `=` whose left side has an operand other than a variable or `_`, such as `x.f`, `*p`, or `s[i]`: Go evaluates the index and pointer operands on the left before the call and assigns the operands left to right, while C++ evaluates the operands of `std::tie` after the call, so a nil `*p` or an index out of range would panic before the operands to its left are assigned;
+- an assignment that names the same variable twice, as in `x, x = f()`, where Go keeps the last value and `std::tuple` does not specify the order in which it assigns its elements;
+- a `:=` in the init statement of an `if` or `switch` that would need form 3, because one of its variables is boxed or it has `_` and at least two other operands, and a `for` init statement with several results;
+- `return a, b` in a function without a `defer` statement whose named results a function literal or a pointer can reach: Go assigns the named results before returning, and a goroutine that shares them can observe it, while `return {a, b};` leaves them unchanged;
+- `h(f())` where `h` is a method, a function value, or a variadic Go function, and `go` or `defer` statements of such calls.
 
 ### Goroutine
 
@@ -1063,9 +1140,9 @@ auto f(int64_t x) -> int64_t {
 }
 ```
 
-- Each result has storage declared before `eo_defer_scope`: a named result uses its translated name, and an unnamed result `N` uses `_eo_result_N`. Both are declared as `T name{}` with the translated result type. A function with more than one result is provisional, as multi-value results have no frozen mapping.
+- Each result has storage declared before `eo_defer_scope`: a named result uses its translated name, and an unnamed result `N` uses `_eo_result_N`. Both are declared as `T name{}` with the translated result type, one declaration per result.
 - `try {` opens immediately before the first statement at the top level of the function body that is, or contains, a `defer` statement, and before that statement's argument temporaries. It closes at the end of the function body. A panic before that point has no deferred call to run and leaves the function directly. A `defer` inside a nested function literal belongs to that literal, which gets this shape itself, and does not count for the enclosing function.
-- After the catch handler, the function returns its result storage: `return _eo_result_0;`, `co_return _eo_result_0;`, or the named results. A function without results ends with nothing, or with `co_return;` for a coroutine. This return is reached only when a deferred call recovered the panic.
+- After the catch handler, the function returns its result storage: `return _eo_result_0;`, `co_return _eo_result_0;`, or the named results, and `return {_eo_result_0, _eo_result_1};` for several results (see [Multiple results](#multiple-results)). A function without results ends with nothing, or with `co_return;` for a coroutine. This return is reached only when a deferred call recovered the panic.
 
 A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal. Defer statements are counted like `go` statements, as described in [Temporary names](./GOROUTINE.md#temporary-names), with a separate count:
 
@@ -1153,6 +1230,25 @@ return _eo_result_0;
 ```
 
 A bare `return` with named results drains and returns the named results. A deferred call may change a named result, because it is still the storage that the function returns.
+
+With several results, the return assigns all of the storage at once, with the `std::tie` form of [Multiple results](#multiple-results), and returns it as a tuple:
+
+```go
+return y, x // named results x and y
+return g()  // g has two results
+```
+
+```cpp
+std::tie(x, y) = std::tuple<int64_t, int64_t>{y, x};
+eo_defer_run;
+return {x, y};
+
+std::tie(_eo_result_0, _eo_result_1) = g();
+eo_defer_run;
+return {_eo_result_0, _eo_result_1};
+```
+
+The braced list evaluates every operand before any result is assigned, as Go does. Assigning the results one by one would make `return y, x` return `y` twice, and a panic in the second operand would leave the first result assigned, which a deferred `recover()` would then return.
 
 Coroutine returns follow the same rule:
 
@@ -1312,7 +1408,8 @@ Examples currently requiring additional canonical rules include:
 - the interface forms in [Interfaces not covered yet](#interfaces-not-covered-yet);
 - the struct forms in [Struct forms not covered yet](#struct-forms-not-covered-yet), such as anonymous struct types and blank fields;
 - untyped complex constant arguments of `go` and `defer`;
-- goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
+- goroutine launches of method expressions, interface method calls, and variadic calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
+- the forms in [Multiple results not covered yet](#multiple-results-not-covered-yet), such as `a, b = b, a`;
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
 - `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
