@@ -64,7 +64,7 @@ Go lets a local variable hide anything of the same name from an enclosing block 
    - the `if` and `else` branches of an `if` whose init statement declares `x`;
    - a case of a `switch` whose init statement declares `x`, if the translated case body is not a block of its own.
 
-The renamed variable is `_eo_shadow_<x>`. If what it hides is itself `_eo_shadow_<x>`, it becomes `_eo_shadow_<x>_2`, and each further level counts up by one. Every use of the variable in its scope uses the new name. The initializer and other uses of the hidden variable keep the hidden variable's own C++ name:
+The renamed variable is `_eo_shadow_<x>`. If what it hides is itself `_eo_shadow_<x>`, it becomes `_eo_shadow_<x>_2`, and each further level counts up by one. Every use of the variable in its scope uses the new name. The initializer and other uses of the hidden name keep its own C++ name:
 
 ```go
 x := 1
