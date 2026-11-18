@@ -1,0 +1,20 @@
+{ {0 0} [] <nil> false}
+true true
+{1 2} {0 5} {0 0}
+{a {3 4} [x y] <nil> false}
+3 2 true false
+[{1 2} {0 3} {0 0}] 3
+{5 6} true
+head tail true
+&{7 8}
+eval y
+eval x
+{20 10}
+eval n
+eval y
+eval x
+show 1 {3 2}
+eval x
+eval y
+{4 5}
+{} true

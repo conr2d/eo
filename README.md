@@ -242,6 +242,36 @@ for (auto [i, r] : eo::range("h\u00e9"s)) {
 }
 ```
 
+### Structs
+
+A Go struct is a C++ aggregate whose fields start as their zero values, with a defaulted `==`. Keyed literals become designated initializers, embedded fields become members named after their types, and `fmt::Println` prints a struct as Go does.
+
+```go
+// Go
+type Point struct {
+	X, Y int
+}
+
+p := Point{Y: 2}
+q := &Point{1, 2}
+fmt.Println(p, *q == p, q)
+```
+
+```cpp
+// C++
+struct Point {
+  int64_t X{}, Y{};
+
+  auto operator==(const Point&) const -> bool = default;
+};
+
+auto p = Point{.Y = 2};
+auto q = New<Point>(Point{1, 2});
+fmt::Println(p, *q == p, q); // {0 2} false &{1 2}
+```
+
+See `docs/TRANSLATION_RULES.md` for declaration order, embedding, and names that members hide.
+
 ### Libraries
 
 Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling when it is a valid, non-reserved C++ identifier, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.

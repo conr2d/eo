@@ -1,11 +1,15 @@
-// Provisional: struct types, composite literals, channels, and Go int are not frozen mappings (see ../README.md).
+// Provisional: channels and Go int are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 using namespace eo;
 
+struct Pair;
+
 struct Pair {
   int a{};
   int b{};
+
+  auto operator==(const Pair&) const -> bool = default;
 };
 
 func<> eo_main() {

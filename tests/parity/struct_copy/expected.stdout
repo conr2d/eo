@@ -1,0 +1,9 @@
+a {1 2} b {1 9}
+a {1 2} 2 [11 20]
+a! {2 2} 2 [11 20]
+true 2
+true false false true
+c2 p true
+c1 p true
+true false
+{100 1} [{1 1} {2 200}]

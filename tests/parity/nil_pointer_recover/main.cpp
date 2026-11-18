@@ -1,10 +1,14 @@
-// Provisional: struct types, composite literals, and the C++ type of Go int are not frozen mappings (see ../README.md).
+// Provisional: the C++ type of Go int is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 using namespace eo;
 
+struct T;
+
 struct T {
   int n{};
+
+  auto operator==(const T&) const -> bool = default;
 };
 
 auto read(ptr<T> p) -> int {

@@ -1,11 +1,15 @@
-// Provisional: struct types, a nil channel field, channels, and Go int are not frozen mappings (see ../README.md).
+// Provisional: a nil channel field, channels, and Go int are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 using namespace eo;
 
+struct Counter;
+
 struct Counter {
   int n{};
-  chan<int> results;
+  chan<int> results{};
+
+  auto operator==(const Counter&) const -> bool = default;
 
   static auto loop(ptr<Counter> c) -> func<>;
   static void Start(ptr<Counter> c);

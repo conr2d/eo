@@ -90,6 +90,53 @@ if (x > 0) {
 
 A renamed variable is boxed by the same rules as any other, as in `auto _eo_shadow_v = New<int64_t>(v);`, and a boxed hidden variable is read through its box, as in `auto _eo_shadow_v = *v;`. Any other hiding declaration keeps its Go name.
 
+### Package-level names hidden by members
+
+Inside a struct definition, and inside the out-of-class definitions of its methods, C++ looks up a name among the struct's members before the package. Go does not: a method sees fields and other methods only through its receiver. C++ also makes a struct definition ill-formed when a name used in it means something else after a member of that name is declared, as in `struct Node { Config Config{}; };`, which GCC rejects. So inside a struct definition and the definitions of its methods, a package-level type, function, variable, or constant whose name is also the name of a member of that struct (a field, an embedded field, or a method) is written with the global qualifier, as `::Config`. This includes the struct's own name when a field has it: `type T struct { T int }` declares `auto operator==(const ::T&) const -> bool = default;`. Names that no member shares stay unqualified:
+
+```go
+type Node struct {
+	Config Config
+	Value  int
+}
+
+func (n Node) Hash() Hash {
+	return Hash{Lo: n.Value, Hi: n.Config.Depth}
+}
+
+func (n *Node) Size() int {
+	return Size(n.Value) + n.Config.Depth
+}
+```
+
+```cpp
+struct Node {
+  ::Config Config{};
+  int64_t Value{};
+
+  auto operator==(const Node&) const -> bool = default;
+
+  static auto Hash(Node n) -> ::Hash;
+  static auto Size(ptr<Node> n) -> int64_t;
+};
+
+auto Node::Hash(Node n) -> ::Hash {
+  return ::Hash{.Lo = n.Value, .Hi = n.Config.Depth};
+}
+
+auto Node::Size(ptr<Node> n) -> int64_t {
+  return ::Size(n->Value) + n->Config.Depth;
+}
+```
+
+A type that the translation spells where the Go source does not, such as the type of a boxed variable, is qualified in the same way when a local variable of the same name is in scope, including the variable being declared, whose scope starts at its declarator. The Go source cannot name the type there, but the translation can: `point := 1` followed by a boxed `p := mk(point)` is `auto p = New<::point>(mk(point));`, and a boxed `point := mk()` is `auto point = New<::point>(mk());`.
+
+A member can also hide an Eo name that `using namespace eo;` makes visible, such as a field named `ptr`, `ref`, `slice`, or `New`. Inside such a struct and its method definitions, that Eo name is written `eo::ptr`, `eo::ref`, and so on (see [#83](https://github.com/conr2d/eo/issues/83) for Eo name collisions in general).
+
+`::` reaches only package-level names. A struct type declared inside a function is not one, so a local struct type that a member or a local variable hides where the translation spells it has no translation yet: a field or embedded field named after another local type or after its own struct, and a boxed variable named after its local type.
+
+`::` names the global namespace, where a translated package's declarations are until packages have a mapping of their own.
+
 ## Canonical construct mappings
 
 Only mappings that have been explicitly frozen are canonical.
@@ -230,7 +277,7 @@ The slice helpers are function objects with the same collision rule as the strin
 
 C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions and methods in lexical left-to-right order, but it does not specify when the other operands of an expression are read relative to those calls. The translation must not leave that order to the C++ compiler. A reference that `eo::at` returns before a call that frees its backing array refers to freed storage, and the two orders can print different values.
 
-Eo fixes one order: an expression's nested Go calls run first, left to right, and the operands that remain in the statement are read after them. When an expression contains a call to an `eo::` slice or string helper, or to `slice<T>::of`, save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
+Eo fixes one order: an expression's nested Go calls run first, left to right, and the operands that remain in the statement are read after them. When an expression contains a call to an `eo::` slice or string helper, a call to `slice<T>::of`, or a keyed struct literal whose keys are out of declaration order (see [Composite literals](#composite-literals)), save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
 
 ```go
 fmt.Println(s[0], g())
@@ -252,17 +299,143 @@ eo::at(s, _eo_call_3) = h();
 
 The rule applies separately to each full expression that a statement evaluates: an expression statement, each side of an assignment, the initializer of a declaration, the operand of a `return`, and the condition of an `if` or the tag of a `switch` without an init statement, whose temporaries go before the `if` or `switch`:
 
-- Every Go function or method call in the full expression is a nested call, except the outermost operation when that operation is itself a Go call. This includes the arguments of an `eo::` helper, the elements of a braced list in `slice<T>::of` or `eo::append`, operands of operators and conversions, parenthesized calls, and the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. The outermost call stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so in `s[g()] = h()` above, `h()` runs after the saved `g()` and before the index check, as Go orders them. When the outermost operation is a helper, an operator, or a conversion, every Go call in the expression is nested, except inside an operand of `&&` or `||` (see below): `t := []int{f(), h(s[0], g())}` becomes `auto _eo_call_0 = f();`, `auto _eo_call_1 = g();`, `auto _eo_call_2 = h(eo::at(s, 0), _eo_call_1);`, then `auto t = slice<int64_t>::of({_eo_call_0, _eo_call_2});`, and `s = append(s, g())` becomes `auto _eo_call_3 = g();`, then `s = eo::append(s, {_eo_call_3});`.
+- Every Go function or method call in the full expression is a nested call, except the outermost operation when that operation is itself a Go call. This includes the arguments of an `eo::` helper, the elements of a braced list in `slice<T>::of` or `eo::append`, the elements of a struct literal, operands of operators and conversions, parenthesized calls, and the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. The outermost call stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so in `s[g()] = h()` above, `h()` runs after the saved `g()` and before the index check, as Go orders them. When the outermost operation is a helper, an operator, or a conversion, every Go call in the expression is nested, except inside an operand of `&&` or `||` (see below): `t := []int{f(), h(s[0], g())}` becomes `auto _eo_call_0 = f();`, `auto _eo_call_1 = g();`, `auto _eo_call_2 = h(eo::at(s, 0), _eo_call_1);`, then `auto t = slice<int64_t>::of({_eo_call_0, _eo_call_2});`, and `s = append(s, g())` becomes `auto _eo_call_3 = g();`, then `s = eo::append(s, {_eo_call_3});`.
 - Builtins and conversions, such as `len`, `cap`, `append`, `string(b)`, and `int64(x)`, are not themselves Go calls for this rule, but the Go calls inside them are. A call inside a function literal's body belongs to that body.
 - A temporary's initializer is an expression in its own right. If it contains a helper and a nested Go call, that call is saved first. Temporaries are declared in the order Go makes their calls. `<n>` counts them from 0 through the enclosing function, statement by statement in source order and, within one statement, in call order, with the bodies of function literals numbered where they appear in the source, so no name is reused. `fmt.Println(f(s[0], k()), g())` becomes `auto _eo_call_0 = k();`, then `auto _eo_call_1 = f(eo::at(s, 0), _eo_call_0);`, then `auto _eo_call_2 = g();`.
 - Go evaluates the right operand of `&&` and `||` only when the left one does not decide the result, so a call is never moved out of either operand. Instead, a `&&` or `||` that contains a Go call and is nested in the expression is itself saved as one temporary, in its place in call order: `fmt.Println(s[0], f() && h(), g())` becomes `auto _eo_call_0 = f() && h();`, then `auto _eo_call_1 = g();`. Each operand is an expression in its own right, whose outermost call stays in place, so `i < len(t) && check(t[i])` needs no temporary. An operand that would need one is not covered yet.
 - In a `go` or `defer` statement, the saved calls come before the statement's function value, receiver, and argument temporaries.
 - An expression that no statement can precede is not covered yet: a loop condition or post statement, an `else if` condition, the condition of an `if` or `switch` with an init statement, and a `switch` case expression.
-- Also not covered yet, when the expression uses a helper: a send statement, whose channel and value operands C++ does not sequence; a receive operation, which Go orders with the calls; and a call that produces the receiver of a method call or the operand of a selector, as `p()` in `p().M(s[0], g())`, `p().f = s[0] + g()`, or `*p() = s[0] + g()`. The general evaluation-order rule that would cover these, and expressions without helpers, is [#96](https://github.com/conr2d/eo/issues/96).
+- Also not covered yet, when the expression uses a helper or contains a keyed struct literal out of declaration order: a send statement, whose channel and value operands C++ does not sequence; a receive operation, which Go orders with the calls; and a call that produces the receiver of a method call or the operand of a selector, as `p()` in `p().M(s[0], g())`, `p().f = s[0] + g()`, or `*p() = s[0] + g()`. The general evaluation-order rule that would cover these, and expressions without helpers, is [#96](https://github.com/conr2d/eo/issues/96).
 
 The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
 
 `ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved by the rule above first, so that the pointer's owner and target are the same array.
+
+### Structs
+
+A Go struct type maps to a C++ aggregate of the same name. Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. Field tags are dropped. After the fields, every struct declares a defaulted `operator==`, and then its methods as static member functions, in the order Go declares them (see [Methods](#methods)):
+
+```go
+type Point struct {
+	X, Y int
+}
+
+type Labeled struct {
+	Name string `json:"name"`
+	At   Point
+	Tags []string
+	Next *Labeled
+}
+```
+
+```cpp
+struct Point {
+  int64_t X{}, Y{};
+
+  auto operator==(const Point&) const -> bool = default;
+};
+
+struct Labeled {
+  std::string Name{};
+  Point At{};
+  slice<std::string> Tags{};
+  ptr<Labeled> Next{};
+
+  auto operator==(const Labeled&) const -> bool = default;
+};
+```
+
+| Go | C++ |
+| --- | --- |
+| `type T struct { ... }` | `struct T { ... };` |
+| `var x T` | `T x;`, as for a slice or a pointer, or `auto x = New<T>();` when `x` is [boxed](#boxed-variables) |
+| the zero value of `T`, `T{}` | `T{}` |
+| `T{a, b}` | `T{a, b}` |
+| `T{f: a, g: b}` | `T{.f = a, .g = b}`, with the fields in declaration order |
+| `&T{...}` | `New<T>(T{...})` |
+| `x.f`, `p.f` where `p` is a pointer | `x.f`, `p->f` |
+| `x == y`, `x != y` | `x == y`, `x != y` |
+| `struct{}`, `struct{}{}` | `eo::empty_struct`, `eo::empty_struct{}` |
+
+Assigning, passing, and returning a struct copies its fields, as in Go. A pointer or slice field of the copy shares its target or backing array with the original.
+
+The defaulted `operator==` compares the fields in declaration order and stops at the first pair that differs, as Go does. If a field's type has no `==` in Go, such as a slice, the operator is deleted, so a comparison does not compile, as it does not in Go. Clang warns about such a deleted operator with `-Wdefaulted-function-deleted`. The warning is expected.
+
+#### Composite literals
+
+A positional literal `T{a, b}` lists every field in order, as Go requires, and is the same aggregate initialization in C++. A keyed literal uses designated initializers, which C++ requires in declaration order, so the keys are reordered when Go lists them in another order. An omitted field keeps its `{}` zero value. A literal whose type Go elides spells it, as in [Slices](#slices): `[]Point{{1, 2}, {Y: 3}}` is `slice<Point>::of({Point{1, 2}, Point{.Y = 3}})`, and `[]*Point{{1, 2}}` is `slice<ptr<Point>>::of({New<Point>(Point{1, 2})})`.
+
+C++ evaluates the initializers of a braced list from left to right, so a literal whose keys are in declaration order makes its own calls in Go's order. Their order relative to the other arguments of an enclosing call is the general evaluation-order question of [#96](https://github.com/conr2d/eo/issues/96), as for any argument. A keyed literal with keys out of declaration order would make its own calls in another order. An expression that contains such a literal follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands): each nested Go call in the expression is saved in an `_eo_call_<n>` temporary, in Go's order, before the statement:
+
+```go
+r := Point{Y: f(), X: g()}
+show(k(), Point{Y: f(), X: g()})
+```
+
+```cpp
+auto _eo_call_0 = f();
+auto _eo_call_1 = g();
+auto r = Point{.X = _eo_call_1, .Y = _eo_call_0};
+auto _eo_call_2 = k();
+auto _eo_call_3 = f();
+auto _eo_call_4 = g();
+show(_eo_call_2, Point{.X = _eo_call_4, .Y = _eo_call_3});
+```
+
+#### Declaration order
+
+Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated file therefore has:
+
+1. a forward declaration `struct T;` of every struct type the file declares, in source order;
+2. the struct definitions, in source order, except that a struct that another struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration;
+3. a prototype of each function that is called above its definition, in source order;
+4. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods.
+
+A comment on a type declaration moves with its definition. A struct type declared inside a function is a local struct at the place of its declaration. Go allows no methods on it, so its definition holds only the fields and `operator==`.
+
+#### Embedded fields
+
+An embedded field is a member named after its type, without a package qualifier or `*`: `A` is `::A A{};`, `*C` is `ptr<::C> C{};`, and `pkg.T` is `pkg::T T{};`. The type is qualified because a member has its name (see [Package-level names hidden by members](#package-level-names-hidden-by-members)).
+
+A promoted field or method is written with the full path to it, the one that `go/types` records in `Selection.Index()`. A field reached through an embedded pointer uses `->`, which panics on nil, as Go does. A promoted method call is then an ordinary method call on that path (see [Methods](#methods)):
+
+```go
+type Item struct {
+	Base
+	*Counter
+	Name string
+}
+
+it.ID = 2          // Base.ID
+it.Rename("x")     // func (b *Base) Rename(name string)
+it.Inc()           // func (c *Counter) Inc() int
+it.Get()           // func (c Counter) Get() int
+p.Rename("y")      // p is a *Item
+```
+
+```cpp
+it.Base.ID = 2;
+Base::Rename(ref(it.Base), "x"s);
+Counter::Inc(it.Counter);
+Counter::Get(*it.Counter);
+Base::Rename(ptr(p, &p->Base), "y"s);
+```
+
+Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer table in [Pointer type](#pointer-type). An embedded field hidden by a shallower field of the same name, such as `Item.Name` hiding `Base.Name`, is reached by its path, `it.Base.Name`, as in Go.
+
+#### Printing
+
+`fmt::Println` prints a struct as Go's `%v` does: its fields in braces, separated by spaces, with nested structs, slices, and maps printed the same way and a nil pointer as `<nil>`. An operand that is a pointer to a struct, slice, or map prints as `&` followed by its target, as `&{1 2}`. A pointer inside another value prints as an address, which differs from Go's, so parity cases do not print one. The fields are visited with Boost.PFR, which needs a struct to be an aggregate without base classes, as every translated struct is.
+
+#### Struct forms not covered yet
+
+- a struct with a `String` or `Error` method, which `fmt` prints by calling the method; embedded interfaces; method sets of embedded fields, which decide interface satisfaction; and comparison of interface fields, which can panic ([#89](https://github.com/conr2d/eo/issues/89));
+- defined types that are not structs, such as `type Celsius float64` ([#90](https://github.com/conr2d/eo/issues/90)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
+- anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
+- a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
+- generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
+- struct types declared in other files of the same package, which wait on a mapping of packages;
+- method values and method expressions, including promoted ones.
 
 ### Range loops
 
@@ -535,13 +708,15 @@ The receiver is not `this`, because a method can keep its receiver after it retu
 
 Go does not specify whether `*p` in a value-receiver call is evaluated before or after the other arguments, and C++ does not either, so `T::M(*p, f())` is translated as written. As in Go, a pointer-receiver call on a nil pointer passes nil, and only a dereference inside the method panics, while a value-receiver call through a nil pointer panics at the call.
 
+A promoted method is called on the path to its embedded field, as in [Embedded fields](#embedded-fields).
+
 Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay member functions, called as `x.M()` or `p->M()`.
 
 #### Not covered yet
 
 - pointers held inside maps and interfaces, whose own mappings are not frozen, and slicing an array;
-- printing a pointer with `fmt`, which shows an address;
-- method values and method expressions, promoted methods of embedded fields, and conversions through `unsafe.Pointer` or `uintptr`.
+- printing a pointer with `fmt` inside another value, which shows an address;
+- method values and method expressions, and conversions through `unsafe.Pointer` or `uintptr`.
 
 ### Goroutine
 
@@ -857,13 +1032,14 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- pointers held in maps and interfaces, printing a pointer, method values, method expressions, and promoted methods (see [Not covered yet](#not-covered-yet));
+- pointers held in maps and interfaces, printing a pointer inside another value, method values, and method expressions (see [Not covered yet](#not-covered-yet));
+- the struct forms in [Struct forms not covered yet](#struct-forms-not-covered-yet), such as anonymous struct types and blank fields;
 - untyped complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, variadic calls, and multi-value calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - labeled `break` and `continue`;
 - `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
-- general zero-value construction for translated Go types;
+- zero-value construction for translated types other than strings, slices, pointers, and structs;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 
 ## Unsupported constructs
