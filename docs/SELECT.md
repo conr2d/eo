@@ -254,16 +254,19 @@ case output() <- makeValue():
 }
 ```
 
-translates conceptually to:
+translates to:
 
 ```cpp
-switch (auto select = Select{*getChannel(), output() << makeValue()};
+auto _eo_call_0 = getChannel();
+auto _eo_call_1 = output();
+auto _eo_call_2 = makeValue();
+switch (auto select = Select{*_eo_call_0, _eo_call_1 << _eo_call_2};
         co_await select.index()) {
   // ...
 }
 ```
 
-Each expression is evaluated once when the `Select` object is constructed.
+Each expression is evaluated once when the `Select` object is constructed. The case operands are one full expression for [Evaluation order](./TRANSLATION_RULES.md#evaluation-order), so calls among them are saved in `_eo_call_<n>` temporaries before the `switch` statement, in source order. A select whose operands need no temporaries by those rules keeps them in `Select{...}`.
 
 The translation must not hoist a `Select` outside a loop, because Go reevaluates the case operands every time execution reaches the select statement.
 

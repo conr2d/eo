@@ -75,7 +75,9 @@ auto mk(int64_t x) -> point {
 
 func<> eo_main() {
   auto n = Node{.Config = Config{.Depth = 2}, .Value = 3};
-  fmt::Println(Node::Hash(n), Node::Size(ref(n)), n);
+  auto _eo_call_0 = Node::Hash(n);
+  auto _eo_call_1 = Node::Size(ref(n));
+  fmt::Println(_eo_call_0, _eo_call_1, n);
   Node::Reset(ref(n));
   fmt::Println(n, Node::Hash(n) == Hash{0, 1});
 

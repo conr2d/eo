@@ -17,7 +17,9 @@ func<> eo_main() {
   auto t = s;
   s += "!"s;
   fmt::Println(t, s, t < s, eo::len(t), eo::len(s));
-  fmt::Println(describe(s), describe("ab"s));
+  auto _eo_call_0 = describe(s);
+  auto _eo_call_1 = describe("ab"s);
+  fmt::Println(_eo_call_0, _eo_call_1);
   auto nul = "a\x{00}b\x{ff}c"s;
   fmt::Println(eo::len(nul), eo::at(nul, 1), eo::at(nul, 3), eo::substr(nul, 2, 3));
   auto raw = R"(C:\path\n)"s + "\t|"s;

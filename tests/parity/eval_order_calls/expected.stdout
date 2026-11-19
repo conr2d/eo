@@ -1,0 +1,61 @@
+eval a
+eval b
+1 2
+eval c
+eval d
+eval e
+23
+eval f
+eval g
+13
+eval h
+9
+eval p0
+eval p1
+1 2
+eval recv
+eval i
+eval j
+3
+eval deref
+eval k
+eval field
+eval l
+eval op
+eval m
+26
+eval chain
+eval q
+eval r
+29
+eval l1
+eval s
+eval t
+and
+eval l2
+short
+eval l3
+eval y
+eval z
+true
+eval l4
+eval after
+true 0
+eval if
+eval elif1
+eval elif2
+else if
+eval init
+eval c1
+eval c2
+init 4
+eval lim
+eval step
+loop 0
+eval lim
+eval step
+eval lim
+eval step
+loop 2
+eval lim
+eval step

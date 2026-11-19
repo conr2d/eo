@@ -183,11 +183,15 @@ func<> eo_main() {
   // An interface holds a copy of a value.
   Areaer a = *r;
   r->W = 1;
-  fmt::Println(a.Area(), Rect::Area(*r));
+  auto _eo_call_0 = a.Area();
+  auto _eo_call_1 = Rect::Area(*r);
+  fmt::Println(_eo_call_0, _eo_call_1);
 
   // Areaer has a subset of Shape's methods.
   a = s;
-  fmt::Println(a.Area(), total(slice<Areaer>::of({a, Rect{.W = 5, .H = 5}, s})));
+  auto _eo_call_2 = a.Area();
+  auto _eo_call_3 = total(slice<Areaer>::of({a, Rect{.W = 5, .H = 5}, s}));
+  fmt::Println(_eo_call_2, _eo_call_3);
 
   Shape none{};
   ptr<Rect> nilRect{};
@@ -214,11 +218,16 @@ func<> eo_main() {
   s = c;
   s.Scale(3);
   Labeler l = c;
-  fmt::Println(s.Area(), c.Rect->W, l.Label(), c.Labeler.Label());
+  auto _eo_call_4 = s.Area();
+  auto _eo_call_5 = l.Label();
+  auto _eo_call_6 = c.Labeler.Label();
+  fmt::Println(_eo_call_4, c.Rect->W, _eo_call_5, _eo_call_6);
 
   Resizer rz = r;
   rz.Scale(2);
   s = rz;
-  fmt::Println(rz.Area(), s.Area(), r->W, r->H);
+  auto _eo_call_7 = rz.Area();
+  auto _eo_call_8 = s.Area();
+  fmt::Println(_eo_call_7, _eo_call_8, r->W, r->H);
   co_return;
 }

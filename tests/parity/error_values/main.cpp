@@ -69,7 +69,9 @@ auto typedNil() -> error {
 func<> eo_main() {
   auto a = errors::New("same"s);
   auto b = errors::New("same"s);
-  fmt::Println(a == b, a == a, a.Error() == b.Error());
+  auto _eo_call_0 = a.Error();
+  auto _eo_call_1 = b.Error();
+  fmt::Println(a == b, a == a, _eo_call_0 == _eo_call_1);
 
   auto [n, err] = load("abc"s);
   fmt::Println(n, err == nullptr, err);
@@ -84,13 +86,21 @@ func<> eo_main() {
   auto tmp = New<Temporary>();
   found = errors::As(err, tmp);
   fmt::Println(found, tmp->Code);
-  fmt::Println(errors::Is(err, Temporary{.Code = 503}), errors::Is(err, Temporary{.Code = 500}));
+  auto _eo_call_2 = errors::Is(err, Temporary{.Code = 503});
+  auto _eo_call_3 = errors::Is(err, Temporary{.Code = 500});
+  fmt::Println(_eo_call_2, _eo_call_3);
 
   auto sentinel = errors::New("sentinel"s);
   auto wrapped = fmt::Errorf("layer 2: %w"s, fmt::Errorf("layer 1: %w"s, sentinel));
   fmt::Println(wrapped);
-  fmt::Println(errors::Is(wrapped, sentinel), errors::Is(wrapped, errors::New("sentinel"s)));
-  fmt::Println(errors::Unwrap(errors::Unwrap(wrapped)) == sentinel, errors::Unwrap(sentinel) == nullptr);
+  auto _eo_call_4 = errors::Is(wrapped, sentinel);
+  auto _eo_call_5 = errors::New("sentinel"s);
+  auto _eo_call_6 = errors::Is(wrapped, _eo_call_5);
+  fmt::Println(_eo_call_4, _eo_call_6);
+  auto _eo_call_7 = errors::Unwrap(wrapped);
+  auto _eo_call_8 = errors::Unwrap(_eo_call_7);
+  auto _eo_call_9 = errors::Unwrap(sentinel);
+  fmt::Println(_eo_call_8 == sentinel, _eo_call_9 == nullptr);
 
   auto joined = errors::Join(slice<error>::of({sentinel, nullptr, New<NotFound>(NotFound{.Key = "k"s})}));
   found = errors::As(joined, nf);
@@ -99,10 +109,10 @@ func<> eo_main() {
   fmt::Println(errors::Join(slice<error>::of({nullptr, nullptr})) == nullptr);
 
   auto multi = fmt::Errorf("%w + %w"s, sentinel, Temporary{.Code = 1});
-  fmt::Println(multi,
-    errors::Is(multi, sentinel),
-    errors::Is(multi, Temporary{.Code = 1}),
-    errors::Unwrap(multi) == nullptr);
+  auto _eo_call_10 = errors::Is(multi, sentinel);
+  auto _eo_call_11 = errors::Is(multi, Temporary{.Code = 1});
+  auto _eo_call_12 = errors::Unwrap(multi);
+  fmt::Println(multi, _eo_call_10, _eo_call_11, _eo_call_12 == nullptr);
 
   err = typedNil();
   fmt::Println(err == nullptr, err);
@@ -111,6 +121,9 @@ func<> eo_main() {
   error none{};
   fmt::Println(none == nullptr, none);
   fmt::Printf("%v|%T\n"s, none, none);
-  fmt::Println(fmt::Errorf("plain %d"s, int64_t{7}), fmt::Errorf("bad %w"s, int64_t{7}), fmt::Errorf("nil %w"s, none));
+  auto _eo_call_13 = fmt::Errorf("plain %d"s, int64_t{7});
+  auto _eo_call_14 = fmt::Errorf("bad %w"s, int64_t{7});
+  auto _eo_call_15 = fmt::Errorf("nil %w"s, none);
+  fmt::Println(_eo_call_13, _eo_call_14, _eo_call_15);
   co_return;
 }

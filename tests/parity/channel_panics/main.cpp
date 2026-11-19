@@ -57,7 +57,9 @@ func<> eo_main() {
   fmt::Println(closeIt(ch));
   chan<int64_t> nilCh;
   fmt::Println(closeIt(nilCh));
-  fmt::Println(makeChan(-1), makeChan(2));
+  auto _eo_call_0 = makeChan(-1);
+  auto _eo_call_1 = makeChan(2);
+  fmt::Println(_eo_call_0, _eo_call_1);
   auto isRuntime = eo::type_assert_ok<runtime::Error_>(r).second;
   fmt::Println(isRuntime);
 }

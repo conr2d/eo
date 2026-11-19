@@ -34,6 +34,8 @@ auto header() -> int64_t {
 }
 
 func<> eo_main() {
-  fmt::Println(value(), header());
+  auto _eo_call_0 = value();
+  auto _eo_call_1 = header();
+  fmt::Println(_eo_call_0, _eo_call_1);
   co_return;
 }
