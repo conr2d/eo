@@ -1,0 +1,39 @@
+0 zero
+1 odd digit
+2 even digit
+3 odd digit
+4 even digit
+5 odd digit
+6 even digit
+7 odd digit
+8 even digit
+9 odd digit
+10 other
+1 2 -1
+negative zero positive
+a = 1
+b missing
+c error: bad key
+nil int one string one byte one unmatched 2.5
+eval tag
+eval a
+eval b
+matched b
+eval tag
+eval a
+eval b
+default after all cases
+tag kept 2
+eval init
+y doubled 3
+eval init
+shadowed 50
+eval lonely
+only default
+eval empty
+zero
+end 0
+odd 1
+end 1
+even 2
+end 2

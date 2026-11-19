@@ -54,6 +54,8 @@ If an identifier must change because of C++ syntax, a reserved identifier, a sem
 
 A translator must not rename identifiers merely to follow a C++ naming convention.
 
+Names that begin with `_eo_` are reserved for the names that the translation introduces, such as `_eo_call_<n>` and `_eo_switch`. A Go identifier that begins with `_eo_` is not covered.
+
 ### Redeclared names
 
 Go lets a local variable hide anything of the same name from an enclosing block or the package: a variable, a constant, a function, or a type. C++ allows the same hiding, with two differences, so a local variable declaration of `x` that hides another `x` is renamed in two cases:
@@ -61,8 +63,7 @@ Go lets a local variable hide anything of the same name from an enclosing block 
 1. The declaration refers to the hidden `x`, at any block depth, as in `x := x`, `x, y := x+1, 0`, `g := g()` for a function `g`, or `point := point{1, 2}` for a type `point`. In C++ the scope of a variable starts at its declarator, so the `x` in its own initializer names the new variable, and `auto x = x;` and `auto g = g();` are ill-formed.
 2. The declaration is directly in the body of a statement whose own clause declares `x`. C++ rejects such a declaration. This covers:
    - the body of a three-clause `for` or a `range` loop whose clause declares `x`;
-   - the `if` and `else` branches of an `if` whose init statement declares `x`;
-   - a case of a `switch` whose init statement declares `x`, if the translated case body is not a block of its own.
+   - the `if` and `else` branches of an `if` whose init statement declares `x`.
 
 The renamed variable is `_eo_shadow_<x>`. If what it hides is itself `_eo_shadow_<x>`, it becomes `_eo_shadow_<x>_2`, and each further level counts up by one. Every use of the variable in its scope uses the new name. The initializer and other uses of the hidden name keep its own C++ name:
 
@@ -303,6 +304,7 @@ The rule applies separately to each full expression that a statement evaluates:
 - the channel and value operands of a send statement, together. The send is the outermost operation, and it is not an ordered operation;
 - both sides of an assignment or an op-assignment, together. When it translates to C++ `=` or a C++ compound assignment, which evaluates its right side first, the outermost operation of the right side is the outermost operation of the expression. When an op-assignment translates to an `eo::*_assign` helper, as `s[i] /= f()` does to `eo::div_assign(eo::at(s, i), f())`, the helper is the outermost operation, so every ordered operation on the right side is nested;
 - the condition of an `if` or of a loop, and the tag of a `switch`;
+- the case expressions of a `switch` clause, together, as the clause's condition (see [Case expressions that need temporaries](#case-expressions-that-need-temporaries));
 - the range expression of a `for range` loop (see [Range loops](#range-loops));
 - the case operands of a `select`, together, as one expression with no outermost operation. Their temporaries go before the `switch` statement of the [select shape](./SELECT.md#operand-evaluation);
 - the function value, receiver, and arguments of a `go` or `defer` statement. Their saved operations come before the statement's function value, receiver, and argument temporaries.
@@ -398,7 +400,7 @@ The temporary is initialized from the left operand, and it is declared where the
 A temporary must be declared before the expression that uses it. These positions have no place for a statement, so they take another form when they need temporaries. The init statement of a three-clause `for` loop is not one of them: its temporaries go immediately before the `for` statement.
 
 - An `else if` condition: the `else` takes a block, which holds the condition's temporaries and then the `if` with the rest of the chain. `} else if f() + g() == 5 {` becomes `} else {`, the temporaries, `if (_eo_call_0 + _eo_call_1 == 5) {`, and one more closing brace after the chain.
-- An `if` or `switch` with an init statement, when the init statement or the condition needs temporaries: the statement becomes a block, `{`, that holds the init statement's temporaries, the init statement, the condition's temporaries, the `if` or `switch` without an init statement, and `}`. The block gives the init statement's variables the same scope as a C++ init statement.
+- An `if` with an init statement, when the init statement or the condition needs temporaries: the statement becomes a block, `{`, that holds the init statement's temporaries, the init statement, the condition's temporaries, the `if` without an init statement, and `}`. The block gives the init statement's variables the same scope as a C++ init statement. A `switch` with an init statement is already a block (see [Switch statements](#switch-statements)).
 - A loop condition: the condition moves into the body as `for (init;; post) {`, then the condition's temporaries, then `if (!(c)) { break; }` before the translated body, with `!c` for a condition `c` that is a single name. The condition still runs before every iteration, after the post statement. `continue` jumps to the post statement as before. A `for c {}` loop is `for (;;) {`. The post expression of [Loop clause variables](#loop-clause-variables) stays, so the condition reads each iteration's box.
 
 ```go
@@ -424,8 +426,7 @@ The gc compiler does not always follow Eo's order for operands that are not orde
 
 #### Evaluation order not covered yet
 
-- a loop post statement that needs temporaries, which does not translate to a single C++ expression (see [Loop clause variables](#loop-clause-variables));
-- a `switch` case expression that needs temporaries. Go evaluates the case expressions in order only until one matches, and expression switches have no frozen mapping yet;
+- a loop post statement that needs temporaries, which does not translate to a single C++ expression (see [Loop clause variables](#loop-clause-variables)).
 
 ### Strings
 
@@ -697,6 +698,119 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
 - struct types declared in other files of the same package, which wait on a mapping of packages;
 - method values and method expressions, including promoted ones.
+
+### Switch statements
+
+An expression `switch` maps to an `if` statement whose init statement saves the tag in `_eo_switch`, followed by an `else if` for each case clause in source order and an `else` for `default`, wherever Go writes it, as [Type switches](#type-switches) do. A clause's condition compares the tag with its case expression, `_eo_switch == e`, and a clause with several expressions joins their comparisons with `||` in order. The comparison is translated as any other `==`, so `case nil:` is `_eo_switch == nullptr`, and a value compared with an interface tag is converted, `_eo_switch == I(v)` (see [Interface values](#interface-values)). A `switch` without a tag compares with `true`, so a clause's condition is its case expression, or the expressions joined by `||`, and there is no `_eo_switch`. A clause with an empty body has an empty block.
+
+```go
+switch s {
+case "a", "b":
+	fmt.Println("a or b")
+default:
+	fmt.Println("other")
+case "c":
+	fmt.Println("c")
+}
+switch {
+case err == nil:
+case errors.Is(err, ErrMissing):
+	return 0
+}
+```
+
+```cpp
+if (auto _eo_switch = s; _eo_switch == "a"s || _eo_switch == "b"s) {
+  fmt::Println("a or b"s);
+} else if (_eo_switch == "c"s) {
+  fmt::Println("c"s);
+} else {
+  fmt::Println("other"s);
+}
+if (err == nullptr) {
+} else if (errors::Is(err, ErrMissing)) {
+  return 0;
+}
+```
+
+Go evaluates the tag once, then the case expressions from top to bottom and left to right until one equals the tag, and runs that clause, or the `default` clause when none does. The `if` chain does the same: `||` and `else if` evaluate an expression only when the ones before it do not match, and a `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. `_eo_switch` is a copy of the tag, so a case expression that assigns the tag's variable does not change the value that the later clauses compare with, as in Go. A tag that is an untyped constant is declared as `x := c` would be (see [Untyped constants](#untyped-constants)).
+
+The other forms:
+
+- A `switch` with an init statement puts it in a block of its own, `{ init; if ... }`, as a type switch does. The init statement's temporaries go in the block before it, and the tag's after it. The block gives the init statement's variables the scope that Go gives them, and the clauses' blocks are nested in it, so a clause can declare a variable of the same name without the renaming of [Redeclared names](#redeclared-names). A declaration that refers to the hidden variable, as `y := y * 10`, is still renamed.
+- A `switch` whose only clause is `default`, or that has no clause, evaluates the tag as an expression statement, then runs the `default` body in a block of its own, as every clause has one, all in a block: `{ init; tag; { body } }`. A `switch` with no clause has no body block: `{ init; tag; }`. A `switch` without a tag and without a case clause is `{ init; { body } }`, or `{ body }` without an init statement. These forms have no `if` chain, and the label of a `break` (below) follows the body's block.
+- A `break` that leaves the `switch` becomes `goto _eo_break_<n>;`, and the label `_eo_break_<n>:;` follows the `if` chain, inside the block when the `switch` has one. This applies to a `break` in a clause that is not inside a nested `for`, `switch`, type switch, or `select`, and also to such a `break` in a type switch clause. `<n>` counts, from 0 in each function, the expression switches and type switches that have such a `break`, together, in the source order of their `switch` keywords, so an outer switch has a smaller number than a switch nested in one of its clauses. `continue` stays as written: it continues the enclosing loop in Go and in C++.
+- `fallthrough` becomes `goto _eo_fallthrough_<n>;`, and the body of the next clause in source order starts with the label `_eo_fallthrough_<n>:;`. `<n>` counts the `fallthrough` statements of each function from 0, in source order. The jump enters the next clause's block without evaluating its case expressions, as Go does. It also works when the next clause is a `default` that the chain moved to the end, or when `default` falls through to the clause after it, which the chain placed before it.
+
+```go
+for _, x := range xs {
+	switch {
+	case x < 0:
+		if x < -5 {
+			break
+		}
+		fmt.Println("small negative")
+		fallthrough
+	default:
+		fmt.Println("checked", x)
+	}
+}
+```
+
+```cpp
+for (auto [_eo_range_key, x] : eo::range(xs)) {
+  if (x < 0) {
+    if (x < -5) {
+      goto _eo_break_0;
+    }
+    fmt::Println("small negative"s);
+    goto _eo_fallthrough_0;
+  } else {
+  _eo_fallthrough_0:;
+    fmt::Println("checked"s, x);
+  }
+_eo_break_0:;
+}
+```
+
+#### Case expressions that need temporaries
+
+The tag and the condition of each clause are full expressions (see [Evaluation order](#evaluation-order)). The tag's temporaries come before the `if` chain. A later clause's condition is in an `else if` position, so its temporaries follow [Positions that no statement can precede](#positions-that-no-statement-can-precede): the `else` takes a block that holds them. A condition with several case expressions is a `||`, so a case expression that needs temporaries after the first one follows [Short-circuit operands](#short-circuit-operands). The comparisons of a clause stay in place as one `||` chain, `_eo_switch == a || _eo_switch == b || _eo_switch == c`: the operations inside an operand of `||` belong to that operand, so an inner `||` is never saved as a temporary of the outer one. A `switch` without a tag has no tag to run first: the first clause's temporaries go immediately before the `if` chain, as for any `if`, inside the block of the init statement when there is one. In a `switch` with a tag, the first clause's temporaries must run after the tag, so the tag is then declared as a statement, `auto _eo_switch = tag;`, followed by the temporaries and the `if` chain, all in a block:
+
+```go
+switch trace(n) {
+case f() + g():
+	fmt.Println("first")
+case h(), k() * m():
+	fmt.Println("second")
+}
+```
+
+```cpp
+{
+  auto _eo_switch = trace(n);
+  auto _eo_call_0 = f();
+  auto _eo_call_1 = g();
+  if (_eo_switch == _eo_call_0 + _eo_call_1) {
+    fmt::Println("first"s);
+  } else {
+    auto _eo_call_2 = _eo_switch == h();
+    if (!_eo_call_2) {
+      auto _eo_call_3 = k();
+      auto _eo_call_4 = m();
+      _eo_call_2 = _eo_switch == _eo_call_3 * _eo_call_4;
+    }
+    if (_eo_call_2) {
+      fmt::Println("second"s);
+    }
+  }
+}
+```
+
+#### Switch statements not covered yet
+
+- a `fallthrough` whose target clause's block is inside an `else` block that declares temporaries, when the `fallthrough` itself is outside that `else` block. This happens when the target's condition, or for a `default` target any condition of the chain, needs temporaries and comes after the clause that falls through in the chain's order, which places `default` last. The jump would skip the temporaries' declarations, which C++ rejects;
+- labeled `break` and `continue`, and `goto` ([#119](https://github.com/conr2d/eo/issues/119)).
 
 ### Range loops
 
@@ -1185,7 +1299,7 @@ if (auto _eo_type_switch = x; _eo_type_switch == nullptr) {
 }
 ```
 
-The variable of each clause is a new variable, which is boxed by the same rules as any other. Go reports `moved to heap: v` for it at the position of the clause's first type, such as `int` in `case int:`, of `nil` in `case nil:`, or of the `default` keyword, and that report applies to the variable of that clause. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`.
+The variable of each clause is a new variable, which is boxed by the same rules as any other. Go reports `moved to heap: v` for it at the position of the clause's first type, such as `int` in `case int:`, of `nil` in `case nil:`, or of the `default` keyword, and that report applies to the variable of that clause. A `default` clause that is not last in Go is still the final `else`, which does not change which clause runs. A type switch with an init statement, as in `switch y := f(); v := y.(type)`, puts the init statement in a block of its own, `{ auto y = f(); if (...) ... }`. A `break` that leaves a type switch becomes a `goto`, as in an expression switch (see [Switch statements](#switch-statements)).
 
 #### Printing methods
 
@@ -1200,7 +1314,6 @@ Go calls these methods only for exported struct fields, and for the fields of st
 - interface values as map keys (see [Maps not covered yet](#maps-not-covered-yet));
 - generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
 - interface types declared inside a function, local struct types held in an interface, and methods with unexported names of interfaces from other packages;
-- a `break` inside a type switch clause, which would leave an enclosing loop;
 - comparing interface values that hold a struct with a `sync.Mutex` or another Eo library type without `==`, which Go compares and Eo reports as uncomparable;
 - a pointer to an interface, `*I`, beyond holding it, comparing it, and printing it as an address.
 
@@ -1730,7 +1843,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - labeled `break` and `continue`;
-- the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet): a loop post statement and a `switch` case expression that need temporaries;
+- the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, and interfaces;
 - constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
