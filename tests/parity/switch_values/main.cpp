@@ -146,7 +146,7 @@ auto eo_main() -> func<> {
   // A switch with only a default clause still evaluates its tag.
   {
     trace("lonely"s, 0);
-    fmt::Println("only default"s);
+    { fmt::Println("only default"s); }
   }
   { trace("empty"s, 0); }
 
