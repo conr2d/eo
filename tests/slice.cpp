@@ -6,7 +6,6 @@
 #include <fmt/format.h>
 
 #include <algorithm>
-#include <any>
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
@@ -185,7 +184,7 @@ int main() {
   try {
     eo::at(nil, 0);
   } catch (const Panic& e) {
-    check(fmt::format("{}", std::any_cast<const eo::detail::runtime_error&>(e.value())) ==
+    check(eo::type_assert<eo::runtime::Error_>(e.value()).Error() ==
         "runtime error: index out of range [0] with length 0",
       "runtime error value");
   }

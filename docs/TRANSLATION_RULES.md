@@ -137,6 +137,24 @@ A member can also hide an Eo name that `using namespace eo;` makes visible, such
 
 `::` names the global namespace, where a translated package's declarations are until packages have a mapping of their own.
 
+### Types named like one of their methods
+
+C++ cannot declare a member with the name of its class, which would be a constructor. A struct or interface type that has a method of its own name takes a trailing underscore, and its `_eo_name` keeps the Go name. The method keeps its name, so a call `e.Error()` does not change, and every other use of the type, such as a declaration, a conversion, or a type assertion, writes the underscore. Go's `runtime.Error`, an interface with an `Error` method, is `runtime::Error_`, and `type Error interface { Error() string; Code() int }` in package `main` is:
+
+```cpp
+struct Error_ : interface<Error_> {
+  using interface::interface;
+  static constexpr std::string_view _eo_name = "main.Error";
+
+  auto Error() const -> std::string;
+  auto Code() const -> int64_t;
+
+  using _eo_methods = eo::methods<eo::method<&Error_::Error, "Error">, eo::method<&Error_::Code, "Code">>;
+};
+```
+
+A package that also declares a name that ends in an underscore, such as `Error_`, is not covered yet.
+
 ## Canonical construct mappings
 
 Only mappings that have been explicitly frozen are canonical.
@@ -903,7 +921,7 @@ void Shape::Scale(double k) const {
 }
 ```
 
-Go's `any` and `interface{}` map to `any`, Eo's empty interface, whose name is `interface {}`. Go's `fmt.Stringer` maps to `fmt::Stringer`. A package-level name that hides `any`, or a member named `any`, makes it `eo::any`, as for other Eo names (see [Package-level names hidden by members](#package-level-names-hidden-by-members)).
+Go's `any` and `interface{}` map to `any`, Eo's empty interface, whose name is `interface {}`. Go's predeclared `error` maps to `error` (see [Errors](#errors)), and `fmt.Stringer` to `fmt::Stringer`. A package-level name that hides `any`, or a member named `any`, makes it `eo::any`, as for other Eo names (see [Package-level names hidden by members](#package-level-names-hidden-by-members)).
 
 #### Interface values
 
@@ -978,18 +996,17 @@ The variable of each clause is a new variable, which is boxed by the same rules 
 
 #### Printing methods
 
-`fmt::Println` prints an interface value as its dynamic value, and a nil interface value as `<nil>`. It prints a value whose method set has `Error() string` by calling `Error`, and otherwise one whose method set has `String() string` by calling `String`, as Go's fmt does. This applies to operands, to elements of slices and maps, and to struct fields, and the method set is the static type's: a `T` whose `String` has a pointer receiver prints as a struct, and a `ptr<T>` calls `String`. A panic in the method prints `%!v(PANIC=String method: message)`, or `<nil>` if the receiver is a nil pointer, as in Go.
+`fmt::Println` and the other printing functions (see [Formatted printing](#formatted-printing)) print an interface value as its dynamic value, and a nil interface value as `<nil>`. They print a value whose method set has `Error() string` by calling `Error`, and otherwise one whose method set has `String() string` by calling `String`, as Go's fmt does, for the verbs `%v`, `%s`, `%x`, `%X`, and `%q`. This applies to operands, to elements of slices and maps, and to struct fields, and the method set is the static type's: a `T` whose `String` has a pointer receiver prints as a struct, and a `ptr<T>` calls `String`. A panic in the method prints `%!v(PANIC=String method: message)`, with the verb in place of `v`, or `<nil>` if the receiver is a nil pointer, as in Go. The message is the panic value as `%v` prints it, which calls its own `Error` or `String` method.
 
 Go calls these methods only for exported struct fields, and for the fields of structs reached through them. Eo calls them for every field. A program that prints a struct with an unexported field whose type has an `Error` or `String` method is not covered yet.
 
 #### Interfaces not covered yet
 
-- the `error` interface, the `errors` package, `fmt.Errorf`, and the type of a recovered panic value ([#89](https://github.com/conr2d/eo/issues/89));
 - methods translated as coroutines, whose signatures differ from the interface's ([#108](https://github.com/conr2d/eo/issues/108));
 - method values and method expressions of interfaces, and `go` and `defer` launches of interface method calls ([#67](https://github.com/conr2d/eo/issues/67));
-- interface values as map keys ([#88](https://github.com/conr2d/eo/issues/88)), `%T`, and `fmt` functions other than `Println`;
+- interface values as map keys ([#88](https://github.com/conr2d/eo/issues/88));
 - generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
-- interface types declared inside a function, local struct types held in an interface, a method named after its own interface, and methods with unexported names of interfaces from other packages;
+- interface types declared inside a function, local struct types held in an interface, and methods with unexported names of interfaces from other packages;
 - a `break` inside a type switch clause, which would leave an enclosing loop;
 - comparing interface values that hold a struct with a `sync.Mutex` or another Eo library type without `==`, which Go compares and Eo reports as uncomparable;
 - a pointer to an interface, `*I`, beyond holding it, comparing it, and printing it as an address.
@@ -1070,6 +1087,65 @@ eo_defer([=] { show(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 - a `:=` in the init statement of an `if` or `switch` that would need form 3, because one of its variables is boxed or it has `_` and at least two other operands, and a `for` init statement with several results;
 - `return a, b` in a function without a `defer` statement whose named results a function literal or a pointer can reach: Go assigns the named results before returning, and a goroutine that shares them can observe it, while `return {a, b};` leaves them unchanged;
 - `h(f())` where `h` is a method, a function value, or a variadic Go function, and `go` or `defer` statements of such calls.
+
+### Errors
+
+Go's predeclared `error` is the interface `error` from `<eo/interface.h>`, whose method is `auto Error() const -> std::string`. It follows [Interfaces](#interfaces): `var err error` is `error err{};`, `err != nil` is `err != nullptr`, a `nil` result is `nullptr`, and a value whose method set has `Error() string` converts to it. A function with the results `(T, error)` returns `std::tuple<T, error>` (see [Multiple results](#multiple-results)). A nil pointer converted to `error` is not nil, as in Go. A translated error type is a struct whose method set has `Error`, declared as in [Methods](#methods) and [Method tables](#method-tables).
+
+Go's `errors` package is `errors::` from `<eo/errors.h>`, and `fmt.Errorf` is `fmt::Errorf` from `<eo/fmt.h>`, which includes `<eo/errors.h>`:
+
+| Go | C++ |
+| --- | --- |
+| `errors.New(s)` | `errors::New(s)` |
+| `errors.Is(err, target)` | `errors::Is(err, target)` |
+| `errors.As(err, &target)` | `errors::As(err, p)`, `p` being the translation of `&target` |
+| `errors.Unwrap(err)` | `errors::Unwrap(err)` |
+| `errors.Join(a, b)`, `errors.Join(errs...)` | `errors::Join(slice<error>::of({a, b}))`, `errors::Join(errs)` |
+| `fmt.Errorf(format, a, b)` | `fmt::Errorf(format, a, b)` |
+
+`errors.Join` is variadic, so its parameter is a `slice<error>`, as for a translated variadic function (see [Slices](#slices)). Go moves the target of `errors.As` to heap, because `As` takes it as `any`, so the target is usually [boxed](#boxed-variables) and `&target` is the box: `var nf *NotFound` followed by `errors.As(err, &nf)` is `auto nf = New<ptr<NotFound>>();` and `errors::As(err, nf)`, and `nf.Key` is then `(*nf)->Key`. An unboxed target is `ref(target)`.
+
+These behave as in Go:
+
+- `errors.New` returns a new `*errors.errorString` for each call, so two errors with the same text are not equal;
+- `errors.Is` and `errors.As` visit the error and the errors that its `Unwrap() error` or `Unwrap() []error` method returns, depth first, and call its `Is(error) bool` or `As(any) bool` method. `errors.Is` compares an error with the target by `==` only when the target's dynamic type is comparable. `errors.As` stores the first error that a `T` can hold, a `T` being the target's type, an interface type or a type whose method set has `Error`;
+- `errors.Unwrap` calls only an `Unwrap() error` method;
+- `errors.Join` returns nil when every error is nil. Its `Error` joins the messages of the others with newlines;
+- `fmt.Errorf` formats its message as [Formatted printing](#formatted-printing) describes. Without `%w` it returns an `*errors.errorString`. With one `%w` it returns an `*fmt.wrapError`, whose `Unwrap` returns the operand, and with several an `*fmt.wrapErrors`, whose `Unwrap` returns the operands that are errors. A `%w` whose operand is not an error prints as `%!w(int=3)`, and the error wraps nil in its place.
+
+`errors.As` with a nil target panics with `errors: target must be a non-nil pointer`. A target whose type is neither an interface nor has `Error` in its method set does not compile, where Go panics.
+
+#### Errors not covered yet
+
+- sentinel errors declared at package level, such as `var ErrNotFound = errors.New("not found")`, which wait on package-level variables ([#101](https://github.com/conr2d/eo/issues/101));
+- `errors.ErrUnsupported`, and `Unwrap`, `Is`, and `As` methods translated as coroutines ([#108](https://github.com/conr2d/eo/issues/108)).
+
+### Formatted printing
+
+Go's `fmt.Println`, `fmt.Fprintln`, `fmt.Sprint`, `fmt.Sprintln`, `fmt.Sprintf`, `fmt.Printf`, `fmt.Fprintf`, and `fmt.Errorf` are function objects of the same names in `fmt::`, from `<eo/fmt.h>`, so `fmt.Println(f())` is `std::apply(fmt::Println, f())` (see [Calls with the results of another call](#calls-with-the-results-of-another-call)). Their operands are C++ arguments, not a `slice<any>`: `fmt.Printf("%d %s\n", n, s)` is `fmt::Printf("%d %s\n"s, n, s)`. A `nil` operand is `nullptr`, and a numeric constant operand takes its default type, as in [Untyped constant arguments](#untyped-constant-arguments). `fmt::Fprintln` and `fmt::Fprintf` write to a `std::FILE*`, and `fmt::Printf` to `stdout`. Each call that prints writes its whole text and flushes it, as Go writes to the unbuffered `os.Stdout`.
+
+All of them print an operand as Go's fmt does, with these verbs:
+
+- `%v`, which is how `Println` prints;
+- `%d`, `%b`, `%o`, `%x`, `%X`, `%c`, `%q`, and `%U` for an integer, `%q` giving a quoted rune;
+- `%e`, `%E`, `%f`, `%F`, and `%g` for a float;
+- `%s`, `%q`, `%x`, and `%X` for a string and a `[]byte`;
+- `%t` for a `bool`;
+- `%T`, the Go type name, `%%`, and `%w` in `fmt::Errorf`.
+
+A slice, a struct, and a pointer operand to a struct or slice apply the verb to each element or field, as Go does: `fmt.Sprintf("%x", []int{10, 11})` is `[a b]`. A value whose method set has `Error() string` or `String() string` is printed by calling it, as in [Printing methods](#printing-methods). Errors in the format print as in Go: `%!d(string=s)` for a verb that the operand does not take, with the operand printed by `%v` without its methods, `%!d(MISSING)` for a missing operand, `%!(EXTRA string=x, float64=2.5)` for unused operands, `%!(NOVERB)` for a `%` at the end, and `%!w(...)` for `%w` outside `fmt::Errorf`. `fmt.Sprint` puts a space between two operands when neither is a string, as Go does.
+
+`%q` escapes the bytes that are not valid UTF-8, the ASCII control characters, and the code points that Go's `unicode.IsPrint` rejects among C1 controls, spaces other than U+0020, U+00AD, U+2000 through U+200F, U+2028 through U+202F, U+205F through U+2064, U+3000, U+FEFF, U+FFF9 through U+FFFB, noncharacters U+FFFE and U+FFFF, and private use. It prints other code points as they are.
+
+#### Formatted printing not covered yet
+
+- flags, width, precision, and argument indexes, such as `%-10v`, `%08x`, `%.2f`, `%+v`, `%#v`, and `%[1]d`;
+- `%p`, `%G`, complex numbers, and the verbs other than `%v` for a map, which waits on its own mapping ([#88](https://github.com/conr2d/eo/issues/88));
+- the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
+- the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter`, `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
+- a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;
+- `%q` of an unassigned code point or a format character not listed above, which Go escapes and Eo prints as it is;
+- `%T` of an `int64` value, which prints `int` ([#107](https://github.com/conr2d/eo/issues/107)).
 
 ### Goroutine
 
@@ -1261,7 +1337,19 @@ A function that reaches its end without an explicit return inserts `eo_defer_run
 
 ### Panic and recover
 
-`panic(v)` translates to `panic(v)` from `<eo/panic.h>`, which throws `eo::Panic`. Its `what()` is `panic: ` followed by the value as Go prints it, and `value()` holds the value. A Go string panic value is stored as `std::string`. Runtime panics raised by Eo are `eo::Panic` too: the channel panics such as `close of closed channel`, `sync: negative WaitGroup counter`, `cannot create context from nil parent`, and `invalid argument to Intn`. Any other C++ exception that leaves a translated call is also a panic. `panic(nil)` translates to `panic(nullptr)` and, as since Go 1.21, raises a panic whose message is `panic called with nil argument`.
+`panic(v)` translates to `panic(v)` from `<eo/panic.h>`, which throws `eo::Panic`. It converts the value to `any`, as Go's `panic` takes `any`: a string literal becomes a `std::string`, and an interface value passes its dynamic value. `value()` returns the `any`, and `message()` the value as `%v` prints it, which calls its `Error` or `String` method (see [Formatted printing](#formatted-printing)). `what()` is `panic: ` followed by the message. `panic(nil)` translates to `panic(nullptr)`, and it and `panic` of a nil interface value raise a `*runtime.PanicNilError`, whose message is `panic called with nil argument`, as since Go 1.21.
+
+The panics that Eo raises for Go's run-time errors have Go's value types:
+
+| Panic | Value type | Message |
+| --- | --- | --- |
+| a nil dereference, an integer division by zero, a negative shift count, a `make` length out of range, a comparison of an uncomparable type | `runtime.errorString` | `runtime error: invalid memory address or nil pointer dereference` |
+| an index or a slice bound out of range | `runtime.boundsError` | `runtime error: index out of range [3] with length 0` |
+| a failed type assertion or interface conversion | `*runtime.TypeAssertionError` | `interface conversion: interface {} is string, not int` |
+| a close of a nil or closed channel, and a send on a closed channel | `runtime.plainError` | `close of nil channel` |
+| `panic(nil)` | `*runtime.PanicNilError` | `panic called with nil argument` |
+
+Each of these is an `error` and a `runtime.Error`, which is `runtime::Error_` (see [Types named like one of their methods](#types-named-like-one-of-their-methods)), so `r.(runtime.Error)` is `eo::type_assert_ok<runtime::Error_>(r)`. The values keep Go's message, not Go's fields. The library panics with a Go string where Go does: `sync: negative WaitGroup counter`, `cannot create context from nil parent`, and `invalid argument to Intn`. Any other C++ exception that leaves a translated call is also a panic, and `recover()` returns it as an `error` whose dynamic type is `eo.cppException` and whose message is its `what()`.
 
 While a panic leaves a function that contains a `defer` statement, its catch handler runs `eo_defer_panic`:
 
@@ -1271,12 +1359,13 @@ While a panic leaves a function that contains a `defer` statement, its catch han
 
 A panic in a deferred call during `eo_defer_run` leaves `eo_defer_run`, and the same catch handler runs the remaining deferred calls.
 
-`recover()` translates to `recover()`, which returns an `eo::Recovered`:
+`recover()` translates to `recover()`, which returns the panic value as an `any`, as in Go, so `r` is an ordinary [interface value](#interface-values):
 
 - `r := recover()` translates to `auto r = recover();`;
 - `r == nil` and `r != nil` translate to `r == nullptr` and `r != nullptr`;
-- printing `r` with `fmt::Println` prints the panic value as Go does, and `<nil>` for nil;
-- `panic(r)` starts a new panic with the recovered value and message, and `panic(r)` with a nil `r` is `panic(nil)`. For a panic raised by a C++ exception other than `eo::Panic`, the new panic keeps the message, and its value is empty.
+- `err, ok := r.(error)` translates to `auto [err, ok] = eo::type_assert_ok<error>(r);`, and the other assertions and type switches follow [Type assertions](#type-assertions) and [Type switches](#type-switches);
+- printing `r` prints the panic value as Go does, and `<nil>` for nil;
+- `panic(r)` starts a new panic with the recovered value, and `panic(r)` with a nil `r` is `panic(nil)`.
 
 `recover()` returns the running panic, and stops it, only when it is called by a deferred call that `eo_defer_panic` runs. It returns nil when no panic is running, in a deferred call run by `eo_defer_run`, and after the panic was recovered. Go also returns nil when recover is not called directly by the deferred function. Eo cannot detect that. A `recover()` is frozen when it is in one of these places:
 
@@ -1285,7 +1374,7 @@ A panic in a deferred call during `eo_defer_run` leaves `eo_defer_run`, and the 
 
 Any other `recover()` is unsupported, because a call from inside a deferred function would recover where Go returns nil.
 
-The type of a recovered value is provisional beyond comparison with nil and printing: `r.value()` is a `std::any`, and a type assertion such as `r.(error)` has no mapping. `runtime.Goexit` has no mapping.
+The report of a panic that no goroutine recovers prints the value as `%v` does. Go prints a value that is not an error, a `Stringer`, or of a basic kind as its type and address, such as `(main.T) 0xc000012345`, and adds ` [recovered, repanicked]` for a value raised again. Stderr is not part of parity. `runtime.Goexit` has no mapping.
 
 ### Blocking operations
 
@@ -1387,7 +1476,7 @@ A translated program links `eo::main` and defines `func<> eo_main()` in place of
 - when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine has an `eo::Panic` that is not yet recovered, the runtime first waits up to about 100 ms for it, as Go's `runtime.main` yields to goroutines running deferred calls for a panic. Another C++ exception counts only while one function runs its deferred calls for it, not while it passes between functions. If a panic is then being reported, it ends the process with status 2 instead;
 - `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
 - an exception that escapes `eo_main`, or the call launched by `go(...)`, is an unrecovered panic. The panicking goroutine's deferred calls have already run in its catch handlers (see [Panic and recover](#panic-and-recover)). The runtime reports the panic on stderr and exits with status 2;
-- `fmt::Println` and `fmt::Fprintln` write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.
+- `fmt::Println`, `fmt::Printf`, and the other printing functions write and flush each call, as Go writes unbuffered to `os.Stdout` and `os.Stderr`. Output is not lost when the process is killed or exits.
 
 Each exit flushes `std::cout`, `stdout` and `stderr`, then ends the process with `std::_Exit`. A stream whose lock another thread holds is skipped, for example while a goroutine is blocked writing to a pipe that nobody reads; that write is lost, as it would be in Go. Other `FILE` streams are not flushed, and no static destructors run.
 
@@ -1410,7 +1499,8 @@ Examples currently requiring additional canonical rules include:
 - untyped complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, and variadic calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the forms in [Multiple results not covered yet](#multiple-results-not-covered-yet), such as `a, b = b, a`;
-- the type of a recovered panic value beyond comparison with nil and printing, and `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
+- `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
+- the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - labeled `break` and `continue`;
 - `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, pointers, structs, and interfaces;

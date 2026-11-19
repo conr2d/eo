@@ -26,7 +26,7 @@ struct CustomContext : eo::context::Context {
     return done_;
   }
 
-  auto Err() -> eo::Error override {
+  auto Err() -> eo::error override {
     std::lock_guard _{mutex_};
     return err_;
   }
@@ -49,14 +49,14 @@ struct CustomContext : eo::context::Context {
 private:
   eo::chan<> done_;
   std::mutex mutex_;
-  eo::Error err_;
+  eo::error err_;
 };
 
 void test_background_context_is_never_canceled() {
   auto* ctx = eo::context::Background();
 
   check(!ctx->Done(), "background context should not have a done channel");
-  check(!ctx->Err(), "background context should not have an error");
+  check(ctx->Err() == nullptr, "background context should not have an error");
 }
 
 void test_cancel_closes_done_and_sets_error() {
@@ -65,7 +65,7 @@ void test_cancel_closes_done_and_sets_error() {
 
   check(done.has_value(), "cancelable context should have a done channel");
   check(done->raw().is_open(), "done channel should start open");
-  check(!ctx->Err(), "cancelable context should start without an error");
+  check(ctx->Err() == nullptr, "cancelable context should start without an error");
 
   cancel();
 
@@ -153,7 +153,7 @@ void test_shared_custom_parent_survives_external_release() {
     "child should preserve value lookup through a shared custom parent");
 
   parent_ref.lock()->cancel();
-  for (int i = 0; i < 100 && !child->Err(); ++i) {
+  for (int i = 0; i < 100 && child->Err() == nullptr; ++i) {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
@@ -192,7 +192,7 @@ void test_concurrent_state_access_during_cancel() {
           valid = false;
         }
         auto err = ctx->Err();
-        if (err && err != eo::context::Canceled) {
+        if (err != nullptr && err != eo::context::Canceled) {
           valid = false;
         }
       }

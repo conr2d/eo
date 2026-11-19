@@ -1,0 +1,22 @@
+nil: runtime.errorString runtime error: invalid memory address or nil pointer dereference true true
+  message: runtime error: invalid memory address or nil pointer dereference true
+index: runtime.boundsError runtime error: index out of range [3] with length 0 true true
+  message: runtime error: index out of range [3] with length 0 true
+slice: runtime.boundsError runtime error: slice bounds out of range [:5] with capacity 0 true true
+  message: runtime error: slice bounds out of range [:5] with capacity 0 true
+assert: *runtime.TypeAssertionError interface conversion: interface {} is string, not int true true
+  message: interface conversion: interface {} is string, not int true
+divide: runtime.errorString runtime error: integer divide by zero true true
+  message: runtime error: integer divide by zero true
+nil panic: *runtime.PanicNilError panic called with nil argument true true
+  message: panic called with nil argument true
+string: string str false false
+error: *errors.errorString boom true false
+  message: boom false
+wrapped: *fmt.wrapError ctx: inner true false
+  message: ctx: inner false
+struct: main.T {1} false false
+stringer: main.Loud loud-2 false false
+repanic: main.Loud loud-3 false false
+%!v(PANIC=String method: loud-7)
+%!s(PANIC=String method: loud-7)|{}

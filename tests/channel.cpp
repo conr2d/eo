@@ -139,7 +139,7 @@ void test_close_releases_pending_send_with_panic() {
 
   try {
     sender.get();
-  } catch (const std::runtime_error& error) {
+  } catch (const eo::Panic& error) {
     check(std::string{error.what()} == "panic: send on closed channel", "pending send returned the wrong close error");
     return;
   }
@@ -158,7 +158,7 @@ void test_send_on_closed_channel_panics() {
 
   try {
     result.get();
-  } catch (const std::runtime_error& error) {
+  } catch (const eo::Panic& error) {
     check(std::string{error.what()} == "panic: send on closed channel", "closed channel send returned the wrong error");
     return;
   }
@@ -173,7 +173,7 @@ void test_double_close_panics() {
 
   try {
     ch.close();
-  } catch (const std::runtime_error& error) {
+  } catch (const eo::Panic& error) {
     check(std::string{error.what()} == "panic: close of closed channel", "double close returned the wrong error");
     return;
   }
@@ -195,7 +195,7 @@ void test_concurrent_close_has_single_winner() {
       try {
         copy.close();
         ++successes;
-      } catch (const std::runtime_error& error) {
+      } catch (const eo::Panic& error) {
         if (std::string{error.what()} == "panic: close of closed channel") {
           ++panics;
         } else {

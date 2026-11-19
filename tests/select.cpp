@@ -90,7 +90,7 @@ auto select_closed_send(eo::chan<int> ch) -> eo::func<> {
   auto select = eo::Select{ch << 1};
   try {
     select.try_index();
-  } catch (const std::runtime_error& error) {
+  } catch (const eo::Panic& error) {
     check(std::string{error.what()} == "panic: send on closed channel", "closed send returned wrong error");
     co_return;
   }

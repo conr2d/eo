@@ -1,0 +1,14 @@
+42 s {1 a} ff 6869 "q\"\n\x01é" true main.Pair %
+-7 -3 c8 10 101 é 'a' U+00E9
+1.5 1e+21 1.234568e+03 0.100000 0.1
+[1 2]|[a b]|6869|"hi"|[104 105]|
+{1 %!d(string=a)}|{%!s(int=1) a}|{ff 61}|&{1 a}|[<nil>]
+name-1|name-2|{3}|"name-4"|6e616d652d35
+%!d(string=s)|%!s(int=3)|%!z(int=1)|%!d(MISSING)
+1%!(EXTRA string=x, float64=2.5)
+<nil>|%!d(<nil>)|%!s(<nil>)|<nil>|%!w(*errors.errorString=&{x})
+-ff|6869||"\xffa\u00ad\t"
+%!t(int=1)|1.5|%!s(float64=2.5)
+trail%!(NOVERB)
+[1 a <nil>] and [a b] 21
+ab1 2c 1 2 true

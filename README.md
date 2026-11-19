@@ -375,6 +375,38 @@ q = std::get<0>(divmod(9, 4));
 std::apply(fmt::Println, divmod(7, 2)); // 3 1
 ```
 
+### Errors
+
+Go's `error` is the interface `error`, and the `errors` package and `fmt.Errorf` keep Go's wrapping: `errors.Is` and `errors.As` see through `%w`, and two `errors.New` values with the same text are not equal. `fmt::Sprintf` and `fmt::Printf` take Go's format verbs. A recovered panic value is an `any`, and Go's run-time errors are `runtime.Error` values.
+
+```go
+// Go
+func load(key string) (int, error) {
+	if key == "" {
+		return 0, fmt.Errorf("load %q: %w", key, errors.New("empty key"))
+	}
+	return len(key), nil
+}
+
+_, err := load("")
+fmt.Println(err, errors.Unwrap(err))
+```
+
+```cpp
+// C++
+auto load(std::string key) -> std::tuple<int64_t, error> {
+  if (key == ""s) {
+    return {0, fmt::Errorf("load %q: %w"s, key, errors::New("empty key"s))};
+  }
+  return {eo::len(key), nullptr};
+}
+
+auto err = std::get<1>(load(""s));
+fmt::Println(err, errors::Unwrap(err)); // load "": empty key empty key
+```
+
+See `docs/TRANSLATION_RULES.md` for the verbs that are covered and the run-time error types.
+
 ### Libraries
 
 Some frequently used Go APIs are mirrored for easier source translation. Translation-facing APIs preserve the corresponding Go identifier spelling when it is a valid, non-reserved C++ identifier, so mechanically ported code does not need unrelated naming transformations. API resemblance does not imply complete behavioral equivalence; semantic compatibility is tested and documented separately as the project evolves.

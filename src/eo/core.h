@@ -5,8 +5,8 @@
 
 #include <eo/chan.h>
 #include <eo/defer.h>
-#include <eo/error.h>
 #include <eo/integer.h>
+#include <eo/interface.h>
 #include <eo/invoke.h>
 #include <eo/panic.h>
 #include <eo/ptr.h>

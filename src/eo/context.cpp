@@ -1,9 +1,10 @@
 #include <eo/context.h>
+#include <eo/errors.h>
 #include <eo/select.h>
 
 namespace eo::context {
 
-const Error Canceled = user_error_registry().register_error("context canceled");
+const error Canceled = errors::New("context canceled");
 
 auto closed_chan() -> chan<> {
   static auto c = []() {
@@ -23,7 +24,7 @@ auto EmptyContext::Done() -> std::optional<chan<>> {
   return {};
 }
 
-auto EmptyContext::Err() -> Error {
+auto EmptyContext::Err() -> error {
   return {};
 }
 
@@ -104,27 +105,27 @@ auto CancelContext::Done() -> std::optional<chan<>> {
   return *done_;
 }
 
-auto CancelContext::Err() -> Error {
+auto CancelContext::Err() -> error {
   std::unique_lock _{mtx};
   return err_;
 }
 
-auto CancelContext::add_child(std::shared_ptr<Canceler> child) -> Error {
+auto CancelContext::add_child(std::shared_ptr<Canceler> child) -> error {
   std::unique_lock _{mtx};
-  if (err_) {
+  if (err_ != nullptr) {
     return err_;
   }
   children.emplace(child.get(), std::move(child));
   return {};
 }
 
-void CancelContext::cancel(bool remove_from_parent, Error err) {
-  if (!err) {
+void CancelContext::cancel(bool remove_from_parent, error err) {
+  if (err == nullptr) {
     throw std::runtime_error("context: internal error: missing cancel error");
   }
   {
     std::unique_lock _{mtx};
-    if (err_) {
+    if (err_ != nullptr) {
       return; // already canceled
     }
     err_ = err;
@@ -184,7 +185,7 @@ void propagate_cancel(Context* parent, std::shared_ptr<Canceler> child) {
   }
   }
   if (auto [p, ok] = parent_cancel_ctx(parent); ok) {
-    if (auto err = p->add_child(child); err) {
+    if (auto err = p->add_child(child); err != nullptr) {
       child->cancel(false, err);
     }
   } else {

@@ -15,7 +15,7 @@ template<typename F>
 void check_throws(F&& function, const char* message) {
   try {
     function();
-  } catch (const std::runtime_error&) {
+  } catch (const eo::Panic&) {
     return;
   }
   throw std::runtime_error(message);

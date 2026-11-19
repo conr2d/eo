@@ -96,7 +96,7 @@ void test_prints_map_of_strings() {
 
 void test_prints_error_message() {
   auto file = make_file();
-  fmt::Fprintln(file.get(), eo::Error{"x"}, eo::Error::format("bad {}", 42));
+  fmt::Fprintln(file.get(), eo::errors::New("x"), fmt::Errorf("bad %d", int64_t{42}));
 
   check(read_file(file.get()) == "x bad 42\n", "Fprintln should print an error's message");
 }

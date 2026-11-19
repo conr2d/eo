@@ -59,7 +59,7 @@ void test_selected_closed_send_panics_before_case_body() {
 
   try {
     select.try_index();
-  } catch (const std::runtime_error& error) {
+  } catch (const eo::Panic& error) {
     check(std::string{error.what()} == "panic: send on closed channel", "closed send returned wrong error");
     return;
   }
