@@ -441,7 +441,7 @@ A key type must be a bool, an integer or float type, a string, a pointer, `eo::e
 
 A map compares only with `nil`. A struct with a map field is not comparable, and comparing two interface values that hold maps panics with `runtime error: comparing uncomparable type map[string]int`, as in Go. Concurrent writes to a map, or a write concurrent with a read, are a data race in Eo, as for any other variable, and a program that has one is outside the mapping. Go detects some of them with the fatal error `concurrent map writes`, and Eo does not.
 
-`fmt` prints a map as Go does, as `map[k1:v1 k2:v2]` with the keys in the order of Go's `internal/fmtsort`: numbers by value, with NaN first, strings by bytes, `false` before `true`, structs field by field, and pointers by address. A verb applies to each key and value, so `%d` of a `map[string]int` prints `map[%!d(string=k):7]`. An operand that is a pointer to a map prints as `&` followed by the map. `%T` prints the Go type, such as `map[string][]int`. Pointer keys print in address order, which differs from run to run, so parity cases do not print a map with pointer keys.
+`fmt` prints a map as Go does, as `map[k1:v1 k2:v2]` with the keys in the order of Go's `internal/fmtsort`: numbers by value, with NaN first, strings by bytes, `false` before `true`, structs field by field, and pointers by address. A verb applies to each key and value, so `%d` of a `map[string]int` prints `map[%!d(string=k):7]`, as in Go. `%p` is not covered (see [Formatted printing not covered yet](#formatted-printing-not-covered-yet)). An operand that is a pointer to a map prints as `&` followed by the map. `%T` prints the Go type, such as `map[string][]int`. Pointer keys print in address order, which differs from run to run, so parity cases do not print a map with pointer keys.
 
 `for range` over a map is in [Range loops](#range-loops).
 
@@ -1187,7 +1187,7 @@ A verb that the list above does not give for the operand's kind prints the bad-v
 #### Formatted printing not covered yet
 
 - flags, width, precision, and argument indexes, such as `%-10v`, `%08x`, `%.2f`, `%+v`, `%#v`, and `%[1]d`;
-- `%p`, `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, and complex numbers;
+- `%p` of any operand, and `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, and complex numbers. A slice, struct, or map applies `%p` to its elements, where Go prints the address of a slice or map;
 - the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
 - the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter`, `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;

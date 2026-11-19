@@ -148,6 +148,20 @@ void test_float_keys() {
   check(fmt::Sprint(s) == "map[{-0}:2]", "a struct key with a float field should store the new key");
   eo::clear(m);
   check(eo::len(m) == 0, "clear should remove NaN entries");
+
+  // Go 1.26 prints 1 map[NaN:3] for the same loop over a map[float32]int.
+  auto nan32 = std::numeric_limits<float>::quiet_NaN();
+  auto f = map<float, int64_t>::of({{nan32, 1}, {1.5f, 2}});
+  auto seen = 0;
+  for ([[maybe_unused]] auto _eo_range_key : eo::range(f)) {
+    ++seen;
+    eo::clear(f);
+    eo::map_entry(f, nan32) = 3;
+  }
+  check(seen == 1 && fmt::Sprint(f) == "map[NaN:3]", "range should not produce a NaN entry after clear");
+  check(eo::detail::hash_key(-0.0) == eo::detail::hash_key(0.0) &&
+      eo::detail::hash_key(-0.0f) == eo::detail::hash_key(0.0f),
+    "-0 and 0 should hash alike");
 }
 
 void test_range_sees_deletes_and_updates() {

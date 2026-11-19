@@ -36,10 +36,13 @@ namespace detail {
     }
   }
 
-  // Go's hash of a map key: equal keys hash alike, so 0.0 and -0.0 do.
+  // Go's hash of a map key: equal keys hash alike. 0.0 and -0.0 are equal, so -0.0 hashes as 0.0,
+  // which the standard library's float hash does not promise.
   template<typename K>
   auto hash_key(const K& k) -> std::size_t {
-    if constexpr (std::is_arithmetic_v<K> || std::is_same_v<K, std::string>) {
+    if constexpr (std::is_floating_point_v<K>) {
+      return std::hash<K>{}(k == K{0} ? K{0} : k);
+    } else if constexpr (std::is_arithmetic_v<K> || std::is_same_v<K, std::string>) {
       return std::hash<K>{}(k);
     } else if constexpr (is_ptr<K>) {
       return std::hash<const void*>{}(static_cast<const void*>(k.get()));
