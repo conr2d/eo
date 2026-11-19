@@ -161,5 +161,11 @@ func<> eo_main() {
     }
     fmt::Println("loop"s, i);
   }
+
+  // An op-assignment that translates to a helper.
+  auto xs = slice<int64_t>::of({12});
+  auto _eo_call_42 = trace("div"s, 4);
+  eo::div_assign(eo::at(xs, 0), _eo_call_42);
+  fmt::Println(xs);
   co_return;
 }

@@ -88,4 +88,9 @@ func main() {
 		}
 		fmt.Println("loop", i)
 	}
+
+	// An op-assignment that translates to a helper.
+	xs := []int{12}
+	xs[0] /= trace("div", 4)
+	fmt.Println(xs)
 }
