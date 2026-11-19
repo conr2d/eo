@@ -1222,7 +1222,7 @@ A function or method with more than one result returns a `std::tuple` of the tra
 
 `f()` stands for any call with several results, including a method call, an interface method call, and `co_await g()` for a coroutine `g`. A `return` is `co_return` in a coroutine, as for any result.
 
-`return {a, b};` initializes the tuple from a braced list, which C++ evaluates left to right, as Go evaluates the operands of `return`. A coroutine names the tuple type, because `co_return` passes its operand to a function template of `func<T>`, which cannot deduce a type from a braced list. For [Evaluation order](#evaluation-order), the list of a `return` is one full expression with no outermost call.
+`return {a, b};` initializes the tuple from a braced list, which C++ evaluates left to right, as Go evaluates the operands of `return`. A coroutine names the tuple type, because `co_return` passes its operand to a function template of `func<T>`, which cannot deduce a type from a braced list. For [Evaluation order](#evaluation-order), the list of a `return` is one full expression with no outermost operation.
 
 A function with named results declares each of them at the start of its body, as `T name{};` in order, whether or not it has a `defer` statement. A named result that is [boxed](#boxed-variables) is declared as `auto name = New<T>();` and returned as `*name`, and a result named `_` is an unnamed result, `_eo_result_N`. A bare `return` returns them, as `return {q, r};` for several results and `return q;` for one. A function with a `defer` statement also assigns them differently, as described in [Defer](#defer).
 
