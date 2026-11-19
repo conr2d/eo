@@ -75,7 +75,9 @@ auto digit(int64_t n) -> std::string {
 }
 
 auto Point::String(Point p) -> std::string {
-  return "("s + digit(p.X) + ","s + digit(p.Y) + ")"s;
+  auto _eo_call_0 = digit(p.X);
+  auto _eo_call_1 = digit(p.Y);
+  return "("s + _eo_call_0 + ","s + _eo_call_1 + ")"s;
 }
 
 auto Temp::String(ptr<Temp> t) -> std::string {

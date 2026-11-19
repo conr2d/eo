@@ -42,7 +42,7 @@ Go evaluation order and evaluation timing are part of the translation contract w
 
 Do not move an expression across a statement or control-flow boundary unless the corresponding translation rule explicitly permits it.
 
-When C++ requires a temporary to preserve evaluation order, ownership, lifetime, or coroutine behavior, introduce the smallest local temporary needed and keep it adjacent to the source construct it represents.
+When C++ requires a temporary to preserve evaluation order, ownership, lifetime, or coroutine behavior, introduce the smallest local temporary needed and keep it adjacent to the source construct it represents. [Evaluation order](#evaluation-order) gives the temporaries that keep Go's order of calls and receives.
 
 Do not introduce temporaries solely for stylistic reasons.
 
@@ -198,7 +198,7 @@ Go's signed `+`, `-`, `*`, and unary `-` wrap on overflow. C++ leaves signed ove
 
 `eo::shl` and `eo::shr` take a count of any integer type and panic with `runtime error: negative shift amount` when it is negative. A count of at least the width shifts every bit out: `eo::shl` gives 0, and `eo::shr` gives -1 for a negative signed `x` and 0 otherwise. C++ leaves such a shift undefined. `>>` of a signed value is arithmetic in both languages. Go rejects a negative constant count, so a constant count needs a helper only when it is at least the width, which Go allows when `x` is not a constant.
 
-The helpers return the type of `x`. They are function objects, called qualified, with the same collision rule as the string helpers (see [Strings](#strings)). The `_assign` forms take `x` by reference and evaluate it once, as Go does: `s[i] /= d` is `eo::div_assign(eo::at(s, i), d)`. Their arguments follow [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), like those of any helper.
+The helpers return the type of `x`. They are function objects, called qualified, with the same collision rule as the string helpers (see [Strings](#strings)). The `_assign` forms take `x` by reference and evaluate it once, as Go does: `s[i] /= d` is `eo::div_assign(eo::at(s, i), d)`. Their arguments follow [Evaluation order](#evaluation-order), like those of any helper.
 
 C++ converts an operand narrower than `int` to `int` before an arithmetic or bitwise operator, so the result of `a + b` for two `int8` values is an `int`, which can be outside `int8`'s range. When the Go type of an operator expression in the table is `int8`, `int16`, `uint8`, or `uint16`, convert its result back: `a + b` is `int8_t(a + b)`, `^b` is `uint8_t(~b)`, and `s[i] - '0'` is `uint8_t(eo::at(s, i) - '0')`. The conversion wraps modulo 2<sup>N</sup>, as Go's arithmetic does. A helper already returns the type of `x`, and a compound assignment, `++`, and `--` convert when they assign, so none of them needs a conversion. A comparison yields `bool` and needs none either.
 
@@ -277,6 +277,156 @@ double _eo_go_arg_6_0 = double{0x1.52d02c7e14af6p+76};
 
 Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type. The C++ mapping of Go defined types is not frozen; `T{L}` applies to whatever type it produces. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
 
+### Evaluation order
+
+Go evaluates the function calls, method calls, receive operations, and binary logical operations of an expression in lexical left-to-right order. It does not specify when the other operands are read relative to them. C++ leaves the order of a function's arguments unspecified, and the operands of most C++ operators are unsequenced. The translation must not leave Go's order to the C++ compiler. The two orders can print different values, and they can also break memory safety. A reference that `eo::at` returns before a call that frees its backing array refers to freed storage. In `chs[0] <- grow()`, where `grow` appends to `chs`, the form `co_await (eo::at(chs, 0) << grow())` is a heap use after free under Clang with AddressSanitizer.
+
+Eo fixes one order: an expression's nested ordered operations run first, in Go's order, and the operands that remain in the statement are read after them. The rules below say which operations are saved in temporaries to get that order.
+
+#### Ordered operations
+
+An ordered operation is one of these:
+
+- a Go function or method call, including `co_await f(...)` of a coroutine, the call of a function value, and `std::apply(h, f())`, which is the call of `h`;
+- a receive, `co_await *ch` or `co_await eo::recv_ok(ch)`;
+- a `&&` or `||` whose operands contain an ordered operation.
+
+Builtins, conversions, and `eo::` helpers are not ordered operations, but the ordered operations inside them are. This covers `len`, `cap`, `append`, `make`, `string(b)`, and `int64(x)`. A call inside a function literal's body belongs to that body. The operations inside an operand of `&&` or `||` belong to that operand (see [Short-circuit operands](#short-circuit-operands)).
+
+#### Full expressions
+
+The rule applies separately to each full expression that a statement evaluates:
+
+- an expression statement;
+- the initializer of a declaration;
+- the operands of a `return`, together, as one expression with no outermost operation;
+- the channel and value operands of a send statement, together. The send is the outermost operation, and it is not an ordered operation;
+- both sides of an assignment or an op-assignment, together. When it translates to C++ `=` or a C++ compound assignment, which evaluates its right side first, the outermost operation of the right side is the outermost operation of the expression. When an op-assignment translates to an `eo::*_assign` helper, as `s[i] /= f()` does to `eo::div_assign(eo::at(s, i), f())`, the helper is the outermost operation, so every ordered operation on the right side is nested;
+- the condition of an `if` or of a loop, and the tag of a `switch`;
+- the range expression of a `for range` loop (see [Range loops](#range-loops));
+- the case operands of a `select`, together, as one expression with no outermost operation. Their temporaries go before the `switch` statement of the [select shape](./SELECT.md#operand-evaluation);
+- the function value, receiver, and arguments of a `go` or `defer` statement. Their saved operations come before the statement's function value, receiver, and argument temporaries.
+
+An ordered operation in a full expression is nested unless it is the outermost operation. `fmt.Println` in `fmt.Println(f(), g())`, `h` in `s[g()] = h()`, and the receive in `v := <-ch` are not nested.
+
+#### Saving ordered operations
+
+Save every nested ordered operation of a full expression in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place, when any of these holds:
+
+1. Two of its nested ordered operations are not inside one another, as `f()` and `g()` in `fmt.Println(f(), g())`. C++ may not run them in Go's order. For this condition, two operations in different elements of one braced list do not count, because C++ evaluates the elements left to right: `return {f(), g()};` and `Point{.X = f(), .Y = g()}` with its keys in declaration order need no temporaries. The list of `slice<T>::of` or `map<K, V>::of` is still subject to condition 2.
+2. It contains a nested ordered operation and, anywhere in the full expression except inside that operation, one of these: a call to an `eo::` slice, string, or map helper; a call to `slice<T>::of` or `map<K, V>::of`; or a keyed struct literal whose keys are out of declaration order (see [Composite literals](#composite-literals)). A helper can return a reference that the operation invalidates, and such a literal evaluates its elements in a different order from Go. A helper that encloses the operation counts, so `x := s[g()]` saves `g()`, and so does `t := []int{f(), g()}`. A helper inside the operation runs before it, so `fmt.Println(errors.Join([]error{e}))` stays as written, while `fmt.Println(f(s[0], k()))` saves `k()` and then `f`, because `s[0]` is not inside `k()`.
+3. It is an assignment whose left side contains an ordered operation and whose right side contains one, as in `*p() = g()`. C++ evaluates the right side of `=` and of a compound assignment before the left side. Go evaluates the operands on the left first.
+
+Otherwise the full expression stays as written. A single nested ordered operation already runs before the outermost operation in C++. Go does not order it with the other operands. An operation inside another one runs first in C++ too, so `fmt.Println(f(g()))` stays as written.
+
+```go
+fmt.Println(f(), g())
+x := f() + g()*h()
+s[0] = s[1] + g()
+s[g()] = h()
+p().M(a(), b()) // func (*T) M(x, y int)
+*p() = g()
+chs[0] <- g()
+fmt.Println(<-ch, g())
+```
+
+```cpp
+auto _eo_call_0 = f();
+auto _eo_call_1 = g();
+fmt::Println(_eo_call_0, _eo_call_1);
+auto _eo_call_2 = f();
+auto _eo_call_3 = g();
+auto _eo_call_4 = h();
+auto x = _eo_call_2 + _eo_call_3 * _eo_call_4;
+auto _eo_call_5 = g();
+eo::at(s, 0) = eo::at(s, 1) + _eo_call_5;
+auto _eo_call_6 = g();
+eo::at(s, _eo_call_6) = h();
+auto _eo_call_7 = p();
+auto _eo_call_8 = a();
+auto _eo_call_9 = b();
+T::M(_eo_call_7, _eo_call_8, _eo_call_9);
+auto _eo_call_10 = p();
+*_eo_call_10 = g();
+auto _eo_call_11 = g();
+co_await (eo::at(chs, 0) << _eo_call_11);
+auto _eo_call_12 = co_await *ch;
+auto _eo_call_13 = g();
+fmt::Println(_eo_call_12, _eo_call_13);
+```
+
+The details:
+
+- The outermost operation stays in place, as `fmt.Println`, `M`, and `h` above. C++ evaluates the arguments and operands of an operation before it runs. When the outermost operation is a helper, an operator, a conversion, or a send, every ordered operation in the expression is nested, except inside an operand of `&&` or `||`. An assignment follows the rule in [Full expressions](#full-expressions): `s[i] = f()` and `s[i] += f()` keep `f()` in place, and `s[i] /= f()` becomes `auto _eo_call_0 = f();`, then `eo::div_assign(eo::at(s, i), _eo_call_0);`. `t := []int{f(), h(s[0], g())}` becomes `auto _eo_call_0 = f();`, `auto _eo_call_1 = g();`, `auto _eo_call_2 = h(eo::at(s, 0), _eo_call_1);`, then `auto t = slice<int64_t>::of({_eo_call_0, _eo_call_2});`. `s = append(s, g())` becomes `auto _eo_call_3 = g();`, then `s = eo::append(s, {_eo_call_3});`.
+- Every nested operation is saved, including one inside another, which is saved first. This includes the arguments of a helper and the elements of a braced list, the receiver of a method call, the operand of a selector or a dereference, and the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. `fmt.Println(f(s[0], k()), g())` becomes `auto _eo_call_0 = k();`, then `auto _eo_call_1 = f(eo::at(s, 0), _eo_call_0);`, then `auto _eo_call_2 = g();`. A method chain `p().Next(f()).Next(g())` saves `p()`, `f()`, the first `Next`, and `g()`, in that order.
+- C++ evaluates the right side of an assignment before the left. In `s[g()] = h()` above, `h()` runs after the saved `g()` and before the index check, as Go orders them. In an op-assignment, `p().n += g()` becomes `auto _eo_call_0 = p();`, then `_eo_call_0->n += g();`.
+- `<n>` counts the temporaries from 0 through the enclosing function, in the order they are declared, so no name is reused. That is statement by statement in source order and, within one statement, in Go's order of the operations. The bodies of function literals are numbered where they appear in the source.
+
+#### Short-circuit operands
+
+Go evaluates the right operand of `&&` and `||` only when the left one does not decide the result, so no operation is moved out of either operand. A nested `&&` or `||` that contains an ordered operation is saved as one temporary, in its place in Go's order: `fmt.Println(s[0], f() && h(), g())` becomes `auto _eo_call_0 = f() && h();`, then `auto _eo_call_1 = g();`. `i < len(t) && check(t[i])` needs no temporary.
+
+Each operand is a full expression in its own right, whose outermost operation stays in place. The left operand always runs, so its temporaries go before the statement, as usual. When the right operand needs temporaries, the `&&` or `||` is computed by an `if` statement that assigns its temporary:
+
+```go
+ok := ready() && check(f(), g())
+fmt.Println(done() || check(f(), g()), h())
+```
+
+```cpp
+auto _eo_call_0 = ready();
+if (_eo_call_0) {
+  auto _eo_call_1 = f();
+  auto _eo_call_2 = g();
+  _eo_call_0 = check(_eo_call_1, _eo_call_2);
+}
+auto ok = _eo_call_0;
+auto _eo_call_3 = done();
+if (!_eo_call_3) {
+  auto _eo_call_4 = f();
+  auto _eo_call_5 = g();
+  _eo_call_3 = check(_eo_call_4, _eo_call_5);
+}
+auto _eo_call_6 = h();
+fmt::Println(_eo_call_3, _eo_call_6);
+```
+
+The temporary is initialized from the left operand, and it is declared where the `&&` or `||` would be saved. A `&&` assigns the right operand when the temporary is `true`, and a `||` when it is `false`. The right operand's temporaries are declared inside the `if`. The form applies when the `&&` or `||` is nested, and also when it is the whole full expression, as in `ok` above or the condition of an `if`, which then tests the temporary: `if (_eo_call_0) {`.
+
+#### Positions that no statement can precede
+
+A temporary must be declared before the expression that uses it. These positions have no place for a statement, so they take another form when they need temporaries. The init statement of a three-clause `for` loop is not one of them: its temporaries go immediately before the `for` statement.
+
+- An `else if` condition: the `else` takes a block, which holds the condition's temporaries and then the `if` with the rest of the chain. `} else if f() + g() == 5 {` becomes `} else {`, the temporaries, `if (_eo_call_0 + _eo_call_1 == 5) {`, and one more closing brace after the chain.
+- An `if` or `switch` with an init statement, when the init statement or the condition needs temporaries: the statement becomes a block, `{`, that holds the init statement's temporaries, the init statement, the condition's temporaries, the `if` or `switch` without an init statement, and `}`. The block gives the init statement's variables the same scope as a C++ init statement.
+- A loop condition: the condition moves into the body as `for (init;; post) {`, then the condition's temporaries, then `if (!(c)) { break; }` before the translated body, with `!c` for a condition `c` that is a single name. The condition still runs before every iteration, after the post statement. `continue` jumps to the post statement as before. A `for c {}` loop is `for (;;) {`. The post expression of [Loop clause variables](#loop-clause-variables) stays, so the condition reads each iteration's box.
+
+```go
+for i := 0; i < f()+g(); i++ {
+	fmt.Println(i)
+}
+```
+
+```cpp
+for (auto i = int64_t{0};; i++) {
+  auto _eo_call_0 = f();
+  auto _eo_call_1 = g();
+  if (!(i < _eo_call_0 + _eo_call_1)) {
+    break;
+  }
+  fmt::Println(i);
+}
+```
+
+#### Other operands
+
+The gc compiler does not always follow Eo's order for operands that are not ordered operations. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), f(), g())`, where `g` assigns `s`, prints the old length. With one nested ordered operation and no helper, the C++ compiler may read such an operand before or after the operation too. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
+
+#### Evaluation order not covered yet
+
+- a loop post statement that needs temporaries, which does not translate to a single C++ expression (see [Loop clause variables](#loop-clause-variables));
+- a `switch` case expression that needs temporaries. Go evaluates the case expressions in order only until one matches, and expression switches have no frozen mapping yet;
+
 ### Strings
 
 Go `string` maps to `std::string`. A Go string is immutable, so a copy of a `std::string` behaves like Go's shared bytes, and only the cost differs. The functions below are in `<eo/string.h>`, which `<eo/core.h>` includes. They cover the operations whose plain C++ form would differ from Go's:
@@ -352,13 +502,13 @@ Go `[]T` maps to `slice<T>` from `<eo/slice.h>`, which `<eo/core.h>` includes. A
 
 `byte` is `uint8_t` and `rune` is `int32_t`. A variadic call passes the slice where Go passes it: arguments after the fixed ones become a new slice, no arguments pass nil, and `t...` passes `t` itself, so the callee shares its elements.
 
-`slice<T>{}` is the nil slice, because `T{}` is the zero value of every type in Eo. A composite literal is never nil, even when it is empty, so it is written `slice<T>::of({...})`. A nested literal whose element type Go elides spells it, and a `nil` element is `nullptr`: `[][]int{{1}, nil, {}}` is `slice<slice<int64_t>>::of({slice<int64_t>::of({1}), nullptr, slice<int64_t>::of({})})`. The braced list evaluates the elements left to right, and so does the braced list of `eo::append`, but the list is itself an argument of a function call, which C++ does not sequence against the other arguments. A Go call in a literal or in an append therefore follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), like a call in any other operand of a helper.
+`slice<T>{}` is the nil slice, because `T{}` is the zero value of every type in Eo. A composite literal is never nil, even when it is empty, so it is written `slice<T>::of({...})`. A nested literal whose element type Go elides spells it, and a `nil` element is `nullptr`: `[][]int{{1}, nil, {}}` is `slice<slice<int64_t>>::of({slice<int64_t>::of({1}), nullptr, slice<int64_t>::of({})})`. The braced list evaluates the elements left to right, and so does the braced list of `eo::append`, but the list is itself an argument of a function call, which C++ does not sequence against the other arguments. A Go call in a literal or in an append therefore follows [Evaluation order](#evaluation-order), like a call in any other operand of a helper.
 
 Slicing a nil slice gives nil, and slicing any other slice gives a non-nil one, even when it is empty, as in Go. Appending nothing returns the slice unchanged, so `append(s)` and `append(s, t...)` with an empty `t` keep a nil `s` nil.
 
 `eo::at`, `eo::subslice`, and `eo::make_slice` accept the same Go integer types as `eo::at` on a string (see [Strings](#strings)). An index out of range panics with Go's runtime error. A slice's high bound is checked against its capacity, so slicing a slice of capacity 3 as `s[:5]` panics with `runtime error: slice bounds out of range [:5] with capacity 3`, and the three-index form checks `max`, then `high`, then `low`, with Go's messages, such as `slice bounds out of range [:3:2]`. `make` panics with `runtime error: makeslice: len out of range` for a negative length, and `makeslice: cap out of range` for a capacity below the length. A length or capacity whose storage exceeds Go's 2<sup>48</sup> byte allocation limit panics in the same way, measured with the C++ size of `T`, which can differ from Go's.
 
-`eo::at` returns a reference into the backing array, so `s[i] = v` is `eo::at(s, i) = v`, and `s[i] += v` is `eo::at(s, i) += v`. C++ evaluates the right operand of an assignment before the left, so `eo::at(s, i) = f()` calls `f` before it checks `i`, as the gc compiler does. When the left side also contains a call, as in `s[g()] = f()`, the rule below applies. Do not bind the reference to a C++ reference variable: an `append` past capacity or an assignment to `s` can leave it referring to an array that is no longer shared or no longer alive. Take the address with the pointer form, `ptr(s, &eo::at(s, i))`, instead (see [Pointer type](#pointer-type)).
+`eo::at` returns a reference into the backing array, so `s[i] = v` is `eo::at(s, i) = v`, and `s[i] += v` is `eo::at(s, i) += v`. C++ evaluates the right operand of an assignment before the left, so `eo::at(s, i) = f()` calls `f` before it checks `i`, as the gc compiler does. When the left side also contains a call, as in `s[g()] = f()`, [Evaluation order](#evaluation-order) applies. Do not bind the reference to a C++ reference variable: an `append` past capacity or an assignment to `s` can leave it referring to an array that is no longer shared or no longer alive. Take the address with the pointer form, `ptr(s, &eo::at(s, i))`, instead (see [Pointer type](#pointer-type)).
 
 `append` writes in place when the new elements fit in the capacity of `s`, so other slices of the same backing array observe them, as in Go. Otherwise it copies the elements into a new array, and the result no longer shares elements with `s`. The capacity of the new array follows the formula of Go's runtime, `nextslicecap`, without its rounding to allocation size classes. Go does not specify this capacity, and the gc compiler's choice depends on the element size and on escape analysis: a slice that does not escape may start in a 32-byte stack buffer. A program whose behavior depends on the capacity after a reallocating `append` is outside this mapping, and parity cases do not print it. `copy` and `eo::append_slice` handle overlapping elements as Go does, as if through a temporary buffer.
 
@@ -372,43 +522,7 @@ The slice helpers are function objects with the same collision rule as the strin
 
 `for range` over a slice is in [Range loops](#range-loops). Not covered yet: keyed elements in a composite literal, such as `[]T{2: x}`, slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays ([#93](https://github.com/conr2d/eo/issues/93)); the `slices` package ([#94](https://github.com/conr2d/eo/issues/94)); and variadic calls in `go` and `defer` statements ([#95](https://github.com/conr2d/eo/issues/95)).
 
-#### Calls next to slice and string operands
-
-C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions and methods in lexical left-to-right order, but it does not specify when the other operands of an expression are read relative to those calls. The translation must not leave that order to the C++ compiler. A reference that `eo::at` returns before a call that frees its backing array refers to freed storage, and the two orders can print different values.
-
-Eo fixes one order: an expression's nested Go calls run first, left to right, and the operands that remain in the statement are read after them. When an expression contains a call to an `eo::` slice, string, or map helper, a call to `slice<T>::of` or `map<K, V>::of`, or a keyed struct literal whose keys are out of declaration order (see [Composite literals](#composite-literals)), save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
-
-```go
-fmt.Println(s[0], g())
-s[0] = s[1] + g()
-x := f(s[0], g())
-s[g()] = h()
-```
-
-```cpp
-auto _eo_call_0 = g();
-fmt::Println(eo::at(s, 0), _eo_call_0);
-auto _eo_call_1 = g();
-eo::at(s, 0) = eo::at(s, 1) + _eo_call_1;
-auto _eo_call_2 = g();
-auto x = f(eo::at(s, 0), _eo_call_2);
-auto _eo_call_3 = g();
-eo::at(s, _eo_call_3) = h();
-```
-
-The rule applies separately to each full expression that a statement evaluates: an expression statement, each side of an assignment, the initializer of a declaration, the operand of a `return`, and the condition of an `if` or the tag of a `switch` without an init statement, whose temporaries go before the `if` or `switch`:
-
-- Every Go function or method call in the full expression is a nested call, except the outermost operation when that operation is itself a Go call. This includes the arguments of an `eo::` helper, the elements of a braced list in `slice<T>::of`, `map<K, V>::of`, or `eo::append`, the elements of a struct literal, operands of operators and conversions, parenthesized calls, and the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. The outermost call stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so in `s[g()] = h()` above, `h()` runs after the saved `g()` and before the index check, as Go orders them. When the outermost operation is a helper, an operator, or a conversion, every Go call in the expression is nested, except inside an operand of `&&` or `||` (see below): `t := []int{f(), h(s[0], g())}` becomes `auto _eo_call_0 = f();`, `auto _eo_call_1 = g();`, `auto _eo_call_2 = h(eo::at(s, 0), _eo_call_1);`, then `auto t = slice<int64_t>::of({_eo_call_0, _eo_call_2});`, and `s = append(s, g())` becomes `auto _eo_call_3 = g();`, then `s = eo::append(s, {_eo_call_3});`.
-- Builtins and conversions, such as `len`, `cap`, `append`, `string(b)`, and `int64(x)`, are not themselves Go calls for this rule, but the Go calls inside them are. A call inside a function literal's body belongs to that body.
-- A temporary's initializer is an expression in its own right. If it contains a helper and a nested Go call, that call is saved first. Temporaries are declared in the order Go makes their calls. `<n>` counts them from 0 through the enclosing function, statement by statement in source order and, within one statement, in call order, with the bodies of function literals numbered where they appear in the source, so no name is reused. `fmt.Println(f(s[0], k()), g())` becomes `auto _eo_call_0 = k();`, then `auto _eo_call_1 = f(eo::at(s, 0), _eo_call_0);`, then `auto _eo_call_2 = g();`.
-- Go evaluates the right operand of `&&` and `||` only when the left one does not decide the result, so a call is never moved out of either operand. Instead, a `&&` or `||` that contains a Go call and is nested in the expression is itself saved as one temporary, in its place in call order: `fmt.Println(s[0], f() && h(), g())` becomes `auto _eo_call_0 = f() && h();`, then `auto _eo_call_1 = g();`. Each operand is an expression in its own right, whose outermost call stays in place, so `i < len(t) && check(t[i])` needs no temporary. An operand that would need one is not covered yet.
-- In a `go` or `defer` statement, the saved calls come before the statement's function value, receiver, and argument temporaries.
-- An expression that no statement can precede is not covered yet: a loop condition or post statement, an `else if` condition, the condition of an `if` or `switch` with an init statement, and a `switch` case expression.
-- Also not covered yet, when the expression uses a helper or contains a keyed struct literal out of declaration order: a send statement, whose channel and value operands C++ does not sequence; a receive operation, which Go orders with the calls; and a call that produces the receiver of a method call or the operand of a selector, as `p()` in `p().M(s[0], g())`, `p().f = s[0] + g()`, or `*p() = s[0] + g()`. The general evaluation-order rule that would cover these, and expressions without helpers, is [#96](https://github.com/conr2d/eo/issues/96).
-
-The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
-
-`ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved by the rule above first, so that the pointer's owner and target are the same array.
+`ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved first, by [Evaluation order](#evaluation-order), so that the pointer's owner and target are the same array.
 
 ### Maps
 
@@ -435,7 +549,7 @@ The helpers are function objects, called qualified, with the same collision rule
 
 `eo::map_get` reads without inserting, so reading a missing key leaves `len(m)` unchanged, as in Go, while C++'s `operator[]` would insert it. `m[k].f` is `eo::map_get(m, k).f`. `eo::map_get_ok` returns a `std::pair` of the value and whether the key is present, and follows the forms of [Multiple results](#multiple-results) with a `std::pair`, as `eo::type_assert_ok` does: `_, ok := m[k]` is `auto ok = eo::map_get_ok(m, k).second;`.
 
-`eo::map_entry` is for a map index on the left of an assignment, an op-assignment, `++`, or `--`. It returns a reference to the value in the table, inserting the key with the zero value first when it is absent, so `m[k] += 1` on a missing key stores 1. Assigning to an entry of a nil map panics with Go's `assignment to entry in nil map`, whose value is a `runtime.plainError`. An op-assignment that needs a helper for its operator takes the entry as its operand: `m[k] /= d` is `eo::div_assign(eo::map_entry(m, k), d)`. C++ evaluates the right side of an assignment before the left, so `m[k] = len(m)` reads the length before the entry is inserted, as Go does. A map inside another map is indexed as a value first: `m[a][b] = v` is `eo::map_entry(eo::map_get(m, a), b) = v`. A call in a map operand follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), like a call in an operand of any other helper.
+`eo::map_entry` is for a map index on the left of an assignment, an op-assignment, `++`, or `--`. It returns a reference to the value in the table, inserting the key with the zero value first when it is absent, so `m[k] += 1` on a missing key stores 1. Assigning to an entry of a nil map panics with Go's `assignment to entry in nil map`, whose value is a `runtime.plainError`. An op-assignment that needs a helper for its operator takes the entry as its operand: `m[k] /= d` is `eo::div_assign(eo::map_entry(m, k), d)`. C++ evaluates the right side of an assignment before the left, so `m[k] = len(m)` reads the length before the entry is inserted, as Go does. A map inside another map is indexed as a value first: `m[a][b] = v` is `eo::map_entry(eo::map_get(m, a), b) = v`. A call in a map operand follows [Evaluation order](#evaluation-order), like a call in an operand of any other helper.
 
 A key type must be a bool, an integer or float type, a string, a pointer, `eo::empty_struct`, or a struct whose fields are such types. Other key types do not compile. Keys compare as Go compares them: pointers by address and structs field by field. A float key follows Go too. `-0.0` and `0.0` are the same key, and assigning with one of them stores it as the key, so the map prints the sign of the last assignment. Every assignment with a NaN key adds a new entry, which no lookup, assignment, or `delete` can reach, and which only `clear` removes.
 
@@ -511,7 +625,7 @@ The defaulted `operator==` compares the fields in declaration order and stops at
 
 A positional literal `T{a, b}` lists every field in order, as Go requires, and is the same aggregate initialization in C++. A keyed literal uses designated initializers, which C++ requires in declaration order, so the keys are reordered when Go lists them in another order. An omitted field keeps its `{}` zero value. A literal whose type Go elides spells it, as in [Slices](#slices): `[]Point{{1, 2}, {Y: 3}}` is `slice<Point>::of({Point{1, 2}, Point{.Y = 3}})`, and `[]*Point{{1, 2}}` is `slice<ptr<Point>>::of({New<Point>(Point{1, 2})})`.
 
-C++ evaluates the initializers of a braced list from left to right, so a literal whose keys are in declaration order makes its own calls in Go's order. Their order relative to the other arguments of an enclosing call is the general evaluation-order question of [#96](https://github.com/conr2d/eo/issues/96), as for any argument. A keyed literal with keys out of declaration order would make its own calls in another order. An expression that contains such a literal follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands): each nested Go call in the expression is saved in an `_eo_call_<n>` temporary, in Go's order, before the statement:
+C++ evaluates the initializers of a braced list from left to right, so a literal whose keys are in declaration order makes its own calls in Go's order. Their order relative to the other arguments of an enclosing call follows [Evaluation order](#evaluation-order), as for any argument. A keyed literal with keys out of declaration order would make its own calls in another order. An expression that contains such a literal follows rule 2 of [Saving ordered operations](#saving-ordered-operations): each nested ordered operation in the expression is saved in an `_eo_call_<n>` temporary, in Go's order, before the statement:
 
 ```go
 r := Point{Y: f(), X: g()}
@@ -613,7 +727,7 @@ A blank variable is the same as an omitted one, so `for i, _ := range s` is `for
 
 C++ declares the variables of a range-based `for` again for each iteration, as Go 1.22 does, so the loop's own update is not a write to the previous iteration's variables. A function literal that captures a range variable by reference and is not boxed captures it with `&`, as in `[=, &v]`, which C++20 allows for a structured binding.
 
-`break` and `continue` are C++ `break` and `continue`. The range expression is the argument of `eo::range` and follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_key, v] : eo::range(next()))`. A nested Go call in the range expression is saved before the `for` statement, as in `for _, v := range next()[g():]`, which is `auto _eo_call_0 = next();`, `auto _eo_call_1 = g();`, and `for (auto [_eo_range_key, v] : eo::range(eo::subslice(_eo_call_0, _eo_call_1)))`.
+`break` and `continue` are C++ `break` and `continue`. The range expression is the argument of `eo::range` and follows [Evaluation order](#evaluation-order) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_key, v] : eo::range(next()))`. A nested operation that the rule saves goes before the `for` statement, as in `for _, v := range next()[g():]`, which is `auto _eo_call_0 = next();`, `auto _eo_call_1 = g();`, and `for (auto [_eo_range_key, v] : eo::range(eo::subslice(_eo_call_0, _eo_call_1)))`.
 
 #### Boxed range variables
 
@@ -1108,7 +1222,7 @@ A function or method with more than one result returns a `std::tuple` of the tra
 
 `f()` stands for any call with several results, including a method call, an interface method call, and `co_await g()` for a coroutine `g`. A `return` is `co_return` in a coroutine, as for any result.
 
-`return {a, b};` initializes the tuple from a braced list, which C++ evaluates left to right, as Go evaluates the operands of `return`. A coroutine names the tuple type, because `co_return` passes its operand to a function template of `func<T>`, which cannot deduce a type from a braced list. For [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), the list of a `return` is one full expression with no outermost call.
+`return {a, b};` initializes the tuple from a braced list, which C++ evaluates left to right, as Go evaluates the operands of `return`. A coroutine names the tuple type, because `co_return` passes its operand to a function template of `func<T>`, which cannot deduce a type from a braced list. For [Evaluation order](#evaluation-order), the list of a `return` is one full expression with no outermost operation.
 
 A function with named results declares each of them at the start of its body, as `T name{};` in order, whether or not it has a `defer` statement. A named result that is [boxed](#boxed-variables) is declared as `auto name = New<T>();` and returned as `*name`, and a result named `_` is an unnamed result, `_eo_result_N`. A bare `return` returns them, as `return {q, r};` for several results and `return q;` for one. A function with a `defer` statement also assigns them differently, as described in [Defer](#defer).
 
@@ -1141,7 +1255,7 @@ The comma-ok form of a type assertion follows the same forms with a `std::pair`,
 
 #### Calls with the results of another call
 
-Go's `h(f())` passes each result of `f` as an argument of `h`. It is `std::apply(h, f())`, where `h` is a package-level function, or an Eo library function such as `fmt.Println`, which is a function object for this reason: `fmt.Println(f())` is `std::apply(fmt::Println, f())`. A coroutine `h` is called as `co_await std::apply(h, f())`, and a coroutine `f` as `std::apply(h, co_await f())`. For [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), `std::apply(h, f())` is the call of `h`.
+Go's `h(f())` passes each result of `f` as an argument of `h`. It is `std::apply(h, f())`, where `h` is a package-level function, or an Eo library function such as `fmt.Println`, which is a function object for this reason: `fmt.Println(f())` is `std::apply(fmt::Println, f())`. A coroutine `h` is called as `co_await std::apply(h, f())`, and a coroutine `f` as `std::apply(h, co_await f())`. For [Evaluation order](#evaluation-order), `std::apply(h, f())` is the call of `h`.
 
 `go h(f())` and `defer h(f())` evaluate `f()` when the statement runs. Each argument temporary is declared with the value type of the parameter of `h` it is passed to, as `go` temporaries are (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)), and is then assigned from `f()` by the `std::tie` form. When `h` is an Eo library function object, such as `fmt::Println`, whose parameters are templates, each temporary takes the type of the result of `f` it holds:
 
@@ -1273,7 +1387,7 @@ A channel's direction is checked by the Go compiler, so a translation drops it: 
 
 Values buffered before `close` are still received, as in Go. A send on a closed channel, including a send that is blocked when the channel is closed, panics with `send on closed channel`. `close` of a nil channel panics with `close of nil channel`, and of a closed one with `close of closed channel`. All three panic values are `runtime.plainError`. Sending to and receiving from a nil channel blocks forever.
 
-`co_await (ch << v)` converts `v` to `T` when the send runs. A send statement or a receive in an expression with a nested Go call follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands) where that rule covers it, and [#96](https://github.com/conr2d/eo/issues/96) otherwise. A `select` statement uses `*ch` and `ch << v` as its cases (see [Select](#select)). `for range` over a channel is in [Range loops](#range-loops).
+`co_await (ch << v)` converts `v` to `T` when the send runs. A send statement and a receive in an expression follow [Evaluation order](#evaluation-order), where a receive is an ordered operation. A `select` statement uses `*ch` and `ch << v` as its cases (see [Select](#select)). `for range` over a channel is in [Range loops](#range-loops).
 
 #### Channels not covered yet
 
@@ -1616,6 +1730,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - labeled `break` and `continue`;
+- the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet): a loop post statement and a `switch` case expression that need temporaries;
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, and interfaces;
 - constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;

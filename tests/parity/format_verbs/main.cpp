@@ -79,8 +79,9 @@ func<> eo_main() {
   fmt::Println();
   auto s = fmt::Sprintf("%v and %x"s, slice<any>::of({int64_t{1}, "a"s, nullptr}), slice<int64_t>::of({10, 11}));
   fmt::Println(s, eo::len(s));
-  fmt::Println(fmt::Sprint("a"s, "b"s, int64_t{1}, int64_t{2}, "c"s),
-    fmt::Sprint(int64_t{1}, int64_t{2}),
-    fmt::Sprintln("x"s, int64_t{3}) == "x 3\n"s);
+  auto _eo_call_0 = fmt::Sprint("a"s, "b"s, int64_t{1}, int64_t{2}, "c"s);
+  auto _eo_call_1 = fmt::Sprint(int64_t{1}, int64_t{2});
+  auto _eo_call_2 = fmt::Sprintln("x"s, int64_t{3});
+  fmt::Println(_eo_call_0, _eo_call_1, _eo_call_2 == "x 3\n"s);
   co_return;
 }

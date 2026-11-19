@@ -149,17 +149,16 @@ func<> eo_main() {
   auto w = Wrapper{.Item = it, .Extra = 7};
   w.Item.Base.ID = 4;
   Base::Rename(ref(w.Item.Base), "wrapped"s);
-  fmt::Println(Base::Describe(w.Item.Base),
-    w.Item.Base.ID,
-    w.Item.Base.ID,
-    it.Base.ID,
-    Counter::Inc(w.Item.Counter),
-    w.Extra);
+  auto _eo_call_0 = Base::Describe(w.Item.Base);
+  auto _eo_call_1 = Counter::Inc(w.Item.Counter);
+  fmt::Println(_eo_call_0, w.Item.Base.ID, w.Item.Base.ID, it.Base.ID, _eo_call_1, w.Extra);
 
   auto p = ref(w);
   p->Item.Base.ID = 5;
   Base::Rename(ptr(p, &p->Item.Base), "via pointer"s);
-  fmt::Println(Base::Describe(p->Item.Base), p->Item.Base.ID, Counter::Get(*p->Item.Counter));
+  auto _eo_call_2 = Base::Describe(p->Item.Base);
+  auto _eo_call_3 = Counter::Get(*p->Item.Counter);
+  fmt::Println(_eo_call_2, p->Item.Base.ID, _eo_call_3);
 
   fmt::Println(Base{.ID = 6, .Name = "printed"s});
   fmt::Println(Wrapper{.Item = Item{.Name = "x"s}, .Extra = 1});

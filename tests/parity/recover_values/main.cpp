@@ -62,7 +62,9 @@ void classify(std::string name, std::function<void()> f) {
       fmt::Printf("%s: %T %v %t %t\n"s, name, r, r, isErr, isRuntime);
       if (isErr) {
         auto re = New<runtime::Error_>();
-        fmt::Println("  message:"s, err.Error(), errors::As(err, re));
+        auto _eo_call_0 = err.Error();
+        auto _eo_call_1 = errors::As(err, re);
+        fmt::Println("  message:"s, _eo_call_0, _eo_call_1);
       }
     });
     f();
