@@ -11,8 +11,12 @@
 
 #include <chrono>
 #include <future>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <utility>
+#include <vector>
 
 namespace asio = boost::asio;
 using namespace std::chrono_literals;
@@ -106,6 +110,78 @@ void test_recv2_reports_closed_receive() {
   check(!ok, "closed recv2 should report false");
 }
 
+// Go delivers values sent before close before it reports the close, also to a select.
+void test_select_drains_closed_buffered_channel() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 2};
+  check(ch.raw().try_send(boost::system::error_code{}, 1), "test setup send should succeed");
+  check(ch.raw().try_send(boost::system::error_code{}, 2), "test setup send should succeed");
+  ch.close();
+
+  for (auto [want, want_ok] : {std::pair{1, true}, std::pair{2, true}, std::pair{0, false}}) {
+    auto select = eo::Select{*ch};
+    check(select.try_index() == 0, "a closed channel should be selectable");
+    auto [value, ok] = select.recv2<0>();
+    check(value == want && ok == want_ok, "select should receive buffered values before reporting the close");
+  }
+}
+
+auto select_receive(eo::chan<int> ch) -> eo::func<std::pair<int, bool>> {
+  auto select = eo::Select{*ch};
+  co_await select.index();
+  co_return select.recv2<0>();
+}
+
+void test_select_wait_released_by_close() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor()};
+  auto receiver = asio::co_spawn(io, select_receive(ch), asio::use_future);
+  auto closer = asio::co_spawn(
+    io,
+    [ch]() mutable -> eo::func<> {
+      co_await asio::post(asio::use_awaitable);
+      ch.close();
+    },
+    asio::use_future);
+
+  io.run();
+  closer.get();
+  check(receiver.get() == std::pair{0, false}, "a select waiting to receive should report the close");
+}
+
+auto select_two(eo::chan<int> ch, eo::chan<int> other) -> eo::func<int> {
+  auto select = eo::Select{*ch, *other};
+  co_return co_await select.index();
+}
+
+// A case that a select does not choose must not consume a value. On one thread the order is fixed:
+// the send on `other` wakes the chosen case, whose completion cancels the wait on `ch`; the posted
+// task then buffers 5 in `ch` and closes it before the cancelled wait resumes.
+void test_select_loser_keeps_buffered_value() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 1};
+  eo::chan<int> other{io.get_executor()};
+  auto chosen = asio::co_spawn(io, select_two(ch, other), asio::use_future);
+  auto sent = false;
+  asio::post(io, [&] {
+    check(other.raw().try_send(boost::system::error_code{}, 1), "the chosen case should be waiting");
+    asio::post(io, [&] {
+      sent = ch.raw().try_send(boost::system::error_code{}, 5);
+      ch.close();
+    });
+  });
+
+  io.run();
+  check(chosen.get() == 1 && sent, "the select should choose the case whose channel got a value");
+  auto value = std::optional<int>{};
+  ch.raw().try_receive([&](boost::system::error_code ec, int v) {
+    if (!ec) {
+      value = v;
+    }
+  });
+  check(value == 5, "a select that chose another case should leave the buffered value");
+}
+
 int main() {
   test_default_constructed_channel_is_nil();
   test_close_nil_channel_panics();
@@ -113,4 +189,7 @@ int main() {
   test_ready_channel_beats_nil_case();
   test_recv2_reports_successful_receive();
   test_recv2_reports_closed_receive();
+  test_select_drains_closed_buffered_channel();
+  test_select_wait_released_by_close();
+  test_select_loser_keeps_buffered_value();
 }

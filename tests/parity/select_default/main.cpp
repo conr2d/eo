@@ -5,8 +5,8 @@
 using namespace eo;
 
 func<> eo_main() {
-  auto messages = make_chan<std::string>();
-  auto signals = make_chan<bool>();
+  auto messages = eo::make_chan<std::string>();
+  auto signals = eo::make_chan<bool>();
 
   switch (auto select = Select{*messages}; select.try_index()) {
   case 0: {

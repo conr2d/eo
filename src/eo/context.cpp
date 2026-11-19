@@ -8,7 +8,7 @@ const error Canceled = errors::New("context canceled");
 
 auto closed_chan() -> chan<> {
   static auto c = []() {
-    auto c = make_chan();
+    auto c = make_chan<>();
     c.close();
     return c;
   }();
@@ -100,7 +100,7 @@ CancelContext::CancelContext(std::shared_ptr<Context> parent): CancelContext(par
 auto CancelContext::Done() -> std::optional<chan<>> {
   std::unique_lock _{mtx};
   if (!done_) {
-    done_ = make_chan();
+    done_ = make_chan<>();
   }
   return *done_;
 }

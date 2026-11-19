@@ -1,4 +1,4 @@
-// Provisional: package-level variables and channel types and operations are not frozen mappings (see ../README.md).
+// Provisional: package-level variables are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/sync.h>
 
@@ -14,8 +14,8 @@ func<> reader(chan<std::string> got, chan<bool> done) {
 }
 
 func<> eo_main() {
-  auto got = make_chan<std::string>();
-  auto done = make_chan<bool>();
+  auto got = eo::make_chan<std::string>();
+  auto done = eo::make_chan<bool>();
   co_await rw.RLock();
   chan<std::string> _eo_go_arg_0_0 = got;
   chan<bool> _eo_go_arg_0_1 = done;

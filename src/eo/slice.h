@@ -17,6 +17,10 @@
 
 namespace eo {
 
+// Defined in <eo/chan.h>. cap takes both slices and channels.
+template<typename T>
+class chan;
+
 namespace detail {
 
   // Go's runtime limit on one allocation on 64-bit Linux, which makeslice checks against.
@@ -175,6 +179,12 @@ namespace detail {
     template<typename T>
     auto operator()(const slice<T>& s) const -> int64_t {
       return s.capacity();
+    }
+
+    // cap(ch): the buffer size of ch, 0 for an unbuffered or nil channel.
+    template<typename T>
+    auto operator()(const chan<T>& ch) const -> int64_t {
+      return ch.capacity();
     }
   };
 
