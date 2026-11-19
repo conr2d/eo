@@ -238,9 +238,33 @@ fmt::Println(a, eo::len(t), eo::cap(t));
 
 `slice<T>{}` is the nil slice, and a composite literal is always `slice<T>::of({...})`, so `[]T{}` stays non-nil. See `docs/TRANSLATION_RULES.md` for the full mapping.
 
+### Maps
+
+Go `map[K]V` is `map<K, V>`, a handle to a shared hash table, so copies and parameters share entries as in Go. Reading a missing key returns the zero value without inserting it, and assigning to an entry of a nil map panics with Go's message.
+
+```go
+// Go
+counts := map[string]int{"a": 1}
+counts["b"]++
+v, ok := counts["c"]
+delete(counts, "a")
+fmt.Println(counts, len(counts), v, ok)
+```
+
+```cpp
+// C++
+auto counts = map<std::string, int64_t>::of({{"a"s, 1}});
+eo::map_entry(counts, "b"s)++;
+auto [v, ok] = eo::map_get_ok(counts, "c"s);
+eo::delete_(counts, "a"s);
+fmt::Println(counts, eo::len(counts), v, ok);
+```
+
+`fmt` prints a map in sorted key order, as Go does, and a `range` loop over a map does not produce an entry deleted before it is reached. See `docs/TRANSLATION_RULES.md` for the full mapping and the `maps` package.
+
 ### Range loops
 
-`for range` over an integer, a slice, or a string is a range-based `for` over `eo::range(x)`, which evaluates `x` once and decodes a string as UTF-8, as Go does. Each iteration declares new variables.
+`for range` over an integer, a slice, a string, or a map is a range-based `for` over `eo::range(x)`, which evaluates `x` once and decodes a string as UTF-8, as Go does. Each iteration declares new variables.
 
 ```go
 // Go

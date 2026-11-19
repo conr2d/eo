@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/bounds.h>
+#include <eo/map.h>
 #include <eo/slice.h>
 #include <eo/string.h>
 
@@ -11,6 +12,7 @@
 #include <iterator>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace eo {
 
@@ -147,6 +149,83 @@ namespace detail {
     std::string s_;
   };
 
+  // range m, for a map m: each key and a copy of its value, in an unspecified order. The range holds
+  // a copy of m and the keys it has when the loop starts. Each iteration looks its key up again, so
+  // an entry that the body deletes before the loop reaches it is not produced, and the value is the
+  // one the entry has when its iteration starts. An entry that the body adds is not produced, which
+  // Go allows. An entry whose key is NaN cannot be deleted or assigned, so its copy is produced unless
+  // the body clears the map.
+  template<typename K, typename V>
+  class map_range {
+  public:
+    class iterator {
+    public:
+      auto operator*() const -> std::pair<K, V> {
+        return {*key_, *value_};
+      }
+
+      auto operator++() noexcept -> iterator& {
+        ++i_;
+        return *this;
+      }
+
+      // Finds the next entry that is still in the map, so that operator* reads it right after.
+      auto operator==(std::default_sentinel_t) -> bool {
+        auto* t = range_->m_.table();
+        for (; i_ < range_->keys_.size(); ++i_) {
+          auto it = t->entries.find(range_->keys_[i_]);
+          if (it != t->entries.end()) {
+            key_ = &it->first;
+            value_ = &it->second;
+            return false;
+          }
+        }
+        auto j = i_ - range_->keys_.size();
+        if (t != nullptr && t->clears == range_->clears_ && j < range_->nans_.size()) {
+          key_ = &range_->nans_[j].first;
+          value_ = &range_->nans_[j].second;
+          return false;
+        }
+        return true;
+      }
+
+    private:
+      friend class map_range;
+
+      explicit iterator(const map_range* range) noexcept: range_(range) {}
+
+      const map_range* range_;
+      std::size_t i_ = 0;
+      const K* key_ = nullptr;
+      const V* value_ = nullptr;
+    };
+
+    explicit map_range(map<K, V> m): m_(std::move(m)) {
+      if (auto* t = m_.table(); t != nullptr) {
+        keys_.reserve(t->entries.size());
+        for (const auto& entry : t->entries) {
+          keys_.push_back(entry.first);
+        }
+        nans_.assign(t->nans.begin(), t->nans.end());
+        clears_ = t->clears;
+      }
+    }
+
+    auto begin() const noexcept -> iterator {
+      return iterator{this};
+    }
+
+    auto end() const noexcept -> std::default_sentinel_t {
+      return {};
+    }
+
+  private:
+    map<K, V> m_;
+    std::vector<K> keys_;
+    std::vector<std::pair<K, V>> nans_;
+    uint64_t clears_ = 0;
+  };
+
   struct range_fn {
     // range n, for an integer n
     template<go_integer N>
@@ -158,6 +237,12 @@ namespace detail {
     template<typename T>
     auto operator()(slice<T> s) const noexcept -> slice_range<T> {
       return slice_range<T>{std::move(s)};
+    }
+
+    // range m, for a map m
+    template<typename K, typename V>
+    auto operator()(map<K, V> m) const -> map_range<K, V> {
+      return map_range<K, V>{std::move(m)};
     }
 
     // range str, for a string str

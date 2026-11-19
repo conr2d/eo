@@ -5,7 +5,6 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <map>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -74,22 +73,23 @@ void test_empty_call_writes_newline() {
 
 void test_prints_map_in_key_order() {
   auto file = make_file();
-  fmt::Fprintln(file.get(), std::map<std::string, int>{{"c", 3}, {"a", 1}, {"b", 2}});
+  fmt::Fprintln(file.get(), eo::map<std::string, int>::of({{"c", 3}, {"a", 1}, {"b", 2}}));
 
   check(read_file(file.get()) == "map[a:1 b:2 c:3]\n", "Fprintln should print a map like Go, in key order");
 }
 
 void test_prints_nested_and_empty_maps() {
   auto file = make_file();
-  auto nested = std::map<std::string, std::map<std::string, int>>{{"x", {}}, {"y", {{"q", 2}, {"p", 1}}}};
-  fmt::Fprintln(file.get(), nested, std::map<int, int>{});
+  auto nested = eo::map<std::string, eo::map<std::string, int>>::of(
+    {{"x", eo::map<std::string, int>::of({})}, {"y", eo::map<std::string, int>::of({{"q", 2}, {"p", 1}})}});
+  fmt::Fprintln(file.get(), nested, eo::map<int, int>::of({}));
 
   check(read_file(file.get()) == "map[x:map[] y:map[p:1 q:2]] map[]\n", "Fprintln should print nested and empty maps");
 }
 
 void test_prints_map_of_strings() {
   auto file = make_file();
-  fmt::Fprintln(file.get(), std::map<std::string, std::string>{{"k1", ""}, {"k2", "hello world"}});
+  fmt::Fprintln(file.get(), eo::map<std::string, std::string>::of({{"k1", ""}, {"k2", "hello world"}}));
 
   check(read_file(file.get()) == "map[k1: k2:hello world]\n", "Fprintln should print map strings without quotes");
 }
@@ -168,7 +168,7 @@ void test_prints_floats_like_go() {
   fmt::Fprintln(file.get(),
     eo::slice<double>::of({0.5, 2e21}),
     Point{.X = 1e6, .Y = 0.25f},
-    std::map<double, float>{{1.5, 1e-7f}},
+    eo::map<double, float>::of({{1.5, 1e-7f}}),
     int8_t{-56},
     uint8_t{200});
 
