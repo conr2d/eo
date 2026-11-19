@@ -54,6 +54,8 @@ If an identifier must change because of C++ syntax, a reserved identifier, a sem
 
 A translator must not rename identifiers merely to follow a C++ naming convention.
 
+Names that begin with `_eo_` are reserved for the names that the translation introduces, such as `_eo_call_<n>` and `_eo_switch`. A Go identifier that begins with `_eo_` is not covered.
+
 ### Redeclared names
 
 Go lets a local variable hide anything of the same name from an enclosing block or the package: a variable, a constant, a function, or a type. C++ allows the same hiding, with two differences, so a local variable declaration of `x` that hides another `x` is renamed in two cases:
@@ -735,9 +737,9 @@ Go evaluates the tag once, then the case expressions from top to bottom and left
 
 The other forms:
 
-- A `switch` with an init statement puts it in a block of its own, `{ init; if ... }`, as a type switch does. The block gives the init statement's variables the scope that Go gives them, and the clauses' blocks are nested in it, so a clause can declare a variable of the same name without the renaming of [Redeclared names](#redeclared-names). A declaration that refers to the hidden variable, as `y := y * 10`, is still renamed.
-- A `switch` whose only clause is `default`, or that has no clause, evaluates the tag as an expression statement, then runs the `default` body, in a block: `{ init; tag; body }`. A `switch` without a tag and without a case clause is the block `{ init; body }`.
-- A `break` that leaves the `switch` becomes `goto _eo_break_<n>;`, and the label `_eo_break_<n>:;` follows the `if` chain, inside the block when the `switch` has one. This applies to a `break` in a clause that is not inside a nested `for`, `switch`, type switch, or `select`, and also to such a `break` in a type switch clause. `<n>` counts, from 0 in each function, the `switch` statements that have such a `break`, in source order. `continue` stays as written: it continues the enclosing loop in Go and in C++.
+- A `switch` with an init statement puts it in a block of its own, `{ init; if ... }`, as a type switch does. The init statement's temporaries go in the block before it, and the tag's after it. The block gives the init statement's variables the scope that Go gives them, and the clauses' blocks are nested in it, so a clause can declare a variable of the same name without the renaming of [Redeclared names](#redeclared-names). A declaration that refers to the hidden variable, as `y := y * 10`, is still renamed.
+- A `switch` whose only clause is `default`, or that has no clause, evaluates the tag as an expression statement, then runs the `default` body, in a block: `{ init; tag; body }`. A `switch` without a tag and without a case clause is the block `{ init; body }`. These blocks have no `if` chain, and the label of a `break` (below) is their last statement.
+- A `break` that leaves the `switch` becomes `goto _eo_break_<n>;`, and the label `_eo_break_<n>:;` follows the `if` chain, inside the block when the `switch` has one. This applies to a `break` in a clause that is not inside a nested `for`, `switch`, type switch, or `select`, and also to such a `break` in a type switch clause. `<n>` counts, from 0 in each function, the expression switches and type switches that have such a `break`, together, in the source order of their `switch` keywords, so an outer switch has a smaller number than a switch nested in one of its clauses. `continue` stays as written: it continues the enclosing loop in Go and in C++.
 - `fallthrough` becomes `goto _eo_fallthrough_<n>;`, and the body of the next clause in source order starts with the label `_eo_fallthrough_<n>:;`. `<n>` counts the `fallthrough` statements of each function from 0, in source order. The jump enters the next clause's block without evaluating its case expressions, as Go does. It also works when the next clause is a `default` that the chain moved to the end, or when `default` falls through to the clause after it, which the chain placed before it.
 
 ```go
@@ -773,7 +775,7 @@ _eo_break_0:;
 
 #### Case expressions that need temporaries
 
-The tag and the condition of each clause are full expressions (see [Evaluation order](#evaluation-order)). The tag's temporaries come before the `if` chain. A later clause's condition is in an `else if` position, so its temporaries follow [Positions that no statement can precede](#positions-that-no-statement-can-precede): the `else` takes a block that holds them. A condition with several case expressions is a `||`, so a case expression that needs temporaries after the first one follows [Short-circuit operands](#short-circuit-operands). The first clause's temporaries must run after the tag, so the tag is then declared as a statement, `auto _eo_switch = tag;`, followed by the temporaries and the `if` chain, all in a block:
+The tag and the condition of each clause are full expressions (see [Evaluation order](#evaluation-order)). The tag's temporaries come before the `if` chain. A later clause's condition is in an `else if` position, so its temporaries follow [Positions that no statement can precede](#positions-that-no-statement-can-precede): the `else` takes a block that holds them. A condition with several case expressions is a `||`, so a case expression that needs temporaries after the first one follows [Short-circuit operands](#short-circuit-operands). The comparisons of a clause stay in place as one `||` chain, `_eo_switch == a || _eo_switch == b || _eo_switch == c`: the operations inside an operand of `||` belong to that operand, so an inner `||` is never saved as a temporary of the outer one. A `switch` without a tag has no tag to run first: the first clause's temporaries go immediately before the `if` chain, as for any `if`, inside the block of the init statement when there is one. In a `switch` with a tag, the first clause's temporaries must run after the tag, so the tag is then declared as a statement, `auto _eo_switch = tag;`, followed by the temporaries and the `if` chain, all in a block:
 
 ```go
 switch trace(n) {
@@ -807,7 +809,7 @@ case h(), k() * m():
 
 #### Switch statements not covered yet
 
-- a `fallthrough` into a clause that comes after a condition with temporaries, from a clause before that condition. The jump would enter the `else` block past the temporaries' declarations, which C++ rejects;
+- a `fallthrough` whose target clause's block is inside an `else` block that declares temporaries, when the `fallthrough` itself is outside that `else` block. This happens when the target's condition, or for a `default` target any condition of the chain, needs temporaries and comes after the clause that falls through. The jump would skip the temporaries' declarations, which C++ rejects;
 - labeled `break` and `continue`, and `goto` ([#119](https://github.com/conr2d/eo/issues/119)).
 
 ### Range loops
