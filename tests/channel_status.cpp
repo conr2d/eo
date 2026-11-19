@@ -13,6 +13,7 @@
 #include <future>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace asio = boost::asio;
 using namespace std::chrono_literals;
@@ -106,6 +107,45 @@ void test_recv2_reports_closed_receive() {
   check(!ok, "closed recv2 should report false");
 }
 
+// Go delivers values sent before close before it reports the close, also to a select.
+void test_select_drains_closed_buffered_channel() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 2};
+  check(ch.raw().try_send(boost::system::error_code{}, 1), "test setup send should succeed");
+  check(ch.raw().try_send(boost::system::error_code{}, 2), "test setup send should succeed");
+  ch.close();
+
+  for (auto [want, want_ok] : {std::pair{1, true}, std::pair{2, true}, std::pair{0, false}}) {
+    auto select = eo::Select{*ch};
+    check(select.try_index() == 0, "a closed channel should be selectable");
+    auto [value, ok] = select.recv2<0>();
+    check(value == want && ok == want_ok, "select should receive buffered values before reporting the close");
+  }
+}
+
+auto select_receive(eo::chan<int> ch) -> eo::func<std::pair<int, bool>> {
+  auto select = eo::Select{*ch};
+  co_await select.index();
+  co_return select.recv2<0>();
+}
+
+void test_select_wait_released_by_close() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor()};
+  auto receiver = asio::co_spawn(io, select_receive(ch), asio::use_future);
+  auto closer = asio::co_spawn(
+    io,
+    [ch]() mutable -> eo::func<> {
+      co_await asio::post(asio::use_awaitable);
+      ch.close();
+    },
+    asio::use_future);
+
+  io.run();
+  closer.get();
+  check(receiver.get() == std::pair{0, false}, "a select waiting to receive should report the close");
+}
+
 int main() {
   test_default_constructed_channel_is_nil();
   test_close_nil_channel_panics();
@@ -113,4 +153,6 @@ int main() {
   test_ready_channel_beats_nil_case();
   test_recv2_reports_successful_receive();
   test_recv2_reports_closed_receive();
+  test_select_drains_closed_buffered_channel();
+  test_select_wait_released_by_close();
 }
