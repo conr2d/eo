@@ -11,9 +11,12 @@
 
 #include <chrono>
 #include <future>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
+#include <vector>
 
 namespace asio = boost::asio;
 using namespace std::chrono_literals;
@@ -146,6 +149,39 @@ void test_select_wait_released_by_close() {
   check(receiver.get() == std::pair{0, false}, "a select waiting to receive should report the close");
 }
 
+auto select_two(eo::chan<int> ch, eo::chan<int> other) -> eo::func<int> {
+  auto select = eo::Select{*ch, *other};
+  co_return co_await select.index();
+}
+
+// A case that a select does not choose must not consume a value. On one thread the order is fixed:
+// the send on `other` wakes the chosen case, whose completion cancels the wait on `ch`; the posted
+// task then buffers 5 in `ch` and closes it before the cancelled wait resumes.
+void test_select_loser_keeps_buffered_value() {
+  asio::io_context io;
+  eo::chan<int> ch{io.get_executor(), 1};
+  eo::chan<int> other{io.get_executor()};
+  auto chosen = asio::co_spawn(io, select_two(ch, other), asio::use_future);
+  auto sent = false;
+  asio::post(io, [&] {
+    check(other.raw().try_send(boost::system::error_code{}, 1), "the chosen case should be waiting");
+    asio::post(io, [&] {
+      sent = ch.raw().try_send(boost::system::error_code{}, 5);
+      ch.close();
+    });
+  });
+
+  io.run();
+  check(chosen.get() == 1 && sent, "the select should choose the case whose channel got a value");
+  auto value = std::optional<int>{};
+  ch.raw().try_receive([&](boost::system::error_code ec, int v) {
+    if (!ec) {
+      value = v;
+    }
+  });
+  check(value == 5, "a select that chose another case should leave the buffered value");
+}
+
 int main() {
   test_default_constructed_channel_is_nil();
   test_close_nil_channel_panics();
@@ -155,4 +191,5 @@ int main() {
   test_recv2_reports_closed_receive();
   test_select_drains_closed_buffered_channel();
   test_select_wait_released_by_close();
+  test_select_loser_keeps_buffered_value();
 }

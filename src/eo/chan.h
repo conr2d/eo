@@ -51,6 +51,14 @@ namespace detail {
     return closed != nullptr && closed->load();
   }
 
+  // Whether the running coroutine was cancelled, as the awaitable || of a select cancels the waits of
+  // the cases it did not choose. A close cancels channel operations with the same error code, so the
+  // error alone cannot tell the two apart.
+  inline auto cancelled_by_select() -> boost::asio::awaitable<bool> {
+    auto state = co_await boost::asio::this_coro::cancellation_state;
+    co_return state.cancelled() != boost::asio::cancellation_type::none;
+  }
+
   // The result of one receive: the value, nullopt once the channel is closed and drained, or
   // `cancelled` when a select that chose another case cancelled it.
   template<typename T>
@@ -69,6 +77,10 @@ namespace detail {
       auto [ec, value] = co_await c->async_receive(eoroutine);
       if (!ec) {
         co_return receive_result<T>{std::move(value)};
+      }
+      // A case that the select did not choose must not consume a value.
+      if (co_await cancelled_by_select()) {
+        co_return receive_result<T>{std::nullopt, true};
       }
       if (!c->is_open()) {
         // asio keeps buffered values after close, so take one that a send left before it.
@@ -304,7 +316,8 @@ public:
     }
     auto res = co_await c->async_send(boost::system::error_code{}, value, eoroutine);
     if (std::get<0>(res)) {
-      if (closed_now()) {
+      // A case that the select did not choose does not panic, even when the channel has closed.
+      if (!co_await detail::cancelled_by_select() && closed_now()) {
         detail::panic_send_on_closed_channel();
       }
       co_return false;
