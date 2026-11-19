@@ -1,0 +1,7 @@
+<nil>
+runtime.plainError send on closed channel
+close of closed channel
+close of nil channel
+2
+makechan: size out of range <nil>
+true

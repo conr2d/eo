@@ -1,4 +1,3 @@
-// Provisional: a nil channel field and channels are not frozen mappings (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
@@ -41,7 +40,7 @@ void spawn(chan<int64_t> results, int64_t n) {
 }
 
 func<> eo_main() {
-  auto results = make_chan<int64_t>();
+  auto results = eo::make_chan<int64_t>();
   spawn(results, 1);
   spawn(results, 2);
   fmt::Println("sum"s, co_await *results + co_await *results);

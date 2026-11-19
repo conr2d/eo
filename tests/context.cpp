@@ -20,7 +20,7 @@ void check(bool condition, const char* message) {
 }
 
 struct CustomContext : eo::context::Context {
-  CustomContext(): done_(eo::make_chan()) {}
+  CustomContext(): done_(eo::make_chan<>()) {}
 
   auto Done() -> std::optional<eo::chan<>> override {
     return done_;

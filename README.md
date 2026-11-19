@@ -64,29 +64,39 @@ func<> eo_main() {
 }
 ```
 
-### Channel
+### Channels
 
-Channels are currently implemented on top of Boost.Asio experimental concurrent channels.
-
-Go receive `<-ch` and send `ch <- value` are represented by `*ch` and `ch << value`.
+Go `chan T` is `chan<T>`, a shared handle. A send `ch <- v` is `co_await (ch << v)`, a receive `<-ch` is `co_await *ch`, and `v, ok := <-ch` is `co_await eo::recv_ok(ch)`. Each suspends only the goroutine. `for v := range ch` receives until the channel is closed and drained.
 
 ```go
 // Go
 func main() {
-  ch := make(chan string)
-  go func() { ch <- "ping" }()
-  msg := <-ch
-  fmt.Println(msg)
+  ch := make(chan string, 1)
+  go func() {
+    ch <- "ping"
+    close(ch)
+  }()
+  for msg := range ch {
+    fmt.Println(msg)
+  }
 }
 ```
 
 ```cpp
 // C++
 func<> eo_main() {
-  auto ch = make_chan<std::string>();
-  go([&]() -> func<> { co_await (ch << "ping"s); });
-  auto msg = co_await *ch;
-  fmt::Println(msg);
+  auto ch = eo::make_chan<std::string>(1);
+  go([=]() mutable -> func<> {
+    co_await (ch << "ping"s);
+    ch.close();
+  });
+  for (auto _eo_range_chan = ch;;) {
+    auto [msg, _eo_range_ok] = co_await eo::recv_ok(_eo_range_chan);
+    if (!_eo_range_ok) {
+      break;
+    }
+    fmt::Println(msg);
+  }
 }
 ```
 

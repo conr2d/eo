@@ -1,4 +1,4 @@
-// Provisional: package-level variables and channels are not frozen mappings (see ../README.md).
+// Provisional: package-level variables are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/sync.h>
 
@@ -19,8 +19,8 @@ func<> sender(chan<int64_t> ch) {
 }
 
 func<> eo_main() {
-  auto ch = make_chan<int64_t>();
-  auto done = make_chan<std::string>();
+  auto ch = eo::make_chan<int64_t>();
+  auto done = eo::make_chan<std::string>();
   co_await mu.Lock();
   chan<std::string> _eo_go_arg_0_0 = done;
   go([=]() mutable { return waiter(_eo_go_arg_0_0); });

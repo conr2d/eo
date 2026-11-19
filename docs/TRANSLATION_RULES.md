@@ -588,6 +588,8 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 
 A `for range` loop over an integer, a slice, a string, or a map maps to a C++ range-based `for` statement over `eo::range(x)`, from `<eo/range.h>`, which `<eo/core.h>` includes. C++ evaluates `eo::range(x)` once, before the first iteration, as Go evaluates the range expression, and the result keeps its own copy of `x`.
 
+A loop over a channel cannot use a range-based `for`, and is in [Range over channels](#range-over-channels).
+
 | Go | C++ |
 | --- | --- |
 | `for i := range n`, where `n` is an integer | `for (auto i : eo::range(n))` |
@@ -670,7 +672,37 @@ for (auto [_eo_range_key, v] : eo::range(s)) {
 }
 ```
 
-Not covered yet: `range` over a channel ([#97](https://github.com/conr2d/eo/issues/97)), an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
+#### Range over channels
+
+C++ cannot `co_await` in the header of a range-based `for`, so a `for range` loop over a channel is a `for (;;)` loop that saves the channel in its init statement and receives at the start of each iteration with `eo::recv_ok`. It stops when the channel is closed and drained:
+
+```go
+for v := range ch {
+	fmt.Println(v)
+}
+```
+
+```cpp
+for (auto _eo_range_chan = ch;;) {
+  auto [v, _eo_range_ok] = co_await eo::recv_ok(_eo_range_chan);
+  if (!_eo_range_ok) {
+    break;
+  }
+  fmt::Println(v);
+}
+```
+
+| Go | First statement of the C++ body |
+| --- | --- |
+| `for v := range ch` | `auto [v, _eo_range_ok] = co_await eo::recv_ok(_eo_range_chan);` |
+| `for range ch`, `for _ = range ch` | `auto [_eo_range_key, _eo_range_ok] = co_await eo::recv_ok(_eo_range_chan);` |
+| `for v = range ch` | `auto [_eo_range_key, _eo_range_ok] = co_await eo::recv_ok(_eo_range_chan);`, and `v = _eo_range_key;` after the `if` |
+
+The `if (!_eo_range_ok) { break; }` statement always follows the receive. The init statement evaluates the range expression once, as Go does, so assigning `ch` in the body does not change the loop, and its outermost call stays in the init statement, as in `for (auto _eo_range_chan = produce(5);;)`. A nested Go call in it is saved before the `for` statement, as for other range expressions. `continue` jumps to the next receive and `break` leaves the loop, as in Go. A nil channel blocks the loop forever.
+
+A boxed range variable is declared under its hidden name, `_eo_range_key`, and boxed right after the `if`, as in [Boxed range variables](#boxed-range-variables): `auto n = New<int64_t>(_eo_range_key);`. The structured binding is declared again in each iteration, so a goroutine or a pointer keeps the value of its own iteration. A variable that the body declares with the name `v` is renamed as in [Clause variables redeclared in the body](#clause-variables-redeclared-in-the-body). A loop that ranges over a channel is in a coroutine, because it receives.
+
+Not covered yet: `range` over an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
 
 ### Pointers and escaping variables
 
@@ -1216,6 +1248,39 @@ In particular:
 
 The launched function body begins only after the source `go` statement's function and argument evaluation is complete.
 
+### Channels
+
+Go `chan T` maps to `chan<T>` from `<eo/chan.h>`, which `<eo/core.h>` includes. A `chan<T>` is a handle to a shared channel, so copies, parameters, and captures refer to the same channel, as in Go. Channel operations block only the goroutine (see [Blocking operations](#blocking-operations)).
+
+| Go | C++ |
+| --- | --- |
+| `chan T`, `<-chan T`, `chan<- T` | `chan<T>` |
+| `nil` as a `chan T`, and the zero value of `chan T` | `chan<T>{}`, or `nullptr` where it converts; `var ch chan T` is `chan<T> ch;` |
+| `ch == nil`, `ch != nil`, `ch1 == ch2` | `ch == nullptr`, `ch != nullptr`, `ch1 == ch2` |
+| `make(chan T)`, `make(chan T, n)` | `eo::make_chan<T>()`, `eo::make_chan<T>(n)` |
+| `ch <- v` | `co_await (ch << v);` |
+| `<-ch` as a value, as in `v := <-ch` | `co_await *ch`, as in `auto v = co_await *ch;` |
+| `<-ch` as a statement | `co_await *ch;` |
+| `v, ok := <-ch` | `auto [v, ok] = co_await eo::recv_ok(ch);` |
+| `v, ok = <-ch` | `std::tie(v, ok) = co_await eo::recv_ok(ch);` |
+| `close(ch)` | `ch.close();` |
+| `cap(ch)` | `eo::cap(ch)`, as `int64_t` |
+| `chan struct{}` | `chan<empty_struct>` |
+
+A channel's direction is checked by the Go compiler, so a translation drops it: `<-chan T` and `chan<- T` are `chan<T>`. `eo::make_chan` and `eo::recv_ok` are function objects, called qualified, like the string helpers (see [Strings](#strings)). The size argument of `eo::make_chan` accepts any Go integer type. A negative size, or one whose buffer would be larger than Go's allocation limit, panics with `makechan: size out of range`, a `runtime.plainError`, as in Go.
+
+`co_await *ch` gives the received value, or the zero value once `ch` is closed and its buffer is drained. `eo::recv_ok` gives a `std::pair` of the value and `true`, or of the zero value and `false` once `ch` is closed and drained, so a zero value that was sent is told apart from a close. It follows the forms of [Multiple results](#multiple-results) with a `std::pair`, as `eo::type_assert_ok` does: `_, ok := <-ch` is `auto ok = (co_await eo::recv_ok(ch)).second;`. The parentheses are needed, because `.` binds more tightly than `co_await`.
+
+Values buffered before `close` are still received, as in Go. A send on a closed channel, including a send that is blocked when the channel is closed, panics with `send on closed channel`. `close` of a nil channel panics with `close of nil channel`, and of a closed one with `close of closed channel`. All three panic values are `runtime.plainError`. Sending to and receiving from a nil channel blocks forever.
+
+`co_await (ch << v)` converts `v` to `T` when the send runs. A send statement or a receive in an expression with a nested Go call follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands) where that rule covers it, and [#96](https://github.com/conr2d/eo/issues/96) otherwise. A `select` statement uses `*ch` and `ch << v` as its cases (see [Select](#select)). `for range` over a channel is in [Range loops](#range-loops).
+
+#### Channels not covered yet
+
+- `len(ch)`, the number of buffered values, which the Boost.Asio channel does not expose;
+- printing a channel with `fmt`, holding one in an interface, and `%T` of a channel type;
+- a channel of channels with a direction, such as `chan<- <-chan int`, whose `%T` would differ; the operations on it are covered.
+
 ### Select
 
 Go `select` follows the canonical mapping defined in [Select Translation Design](./SELECT.md).
@@ -1393,7 +1458,7 @@ The panics that Eo raises for Go's run-time errors have Go's value types:
 | a nil dereference, an integer division by zero, a negative shift count, a `make` length out of range, a comparison of an uncomparable type | `runtime.errorString` | `runtime error: invalid memory address or nil pointer dereference` |
 | an index or a slice bound out of range | `runtime.boundsError` | `runtime error: index out of range [3] with length 0` |
 | a failed type assertion or interface conversion | `*runtime.TypeAssertionError` | `interface conversion: interface {} is string, not int` |
-| a close of a nil or closed channel, and a send on a closed channel | `runtime.plainError` | `close of nil channel` |
+| a close of a nil or closed channel, a send on a closed channel, and `make(chan T, n)` with a size out of range | `runtime.plainError` | `close of nil channel` |
 | `panic(nil)` | `*runtime.PanicNilError` | `panic called with nil argument` |
 
 Each of these is an `error` and a `runtime.Error`, which is `runtime::Error_` (see [Types named like one of their methods](#types-named-like-one-of-their-methods)), so `r.(runtime.Error)` is `eo::type_assert_ok<runtime::Error_>(r)`. The values keep Go's message, not Go's fields. The library panics with a Go string where Go does: `sync: negative WaitGroup counter`, `cannot create context from nil parent`, and `invalid argument to Intn`. Any other C++ exception that leaves a translated call is also a panic, and `recover()` returns it as an `error` whose dynamic type is `eo.cppException` and whose message is its `what()`.
@@ -1433,8 +1498,9 @@ A Go operation that blocks the calling goroutine translates to an awaitable that
 | `wg.Wait()` | `co_await wg.Wait()` | frozen |
 | `mu.Lock()` | `co_await mu.Lock()` | frozen, see [Mutex](#mutex) |
 | `rw.Lock()`, `rw.RLock()` | `co_await rw.Lock()`, `co_await rw.RLock()` | frozen, see [Mutex](#mutex) |
-| `ch <- v` | `co_await (ch << v)` | provisional |
-| `v := <-ch` | `auto v = co_await *ch` | provisional |
+| `ch <- v` | `co_await (ch << v)` | frozen, see [Channels](#channels) |
+| `v := <-ch`, `v, ok := <-ch` | `auto v = co_await *ch`, `auto [v, ok] = co_await eo::recv_ok(ch)` | frozen, see [Channels](#channels) |
+| `for v := range ch` | a loop on `co_await eo::recv_ok(...)` | frozen, see [Range loops](#range-loops) |
 | `time.Sleep(d)` | `co_await time::Sleep(d)` | provisional, including the duration |
 
 A Go function whose body contains a blocking operation, or a call to a function translated as a coroutine, is translated as a coroutine returning `func<T>`, and every call to it is `co_await`ed. Other functions stay plain C++ functions. Calls through function values and interface methods, whose target is not known statically, are provisional.
@@ -1550,7 +1616,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - labeled `break` and `continue`;
-- `range` loops over channels, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
+- `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, and interfaces;
 - constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.

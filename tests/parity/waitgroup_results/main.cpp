@@ -1,4 +1,3 @@
-// Provisional: channel operations are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/sync.h>
 
@@ -7,7 +6,7 @@
 using namespace eo;
 
 func<> eo_main() {
-  auto results = make_chan<int64_t>(5);
+  auto results = eo::make_chan<int64_t>(5);
   auto wg = New<sync::WaitGroup>();
 
   for (auto i = int64_t{1}; i <= 5; i++) {

@@ -1,4 +1,3 @@
-// Provisional: channels are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
@@ -33,7 +32,7 @@ auto T::addr(T _eo_param_t) -> ptr<int64_t> {
 }
 
 func<> eo_main() {
-  auto results = make_chan<int64_t>();
+  auto results = eo::make_chan<int64_t>();
   T::Start(T{.n = 4}, results);
   fmt::Println(co_await *results);
   auto p = T::addr(T{.n = 7});
