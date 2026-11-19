@@ -2,15 +2,24 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
-#include <eo/interface.h>
-
+#include <concepts>
 #include <cstddef>
 #include <string>
+#include <type_traits>
 #include <utility>
 
-// UTF-8 encoding and decoding, as Go's unicode/utf8 does them.
+// Go's integer types, and UTF-8 encoding and decoding, as Go's unicode/utf8 does them. This header
+// includes no other Eo header, so every header can use it.
 
 namespace eo::detail {
+
+// A Go integer type: an integer type other than bool and the character types, which the std::cmp_*
+// functions reject.
+template<typename T>
+concept go_integer =
+  std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool> && !std::same_as<std::remove_cv_t<T>, char> &&
+  !std::same_as<std::remove_cv_t<T>, wchar_t> && !std::same_as<std::remove_cv_t<T>, char8_t> &&
+  !std::same_as<std::remove_cv_t<T>, char16_t> && !std::same_as<std::remove_cv_t<T>, char32_t>;
 
 // Appends the UTF-8 encoding of r, or of U+FFFD when r is not a valid code point, as Go encodes it.
 template<go_integer I>

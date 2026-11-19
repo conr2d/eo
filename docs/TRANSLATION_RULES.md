@@ -1127,20 +1127,20 @@ Go's `fmt.Println`, `fmt.Fprintln`, `fmt.Sprint`, `fmt.Sprintln`, `fmt.Sprintf`,
 All of them print an operand as Go's fmt does, with these verbs:
 
 - `%v`, which is how `Println` prints;
-- `%d`, `%b`, `%o`, `%x`, `%X`, `%c`, `%q`, and `%U` for an integer, `%q` giving a quoted rune;
+- `%d`, `%b`, `%o`, `%O`, `%x`, `%X`, `%c`, `%q`, and `%U` for an integer, `%q` giving a quoted rune;
 - `%e`, `%E`, `%f`, `%F`, and `%g` for a float;
 - `%s`, `%q`, `%x`, and `%X` for a string and a `[]byte`;
 - `%t` for a `bool`;
 - `%T`, the Go type name, `%%`, and `%w` in `fmt::Errorf`.
 
-A slice, a struct, and a pointer operand to a struct or slice apply the verb to each element or field, as Go does: `fmt.Sprintf("%x", []int{10, 11})` is `[a b]`. A value whose method set has `Error() string` or `String() string` is printed by calling it, as in [Printing methods](#printing-methods). Errors in the format print as in Go: `%!d(string=s)` for a verb that the operand does not take, with the operand printed by `%v` without its methods, `%!d(MISSING)` for a missing operand, `%!(EXTRA string=x, float64=2.5)` for unused operands, `%!(NOVERB)` for a `%` at the end, and `%!w(...)` for `%w` outside `fmt::Errorf`. `fmt.Sprint` puts a space between two operands when neither is a string, as Go does.
+A verb that the list above does not give for the operand's kind prints the bad-verb form described below. A slice, a struct, and a pointer operand to a struct or slice apply the verb to each element or field, as Go does: `fmt.Sprintf("%x", []int{10, 11})` is `[a b]`. A value whose method set has `Error() string` or `String() string` is printed by calling it, as in [Printing methods](#printing-methods). Errors in the format print as in Go: `%!d(string=s)` for a verb that the operand does not take, with the operand printed by `%v` without its methods, `%!d(MISSING)` for a missing operand, `%!(EXTRA string=x, float64=2.5)` for unused operands, `%!(NOVERB)` for a `%` at the end, and `%!w(...)` for `%w` outside `fmt::Errorf`. `fmt.Sprint` puts a space between two operands when neither is a string, as Go does.
 
 `%q` escapes the bytes that are not valid UTF-8, the ASCII control characters, and the code points that Go's `unicode.IsPrint` rejects among C1 controls, spaces other than U+0020, U+00AD, U+2000 through U+200F, U+2028 through U+202F, U+205F through U+2064, U+3000, U+FEFF, U+FFF9 through U+FFFB, noncharacters U+FFFE and U+FFFF, and private use. It prints other code points as they are.
 
 #### Formatted printing not covered yet
 
 - flags, width, precision, and argument indexes, such as `%-10v`, `%08x`, `%.2f`, `%+v`, `%#v`, and `%[1]d`;
-- `%p`, `%G`, complex numbers, and the verbs other than `%v` for a map, which waits on its own mapping ([#88](https://github.com/conr2d/eo/issues/88));
+- `%p`, `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, complex numbers, and the verbs other than `%v` for a map, which waits on its own mapping ([#88](https://github.com/conr2d/eo/issues/88));
 - the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
 - the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter`, `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;

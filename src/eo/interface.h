@@ -62,14 +62,6 @@ struct methods {};
 
 namespace detail {
 
-  // A Go integer type: an integer type other than bool and the character types, which the std::cmp_*
-  // functions reject.
-  template<typename T>
-  concept go_integer =
-    std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool> && !std::same_as<std::remove_cv_t<T>, char> &&
-    !std::same_as<std::remove_cv_t<T>, wchar_t> && !std::same_as<std::remove_cv_t<T>, char8_t> &&
-    !std::same_as<std::remove_cv_t<T>, char16_t> && !std::same_as<std::remove_cv_t<T>, char32_t>;
-
   // The Go type name of a type, as the runtime and %T print it.
   template<typename T>
   auto type_name() -> std::string;

@@ -42,7 +42,7 @@ func<> eo_main() {
     Pair{1, "a"s},
     int64_t{255},
     "hi"s,
-    "q\"\n\x01é"s,
+    "q\"\n\x{01}é"s,
     true,
     Pair{});
   fmt::Printf("%v %d %x %o %b %c %q %U\n"s,
@@ -73,12 +73,7 @@ func<> eo_main() {
   fmt::Printf("%d"s, int64_t{1}, "x"s, double{2.5});
   fmt::Println();
   fmt::Printf("%v|%d|%s|%T|%w\n"s, nullptr, nullptr, error(nullptr), nullptr, errors::New("x"s));
-  fmt::Printf("%x|%X|%x|%q\n"s,
-    int64_t{-255},
-    "hi"s,
-    ""s,
-    "\xff"
-    "a\u00ad\t"s);
+  fmt::Printf("%x|%X|%x|%q\n"s, int64_t{-255}, "hi"s, ""s, "\x{ff}a\u00ad\t"s);
   fmt::Printf("%t|%v|%s\n"s, int64_t{1}, double{1.5}, double{2.5});
   fmt::Printf("trail%"s);
   fmt::Println();

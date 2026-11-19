@@ -1,3 +1,16 @@
+# Compiles each header as the first and only include of a translation unit, so that every header
+# includes what it uses whatever the order in which a program includes them.
+file(GLOB_RECURSE eo_headers RELATIVE ${PROJECT_SOURCE_DIR}/src CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/eo/*.h)
+set(eo_header_sources)
+foreach(header IN LISTS eo_headers)
+  string(MAKE_C_IDENTIFIER ${header} name)
+  set(source ${CMAKE_CURRENT_BINARY_DIR}/headers/${name}.cpp)
+  file(CONFIGURE OUTPUT ${source} CONTENT "#include <${header}>\n")
+  list(APPEND eo_header_sources ${source})
+endforeach()
+add_library(eo_headers OBJECT ${eo_header_sources})
+target_link_libraries(eo_headers PRIVATE eo::eo)
+
 add_executable(eo_smoke smoke.cpp)
 target_link_libraries(eo_smoke PRIVATE eo::eo)
 

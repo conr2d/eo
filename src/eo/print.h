@@ -11,11 +11,13 @@
 #include <fmt/format.h>
 
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <ctime>
 #include <iterator>
 #include <map>
 #include <span>
@@ -24,6 +26,26 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
+
+namespace fmt {
+
+// A time point, which the printing below reaches through its fallback to fmt's formatters. It is
+// declared here, before the printing, so that every translation unit sees the same formatter.
+template<typename Clock>
+struct formatter<std::chrono::time_point<Clock>> {
+  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
+    return ctx.end();
+  }
+  template<typename FormatContext>
+  auto format(const std::chrono::time_point<Clock>& p, FormatContext& ctx) const {
+    auto buffer = std::vector<char>(256);
+    auto t = Clock::to_time_t(p);
+    auto size = std::strftime(buffer.data(), buffer.size(), "%F %T %z %Z", std::localtime(&t));
+    return fmt::format_to(ctx.out(), "{}", std::string_view(buffer.data(), size));
+  }
+};
+
+} // namespace fmt
 
 // Go's fmt printing. One engine, after Go's pp, prints every operand of Println, Sprint, Sprintf,
 // Printf, Fprintf, and Errorf: print_arg follows Go's printArg, handle_methods its handleMethods, and
@@ -60,6 +82,9 @@ struct printer {
   bool wrap_errs = false;
   // Printing the operand of a bad verb, which skips Error and String methods, as Go does.
   bool erroring = false;
+  // Printing the value of a panic in an Error or String method. Another panic then propagates, as Go's
+  // catchPanic does.
+  bool panicking = false;
 };
 
 template<typename T>
@@ -225,6 +250,14 @@ void print_integer(printer& p, I v, int32_t verb) {
   case 'o':
     fmt::format_to(out, "{:o}", v);
     return;
+  case 'O':
+    // The sign, then the prefix 0o, then the octal digits of the magnitude.
+    if (std::cmp_less(v, 0)) {
+      fmt::format_to(out, "-0o{:o}", static_cast<uint64_t>(0) - static_cast<uint64_t>(v));
+    } else {
+      fmt::format_to(out, "0o{:o}", v);
+    }
+    return;
   case 'x':
     fmt::format_to(out, "{:x}", v);
     return;
@@ -301,19 +334,26 @@ void print_method(printer& p, const T& value, const entry<std::string()>* method
   auto s = std::string{};
   try {
     s = method->fn(&value);
-  } catch (const Panic& e) {
+  } catch (...) {
     if constexpr (is_ptr<T>) {
       if (value == nullptr) {
         p.buf += "<nil>";
         return;
       }
     }
+    if (p.panicking) {
+      throw;
+    }
+    // Any exception is a panic, whose value prints as recover() would return it.
+    auto recovered = panic_value(std::current_exception());
     p.buf += "%!";
     append_rune(p.buf, verb);
     p.buf += "(PANIC=";
     p.buf += method->name;
     p.buf += " method: ";
-    p.buf += e.message();
+    p.panicking = true;
+    print_arg(p, recovered, 'v', 0);
+    p.panicking = false;
     p.buf += ')';
     return;
   }

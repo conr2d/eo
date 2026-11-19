@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/panic.h>
+#include <eo/utf8.h>
 
 #include <fmt/format.h>
 

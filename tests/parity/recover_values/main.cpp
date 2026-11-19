@@ -58,7 +58,7 @@ void classify(std::string name, std::function<void()> f) {
     eo_defer([&] {
       auto r = recover();
       auto [err, isErr] = eo::type_assert_ok<error>(r);
-      auto isRuntime = std::get<1>(eo::type_assert_ok<runtime::Error_>(r));
+      auto isRuntime = eo::type_assert_ok<runtime::Error_>(r).second;
       fmt::Printf("%s: %T %v %t %t\n"s, name, r, r, isErr, isRuntime);
       if (isErr) {
         auto re = New<runtime::Error_>();

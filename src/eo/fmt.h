@@ -9,10 +9,8 @@
 #include <fmt/format.h>
 
 #include <array>
-#include <chrono>
 #include <cstddef>
 #include <cstdio>
-#include <ctime>
 #include <map>
 #include <string>
 #include <string_view>
@@ -227,20 +225,6 @@ namespace detail {
 // fmt.Errorf: an error whose message is formatted as Sprintf formats it. Each %w operand that is an
 // error is wrapped, so errors.Is, errors.As, and errors.Unwrap see it.
 inline constexpr detail::errorf_fn Errorf{};
-
-template<typename Clock>
-struct formatter<std::chrono::time_point<Clock>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const std::chrono::time_point<Clock>& p, FormatContext& ctx) const {
-    auto buffer = std::vector<char>(256);
-    auto t = Clock::to_time_t(p);
-    auto size = std::strftime(buffer.data(), buffer.size(), "%F %T %z %Z", std::localtime(&t));
-    return fmt::format_to(ctx.out(), "{}", std::string_view(buffer.data(), size));
-  }
-};
 
 } // namespace fmt
 

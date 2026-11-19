@@ -4,6 +4,7 @@
 #include <eo/fmt.h>
 
 #include <cstdint>
+#include <functional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -221,6 +222,16 @@ void test_recovered_values() {
   check(recovered([&] { (void)eo::div(int64_t{1}, int64_t{0}); }) ==
       "runtime.errorString|runtime error: integer divide by zero|err=true|rt=true",
     "divide by zero");
+  auto n = int64_t{-1};
+  check(recovered([&] { (void)eo::shl(int64_t{1}, n); }) ==
+      "runtime.errorString|runtime error: negative shift amount|err=true|rt=true",
+    "negative shift");
+  check(recovered([&] { (void)eo::make_slice<int64_t>(n); }) ==
+      "runtime.errorString|runtime error: makeslice: len out of range|err=true|rt=true",
+    "makeslice");
+  check(recovered([&] { (void)(any{slice<int64_t>{}} == any{slice<int64_t>{}}); }) ==
+      "runtime.errorString|runtime error: comparing uncomparable type []int|err=true|rt=true",
+    "uncomparable");
   check(recovered([&] { panic(nullptr); }) == "*runtime.PanicNilError|panic called with nil argument|err=true|rt=true",
     "panic(nil)");
   check(recovered([&] { panic("str"); }) == "string|str|err=false|rt=false", "string");
@@ -232,6 +243,109 @@ void test_recovered_values() {
     "a C++ exception");
 }
 
+// Error methods that panic while fmt prints the value of their own panic.
+struct SelfPanic {
+  static constexpr std::string_view _eo_name = "main.SelfPanic";
+
+  auto operator==(const SelfPanic&) const -> bool = default;
+
+  static auto Error(SelfPanic) -> std::string {
+    panic(SelfPanic{});
+  }
+
+  using _eo_methods = eo::methods<eo::method<&SelfPanic::Error, "Error">>;
+};
+
+struct ChainB {
+  static constexpr std::string_view _eo_name = "main.ChainB";
+
+  auto operator==(const ChainB&) const -> bool = default;
+
+  static auto Error(ChainB) -> std::string {
+    panic("x");
+  }
+
+  using _eo_methods = eo::methods<eo::method<&ChainB::Error, "Error">>;
+};
+
+struct ChainA {
+  static constexpr std::string_view _eo_name = "main.ChainA";
+
+  auto operator==(const ChainA&) const -> bool = default;
+
+  static auto Error(ChainA) -> std::string {
+    panic(ChainB{});
+  }
+
+  using _eo_methods = eo::methods<eo::method<&ChainA::Error, "Error">>;
+};
+
+struct Thrower {
+  static constexpr std::string_view _eo_name = "main.Thrower";
+
+  auto operator==(const Thrower&) const -> bool = default;
+
+  static auto Error(Thrower) -> std::string {
+    throw std::runtime_error("cpp");
+  }
+
+  using _eo_methods = eo::methods<eo::method<&Thrower::Error, "Error">>;
+};
+
+// An error type that Go cannot compare, because it has a slice field.
+struct Uncomparable {
+  static constexpr std::string_view _eo_name = "main.Uncomparable";
+
+  slice<int64_t> s;
+
+  static auto Error(Uncomparable) -> std::string {
+    return "u";
+  }
+
+  using _eo_methods = eo::methods<eo::method<&Uncomparable::Error, "Error">>;
+};
+
+auto recover_from(const std::function<void()>& f) -> any {
+  auto r = any{};
+  eo_defer_scope;
+  try {
+    eo_defer([&] { r = recover(); });
+    f();
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return r;
+}
+
+void test_panics_while_printing() {
+  // Go panics again with the value when printing the panic value panics, and prints the result of a
+  // finite chain of such panics with the last value.
+  auto self = recover_from([] { (void)fmt::Sprint(SelfPanic{}); });
+  check(fmt::Sprintf("%T", self) == "main.SelfPanic", "a panic while printing a panic value panics again");
+  auto chain = recover_from([] { (void)fmt::Sprint(ChainA{}); });
+  check(eo::type_assert<std::string>(chain) == "x", "a chain of panics while printing ends with the last value");
+  check(fmt::Sprint(Thrower{}) == "%!v(PANIC=Error method: cpp)", "a C++ exception in Error prints as a panic");
+  check(Panic{any{SelfPanic{}}}.message() == "panic while printing panic value: type main.SelfPanic",
+    "the report of a value that cannot be printed");
+  auto moved_from = Panic{any{int64_t{1}}};
+  auto moved_to = std::move(moved_from);
+  check(std::string{moved_from.what()} == "panic: 1" && std::string{moved_to.what()} == "panic: 1",
+    "a moved-from Panic keeps its value");
+}
+
+void test_errorf_edge_cases() {
+  check(fmt::Errorf("s %w", St{}).Error() == "s %!w(main.St={0})", "%w of a Stringer that is not an error");
+  auto w = fmt::Errorf("n %w", ptr<E>{});
+  check(w.Error() == "n <nil>" && fmt::Sprintf("%T", errors::Unwrap(w)) == "*main.E" && errors::Unwrap(w) != nullptr,
+    "%w of a typed nil wraps it");
+  auto u = Uncomparable{};
+  check(!errors::Is(fmt::Errorf("w %w", u), u), "Is with an uncomparable target does not compare");
+  auto target = any{};
+  check(errors::As(errors::New("x"), ref(target)) && fmt::Sprint(target) == "x", "As into an any target");
+  check(fmt::Sprintf("%O %O", int64_t{8}, int64_t{-8}) == "0o10 -0o10", "%O");
+}
+
 auto main() -> int {
   test_new();
   test_wrapping();
@@ -239,5 +353,7 @@ auto main() -> int {
   test_as_nil_target();
   test_verbs();
   test_recovered_values();
+  test_panics_while_printing();
+  test_errorf_edge_cases();
   return 0;
 }

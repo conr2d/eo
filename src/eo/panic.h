@@ -30,6 +30,10 @@ class Panic : public std::exception, public detail::counted_panic {
 public:
   explicit Panic(any value): state_(std::make_shared<state>(std::move(value))) {}
 
+  // Copies only, so that a moved-from Panic still holds its state.
+  Panic(const Panic&) = default;
+  auto operator=(const Panic&) -> Panic& = default;
+
   auto value() const -> const any& {
     return state_->value;
   }
@@ -61,7 +65,9 @@ private:
       try {
         state_->message = detail::print_panic_value(state_->value);
       } catch (...) {
-        state_->message = "(unprintable panic value)";
+        // Go ends the program with a fatal error when printing the value panics again.
+        state_->message = "panic while printing panic value: type " +
+          (state_->value._eo_type == nullptr ? std::string{"<nil>"} : state_->value._eo_type->name());
       }
       state_->report = "panic: " + state_->message;
     });
