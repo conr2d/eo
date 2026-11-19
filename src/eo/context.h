@@ -8,7 +8,7 @@
 
 namespace eo::context {
 
-extern const Error Canceled;
+extern const error Canceled;
 
 struct Context {
   enum class Type {
@@ -20,7 +20,7 @@ struct Context {
   };
 
   virtual auto Done() -> std::optional<chan<>> = 0;
-  virtual auto Err() -> Error = 0;
+  virtual auto Err() -> error = 0;
   virtual auto Value(Type key) -> std::any = 0;
   virtual auto type() -> Type {
     return Type::Custom;
@@ -29,13 +29,13 @@ struct Context {
 
 struct EmptyContext : public Context {
   auto Done() -> std::optional<chan<>> override;
-  auto Err() -> Error override;
+  auto Err() -> error override;
   auto Value(Type key) -> std::any override;
   auto type() -> Type override;
 };
 
 struct Canceler {
-  virtual void cancel(bool remove_from_parent, Error err) = 0;
+  virtual void cancel(bool remove_from_parent, error err) = 0;
   virtual auto Done() -> std::optional<chan<>> = 0;
 };
 
@@ -44,12 +44,12 @@ struct CancelContext : public Context, public Canceler, public std::enable_share
   CancelContext(std::shared_ptr<Context>);
 
   auto Done() -> std::optional<chan<>> override;
-  auto Err() -> Error override;
+  auto Err() -> error override;
   auto Value(Type key) -> std::any override;
   auto type() -> Type override;
 
-  void cancel(bool remove_from_parent, Error err) override;
-  auto add_child(std::shared_ptr<Canceler> child) -> Error;
+  void cancel(bool remove_from_parent, error err) override;
+  auto add_child(std::shared_ptr<Canceler> child) -> error;
 
   Context* context;
   std::mutex mtx;
@@ -60,7 +60,7 @@ private:
   std::weak_ptr<CancelContext> parent_;
   bool has_managed_parent_{};
   std::optional<chan<>> done_;
-  Error err_;
+  error err_;
 };
 
 using CancelFunc = std::function<void()>;

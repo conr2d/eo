@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
-#include <eo/core.h>
+#include <eo/struct.h>
 
 #include <algorithm>
 #include <array>
@@ -27,6 +27,12 @@
 // assertion or a conversion between interfaces at run time.
 
 namespace eo {
+
+template<typename T>
+class ptr;
+
+template<typename T>
+class slice;
 
 // A method name, as a template argument.
 template<std::size_t N>
@@ -60,10 +66,18 @@ namespace detail {
   template<typename T>
   auto type_name() -> std::string;
 
-  // %v of a dynamic value, from <eo/fmt.h>. `top` is true for an operand of Println, which prints a
-  // pointer to a struct, slice, or map as & followed by its target.
+  // Go's fmt printer state, and the printing of one operand with a verb, from <eo/fmt.h>. `depth` is
+  // 0 for an operand of Println or Printf, which prints a pointer to a struct, slice, or map as &
+  // followed by its target.
+  struct printer;
+
   template<typename T>
-  auto print_value(const T& value, bool top) -> std::string;
+  void print_arg(printer& p, const T& value, int32_t verb, int depth);
+
+  // Go's runtime panics, from <eo/panic.h> and <eo/ptr.h>.
+  [[noreturn]] inline void panic_runtime_error(std::string message);
+  [[noreturn]] inline void panic_nil_dereference();
+  [[noreturn]] inline void panic_type_assertion(std::string message);
 
   template<typename T>
   inline constexpr bool is_ptr = false;
@@ -260,11 +274,11 @@ namespace detail {
   }
 
   // The descriptor of a dynamic type: its Go name, its equality, which is null for an uncomparable
-  // type, its printing, and its method set. Its address identifies the type.
+  // type, its printing with a verb, and its method set. Its address identifies the type.
   struct type_descriptor {
     auto (*name)() -> std::string;
     auto (*equal)(const void*, const void*) -> bool;
-    auto (*print)(const void*, bool top) -> std::string;
+    void (*print)(printer& p, const void* value, int32_t verb, int depth);
     std::span<const entry_base* const> methods;
   };
 
@@ -278,8 +292,8 @@ namespace detail {
   }
 
   template<typename D>
-  auto print_dynamic(const void* p, bool top) -> std::string {
-    return print_value(*static_cast<const D*>(p), top);
+  void print_dynamic(printer& p, const void* value, int32_t verb, int depth) {
+    print_arg(p, *static_cast<const D*>(value), verb, depth);
   }
 
   template<typename D>
@@ -314,8 +328,6 @@ namespace detail {
     static constexpr std::array<const entry_base*, sizeof...(M)> value{
       method_set<D>::entries[method_position<D, signature_of<M>>(M::name)]...};
   };
-
-  [[noreturn]] void panic_type_assertion(std::string message);
 
   // The position of member function M in an interface's method list.
   template<auto M, typename... Ms>
@@ -424,11 +436,6 @@ namespace detail {
     return &tables.try_emplace(type, std::move(table)).first->second;
   }
 
-  inline void panic_type_assertion(std::string message) {
-    auto value = runtime_error{message};
-    throw Panic{std::any{std::move(value)}, std::move(message)};
-  }
-
 } // namespace detail
 
 // The base of a translated interface I. An interface value is nil or holds a dynamic value, which
@@ -475,7 +482,7 @@ protected:
   auto _eo_call(A&&... args) const -> decltype(auto) {
     using signature = typename detail::method_traits<decltype(M)>::signature;
     if (_eo_type == nullptr) {
-      eo::panic(detail::nil_pointer_dereference());
+      detail::panic_nil_dereference();
     }
     auto e = static_cast<const detail::entry<signature>*>(_eo_table[index_of<M>()]);
     return e->fn(_eo_value.get(), std::forward<A>(args)...);
@@ -496,6 +503,20 @@ struct any : interface<any> {
   static constexpr std::string_view _eo_name = "interface {}";
   using _eo_methods = methods<>;
 };
+
+// Go's predeclared error interface.
+struct error : interface<error> {
+  using interface::interface;
+  static constexpr std::string_view _eo_name = "error";
+
+  auto Error() const -> std::string;
+
+  using _eo_methods = methods<method<&error::Error, "Error">>;
+};
+
+inline auto error::Error() const -> std::string {
+  return _eo_call<&error::Error>();
+}
 
 namespace detail {
 
@@ -635,4 +656,5 @@ inline constexpr detail::holds_fn<T> holds{};
 
 } // namespace eo
 
-#include <eo/fmt.h>
+// The definitions of the panics declared above, and of print_arg.
+#include <eo/panic.h>

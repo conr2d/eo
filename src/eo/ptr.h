@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
-#include <eo/error.h>
 #include <eo/panic.h>
 
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -18,11 +19,6 @@ template<typename T>
 class slice;
 
 namespace detail {
-
-  inline auto nil_pointer_dereference() -> const Error& {
-    static const auto err = Error{"runtime error: invalid memory address or nil pointer dereference"};
-    return err;
-  }
 
   // The targets that a release has yet to destroy. The first few are held in inline slots that are
   // constructed only when used, so a release that queues only a handful, as freeing a small struct
@@ -187,7 +183,7 @@ private:
   auto checked() const -> T* {
     auto* p = p_.get();
     if (p == nullptr) [[unlikely]] {
-      panic(detail::nil_pointer_dereference());
+      detail::panic_nil_dereference();
     }
     return p;
   }
@@ -215,6 +211,58 @@ template<typename T>
 auto ref(T& target) noexcept -> ptr<T> {
   return ptr<T>{std::shared_ptr<T>{std::shared_ptr<void>{}, std::addressof(target)}};
 }
+
+namespace runtime {
+
+  // *runtime.TypeAssertionError: a failed type assertion or interface conversion.
+  struct TypeAssertionError {
+    static constexpr std::string_view _eo_name = "runtime.TypeAssertionError";
+
+    std::string message;
+
+    auto operator==(const TypeAssertionError&) const -> bool = default;
+
+    static auto Error(ptr<TypeAssertionError> e) -> std::string {
+      return e->message;
+    }
+    static void RuntimeError(ptr<TypeAssertionError>) {}
+
+    using _eo_methods =
+      methods<method<&TypeAssertionError::Error, "Error">, method<&TypeAssertionError::RuntimeError, "RuntimeError">>;
+  };
+
+  // *runtime.PanicNilError: the value of panic(nil).
+  struct PanicNilError {
+    static constexpr std::string_view _eo_name = "runtime.PanicNilError";
+
+    auto operator==(const PanicNilError&) const -> bool = default;
+
+    static auto Error(ptr<PanicNilError>) -> std::string {
+      return "panic called with nil argument";
+    }
+    static void RuntimeError(ptr<PanicNilError>) {}
+
+    using _eo_methods =
+      methods<method<&PanicNilError::Error, "Error">, method<&PanicNilError::RuntimeError, "RuntimeError">>;
+  };
+
+} // namespace runtime
+
+namespace detail {
+
+  [[noreturn]] inline void panic_nil_dereference() {
+    panic_runtime_error("invalid memory address or nil pointer dereference");
+  }
+
+  [[noreturn]] inline void panic_type_assertion(std::string message) {
+    throw Panic{any{New<runtime::TypeAssertionError>(runtime::TypeAssertionError{std::move(message)})}};
+  }
+
+  [[noreturn]] inline void panic_nil() {
+    throw Panic{any{New<runtime::PanicNilError>()}};
+  }
+
+} // namespace detail
 
 } // namespace eo
 

@@ -6,7 +6,6 @@
 #include <eo/sync.h>
 #include <eo/time.h>
 
-#include <any>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -37,20 +36,20 @@ void test_unrecovered_panic_runs_defers_and_propagates() {
     panics_after_defers(order);
   } catch (const Panic& p) {
     check(std::string{p.what()} == "panic: boom", "panic report is wrong");
-    check(std::any_cast<std::string>(p.value()) == "boom", "panic value is not the Go string");
+    check(eo::type_assert<std::string>(p.value()) == "boom", "panic value is not the Go string");
     check((order == std::vector<int>{2, 1}), "deferred calls did not run in LIFO order");
     return;
   }
   throw std::logic_error("panic did not propagate");
 }
 
-auto recovers_value(std::any& value) -> int {
+auto recovers_value(any& value) -> int {
   int n{};
   eo_defer_scope;
   try {
     eo_defer([&] {
       if (auto r = recover(); r != nullptr) {
-        value = r.value();
+        value = r;
         n = 7;
       }
     });
@@ -64,9 +63,9 @@ auto recovers_value(std::any& value) -> int {
 }
 
 void test_recover_returns_the_panic_value() {
-  auto value = std::any{};
+  auto value = any{};
   check(recovers_value(value) == 7, "recovering function did not return its named result");
-  check(std::any_cast<int>(value) == 42, "recover returned the wrong value");
+  check(eo::type_assert<int>(value) == 42, "recover returned the wrong value");
   check(fmt::format("{}", recover()) == "<nil>", "recover outside a deferred call is not nil");
 }
 
@@ -107,7 +106,7 @@ auto repanics_recovered() -> std::string {
   try {
     eo_defer([&] {
       auto r = recover();
-      message = r.message();
+      message = fmt::Sprint(r);
     });
     eo_defer([&] { panic(recover()); });
     panic("original");
@@ -127,7 +126,7 @@ auto panics_in_normal_drain(std::vector<std::string>& seen) -> int {
   int n{};
   eo_defer_scope;
   try {
-    eo_defer([&] { seen.push_back(recover().message()); });
+    eo_defer([&] { seen.push_back(fmt::Sprint(recover())); });
     eo_defer([&] { panic("from defer"); });
     eo_defer([&] { seen.push_back("before"); });
     n = 3;
@@ -195,7 +194,7 @@ void test_other_exceptions_are_panics() {
   [&] {
     eo_defer_scope;
     try {
-      eo_defer([&] { message = recover().message(); });
+      eo_defer([&] { message = fmt::Sprint(recover()); });
       throw std::out_of_range("index out of range");
       eo_defer_run;
     } catch (...) {
@@ -209,7 +208,7 @@ auto recovered_message(bool nil_from_recover) -> std::string {
   std::string message{};
   eo_defer_scope;
   try {
-    eo_defer([&] { message = recover().message(); });
+    eo_defer([&] { message = fmt::Sprint(recover()); });
     if (nil_from_recover) {
       panic(recover());
     }
@@ -243,7 +242,7 @@ auto outer_panic_survives_inner_recover() -> std::string {
   std::string message{};
   eo_defer_scope;
   try {
-    eo_defer([&] { message = recover().message(); });
+    eo_defer([&] { message = fmt::Sprint(recover()); });
     eo_defer([&] { panics_and_recovers_inside(); });
     panic("outer");
     eo_defer_run;
@@ -269,11 +268,11 @@ void test_runtime_panics_are_go_panics() {
   throw std::logic_error("WaitGroup misuse did not raise eo::Panic");
 }
 
-auto recover_value_of(const Recovered& r) -> std::string {
+auto recover_value_of(const any& r) -> std::string {
   std::string message{};
   eo_defer_scope;
   try {
-    eo_defer([&] { message = recover().message(); });
+    eo_defer([&] { message = fmt::Sprint(recover()); });
     panic(r);
     eo_defer_run;
     return message;
@@ -283,8 +282,8 @@ auto recover_value_of(const Recovered& r) -> std::string {
   return message;
 }
 
-auto capture_recovered() -> Recovered {
-  Recovered r{};
+auto capture_recovered() -> any {
+  any r{};
   eo_defer_scope;
   try {
     eo_defer([&] { r = recover(); });

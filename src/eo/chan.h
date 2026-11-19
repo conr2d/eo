@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
-#include <eo/error.h>
 #include <eo/go.h>
 #include <eo/panic.h>
 #include <boost/asio/experimental/concurrent_channel.hpp>
@@ -15,21 +14,17 @@ namespace eo {
 
 namespace detail {
 
-  // Go's runtime panics on channels. The values are created once: each eo::Error built from a message
-  // registers a new condition.
-  inline auto close_of_nil_channel() -> const Error& {
-    static const auto err = Error{"close of nil channel"};
-    return err;
+  // Go's runtime panics on channels, whose values are runtime.plainError.
+  [[noreturn]] inline void panic_close_of_nil_channel() {
+    panic_plain_error("close of nil channel");
   }
 
-  inline auto close_of_closed_channel() -> const Error& {
-    static const auto err = Error{"close of closed channel"};
-    return err;
+  [[noreturn]] inline void panic_close_of_closed_channel() {
+    panic_plain_error("close of closed channel");
   }
 
-  inline auto send_on_closed_channel() -> const Error& {
-    static const auto err = Error{"send on closed channel"};
-    return err;
+  [[noreturn]] inline void panic_send_on_closed_channel() {
+    panic_plain_error("send on closed channel");
   }
 
 } // namespace detail
@@ -75,11 +70,11 @@ public:
 
   void close() {
     if (!impl) {
-      panic(detail::close_of_nil_channel());
+      detail::panic_close_of_nil_channel();
     }
     bool expected = false;
     if (!closed->compare_exchange_strong(expected, true)) {
-      panic(detail::close_of_closed_channel());
+      detail::panic_close_of_closed_channel();
     }
     impl->cancel();
     impl->close();
@@ -144,7 +139,7 @@ public:
       return;
     }
     if (!sent && !c->is_open()) {
-      panic(detail::send_on_closed_channel());
+      detail::panic_send_on_closed_channel();
     }
   }
 
@@ -154,12 +149,12 @@ public:
       co_return false;
     }
     if (!c->is_open()) {
-      panic(detail::send_on_closed_channel());
+      detail::panic_send_on_closed_channel();
     }
     auto res = co_await c->async_send(boost::system::error_code{}, value, eoroutine);
     if (std::get<0>(res)) {
       if (!c->is_open()) {
-        panic(detail::send_on_closed_channel());
+        detail::panic_send_on_closed_channel();
       }
       co_return false;
     }
@@ -172,7 +167,7 @@ public:
       co_return false;
     }
     if (!sent && !c->is_open()) {
-      panic(detail::send_on_closed_channel());
+      detail::panic_send_on_closed_channel();
     }
     co_return std::exchange(sent, false);
   }

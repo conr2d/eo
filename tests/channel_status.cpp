@@ -45,7 +45,7 @@ void test_close_nil_channel_panics() {
 
   try {
     ch.close();
-  } catch (const std::runtime_error& error) {
+  } catch (const eo::Panic& error) {
     check(std::string{error.what()} == "panic: close of nil channel", "close(nil) returned the wrong panic");
     return;
   }

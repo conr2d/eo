@@ -4,13 +4,12 @@
 #pragma once
 #include <eo/defer.h>
 #include <eo/float.h>
+#include <eo/interface.h>
 
-#include <fmt/format.h>
-
-#include <any>
 #include <cstddef>
 #include <exception>
-#include <stdexcept>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -18,133 +17,229 @@
 
 namespace eo {
 
-// The exception that carries a Go panic. what() is the report Go prints, "panic: <message>". It
-// derives from std::runtime_error so existing handlers of runtime panics keep working.
-class Panic : public std::runtime_error, public detail::counted_panic {
-public:
-  Panic(std::any value, std::string message)
-    : std::runtime_error("panic: " + message), value_(std::move(value)), message_(std::move(message)) {}
+namespace detail {
 
-  auto value() const -> const std::any& {
-    return value_;
+  // %v of a panic value, as Go's fmt prints it, from <eo/fmt.h>.
+  inline auto print_panic_value(const any& value) -> std::string;
+
+} // namespace detail
+
+// The exception that carries a Go panic, whose value is an eo::any, as Go's panic takes. what() is
+// the report Go prints, "panic: <message>".
+class Panic : public std::exception, public detail::counted_panic {
+public:
+  explicit Panic(any value): state_(std::make_shared<state>(std::move(value))) {}
+
+  // Copies only, so that a moved-from Panic still holds its state.
+  Panic(const Panic&) = default;
+  auto operator=(const Panic&) -> Panic& = default;
+
+  auto value() const -> const any& {
+    return state_->value;
   }
 
-  // The panic value as Go prints it, without the "panic: " prefix.
+  // The panic value as Go's %v prints it, calling its Error or String method, without the "panic: "
+  // prefix. It is formatted when first asked for, as Go formats a panic value only to print it.
   auto message() const -> const std::string& {
-    return message_;
+    format();
+    return state_->message;
+  }
+
+  auto what() const noexcept -> const char* override {
+    format();
+    return state_->report.c_str();
   }
 
 private:
-  std::any value_;
-  std::string message_;
+  struct state {
+    explicit state(any v): value(std::move(v)) {}
+
+    any value;
+    std::once_flag once;
+    std::string message;
+    std::string report;
+  };
+
+  void format() const noexcept {
+    std::call_once(state_->once, [this] {
+      try {
+        state_->message = detail::print_panic_value(state_->value);
+      } catch (...) {
+        // Go ends the program with a fatal error when printing the value panics again.
+        state_->message = "panic while printing panic value: type " +
+          (state_->value._eo_type == nullptr ? std::string{"<nil>"} : state_->value._eo_type->name());
+      }
+      state_->report = "panic: " + state_->message;
+    });
+  }
+
+  // Shared, because an exception object may be copied.
+  std::shared_ptr<state> state_;
 };
 
-// The result of Go's recover(): nil, or the value of the panic it stopped.
-class Recovered {
-public:
-  Recovered() = default;
+namespace runtime {
 
-  explicit Recovered(std::exception_ptr panic): panic_(std::move(panic)) {
-    try {
-      std::rethrow_exception(panic_);
-    } catch (const Panic& p) {
-      value_ = p.value();
-      message_ = p.message();
-    } catch (const std::exception& e) {
-      message_ = e.what();
-    } catch (...) {
-      message_ = "unknown panic";
+  // Go's runtime.Error. C++ cannot name a member like its class, so the type takes a trailing
+  // underscore, and its Go name stays runtime.Error.
+  struct Error_ : interface<Error_> {
+    using interface::interface;
+    static constexpr std::string_view _eo_name = "runtime.Error";
+
+    auto Error() const -> std::string;
+    void RuntimeError() const;
+
+    using _eo_methods = methods<method<&Error_::Error, "Error">, method<&Error_::RuntimeError, "RuntimeError">>;
+  };
+
+  inline auto Error_::Error() const -> std::string {
+    return _eo_call<&Error_::Error>();
+  }
+
+  inline void Error_::RuntimeError() const {
+    _eo_call<&Error_::RuntimeError>();
+  }
+
+  // The values of Go's runtime panics. Each keeps the text that Go prints, rather than Go's fields.
+
+  // runtime.errorString: a runtime error with a fixed message, such as a nil dereference.
+  struct errorString {
+    static constexpr std::string_view _eo_name = "runtime.errorString";
+
+    std::string s;
+
+    auto operator==(const errorString&) const -> bool = default;
+
+    static auto Error(errorString e) -> std::string {
+      return "runtime error: " + e.s;
     }
-  }
+    static void RuntimeError(errorString) {}
 
-  friend auto operator==(const Recovered& r, std::nullptr_t) -> bool {
-    return !r.panic_;
-  }
+    using _eo_methods =
+      methods<method<&errorString::Error, "Error">, method<&errorString::RuntimeError, "RuntimeError">>;
+  };
 
-  explicit operator bool() const {
-    return static_cast<bool>(panic_);
-  }
+  // runtime.boundsError: an index or a slice bound out of range.
+  struct boundsError {
+    static constexpr std::string_view _eo_name = "runtime.boundsError";
 
-  // The Go panic value. Empty for a panic raised by a C++ exception other than Panic.
-  auto value() const -> const std::any& {
-    return value_;
-  }
+    std::string s;
 
-  auto message() const -> const std::string& {
-    return message_;
-  }
+    auto operator==(const boundsError&) const -> bool = default;
 
-  auto exception() const -> std::exception_ptr {
-    return panic_;
-  }
+    static auto Error(boundsError e) -> std::string {
+      return "runtime error: " + e.s;
+    }
+    static void RuntimeError(boundsError) {}
 
-private:
-  std::exception_ptr panic_;
-  std::any value_;
-  std::string message_;
-};
+    using _eo_methods =
+      methods<method<&boundsError::Error, "Error">, method<&boundsError::RuntimeError, "RuntimeError">>;
+  };
+
+  // runtime.plainError: a runtime error without the "runtime error: " prefix, such as a close of a
+  // closed channel.
+  struct plainError {
+    static constexpr std::string_view _eo_name = "runtime.plainError";
+
+    std::string s;
+
+    auto operator==(const plainError&) const -> bool = default;
+
+    static auto Error(plainError e) -> std::string {
+      return e.s;
+    }
+    static void RuntimeError(plainError) {}
+
+    using _eo_methods = methods<method<&plainError::Error, "Error">, method<&plainError::RuntimeError, "RuntimeError">>;
+  };
+
+  // *runtime.TypeAssertionError and *runtime.PanicNilError are in <eo/ptr.h>.
+  struct TypeAssertionError;
+  struct PanicNilError;
+
+} // namespace runtime
 
 namespace detail {
 
-  template<typename T>
-  auto panic_message(const T& value) -> std::string {
-    if constexpr (std::is_convertible_v<const T&, std::string_view>) {
-      return std::string{std::string_view{value}};
-    } else if constexpr (fmt::is_formattable<T>::value) {
-      return fmt::format("{}", go_value(value));
-    } else {
-      return "(unprintable panic value)";
+  // The recovered value of a C++ exception other than eo::Panic: an error whose message is what().
+  struct cpp_exception {
+    static constexpr std::string_view _eo_name = "eo.cppException";
+
+    std::string what;
+
+    auto operator==(const cpp_exception&) const -> bool = default;
+
+    static auto Error(cpp_exception e) -> std::string {
+      return e.what;
     }
+
+    using _eo_methods = methods<method<&cpp_exception::Error, "Error">>;
+  };
+
+  [[noreturn]] inline void panic_runtime_error(std::string message) {
+    throw Panic{any{runtime::errorString{std::move(message)}}};
   }
 
-  // Go 1.21 and later: panic(nil) raises a *runtime.PanicNilError.
-  [[noreturn]] inline void panic_nil() {
-    throw Panic{std::any{}, "panic called with nil argument"};
+  [[noreturn]] inline void panic_bounds_error(std::string message) {
+    throw Panic{any{runtime::boundsError{std::move(message)}}};
+  }
+
+  [[noreturn]] inline void panic_plain_error(std::string message) {
+    throw Panic{any{runtime::plainError{std::move(message)}}};
+  }
+
+  // Go 1.21 and later: panic(nil) raises a *runtime.PanicNilError. In <eo/ptr.h>.
+  [[noreturn]] inline void panic_nil();
+
+  // The value that recover() returns for a panic.
+  inline auto panic_value(const std::exception_ptr& panic) -> any {
+    try {
+      std::rethrow_exception(panic);
+    } catch (const Panic& p) {
+      return p.value();
+    } catch (const std::exception& e) {
+      return cpp_exception{e.what()};
+    } catch (...) {
+      return cpp_exception{"unknown exception"};
+    }
   }
 
 } // namespace detail
 
-// Go's panic(v). A string literal is stored as std::string, the C++ form of a Go string.
+// Go's panic(v). The value is converted to any, as in Go: a string literal becomes a Go string, an
+// interface value passes its dynamic value, and a nil interface value is panic(nil).
 template<typename T>
 [[noreturn]] void panic(T&& value) {
   using value_type = std::decay_t<T>;
   if constexpr (std::is_same_v<value_type, std::nullptr_t>) {
     detail::panic_nil();
-  } else if constexpr (std::is_same_v<value_type, Recovered>) {
-    // panic(r) starts a new panic with the recovered value, as in Go; panic of a nil recover() is
-    // panic(nil). It never rethrows the recovered exception object, which other goroutines may also
-    // be raising again.
+  } else if constexpr (detail::interface_type<value_type>) {
+    // panic(r) with a recovered r starts a new panic with the same value, as in Go. It never rethrows
+    // the recovered exception object, which other goroutines may also be raising again.
     if (value == nullptr) {
       detail::panic_nil();
     }
-    throw Panic{value.value(), value.message()};
+    throw Panic{any{value}};
   } else if constexpr (std::is_convertible_v<value_type, std::string_view> &&
     !std::is_same_v<value_type, std::string>) {
-    auto s = std::string{std::string_view{value}};
-    auto message = s;
-    throw Panic{std::any{std::move(s)}, std::move(message)};
+    throw Panic{any{std::string{std::string_view{value}}}};
   } else {
-    auto message = detail::panic_message(value);
-    throw Panic{std::any{value_type(std::forward<T>(value))}, std::move(message)};
+    throw Panic{any{value_type(std::forward<T>(value))}};
   }
 }
 
-// Go's recover(). Returns the current panic and stops it, but only in a deferred call that runs
-// because of that panic. Anywhere else, and after the panic was recovered, returns nil.
-inline auto recover() -> Recovered {
+// Go's recover(). Returns the current panic's value and stops the panic, but only in a deferred call
+// that runs because of that panic. Anywhere else, and after the panic was recovered, returns nil.
+inline auto recover() -> any {
   auto* state = detail::current_panic;
   if (!state || state->recovered || !state->panic) {
     return {};
   }
   state->recovered = true;
-  return Recovered{state->panic};
+  return detail::panic_value(state->panic);
 }
 
 } // namespace eo
 
-template<>
-struct fmt::formatter<eo::Recovered> : fmt::formatter<std::string> {
-  auto format(const eo::Recovered& r, format_context& ctx) const -> decltype(ctx.out()) {
-    return fmt::formatter<std::string>::format(r == nullptr ? std::string{"<nil>"} : r.message(), ctx);
-  }
-};
+// The definitions of panic_nil and of the printing that Panic uses.
+#include <eo/print.h>
+#include <eo/ptr.h>

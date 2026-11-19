@@ -3,10 +3,10 @@
 //
 #pragma once
 #include <eo/panic.h>
+#include <eo/utf8.h>
 
 #include <fmt/format.h>
 
-#include <any>
 #include <concepts>
 #include <cstdint>
 #include <string>
@@ -15,26 +15,6 @@
 
 namespace eo::detail {
 
-// A Go integer type: an integer type other than bool and the character types, which the std::cmp_*
-// functions reject.
-template<typename T>
-concept go_integer =
-  std::integral<T> && !std::same_as<std::remove_cv_t<T>, bool> && !std::same_as<std::remove_cv_t<T>, char> &&
-  !std::same_as<std::remove_cv_t<T>, wchar_t> && !std::same_as<std::remove_cv_t<T>, char8_t> &&
-  !std::same_as<std::remove_cv_t<T>, char16_t> && !std::same_as<std::remove_cv_t<T>, char32_t>;
-
-// The value of a runtime panic whose message depends on its operands, such as an index out of range.
-// eo::Error registers every distinct message for good, so it is kept for fixed messages.
-struct runtime_error {
-  std::string message;
-};
-
-[[noreturn]] inline void panic_runtime_error(std::string message) {
-  auto text = "runtime error: " + std::move(message);
-  auto value = runtime_error{text};
-  throw Panic{std::any{std::move(value)}, std::move(text)};
-}
-
 // Index and slice checks with Go's runtime messages. The checks compare the operands as integers of
 // any type, so a negative index is reported as negative and a huge unsigned one is not wrapped. Go
 // leaves out the length or the other bound when the reported operand is negative.
@@ -42,10 +22,10 @@ struct runtime_error {
 template<go_integer I, go_integer N>
 void check_index(I i, N length) {
   if (std::cmp_less(i, 0)) {
-    panic_runtime_error(fmt::format("index out of range [{}]", i));
+    panic_bounds_error(fmt::format("index out of range [{}]", i));
   }
   if (std::cmp_greater_equal(i, length)) {
-    panic_runtime_error(fmt::format("index out of range [{}] with length {}", i, length));
+    panic_bounds_error(fmt::format("index out of range [{}] with length {}", i, length));
   }
 }
 
@@ -54,16 +34,16 @@ void check_index(I i, N length) {
 template<go_integer L, go_integer H, go_integer N>
 void check_slice(L low, H high, N limit, const char* limit_name = "length") {
   if (std::cmp_less(high, 0)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [:{}]", high));
+    panic_bounds_error(fmt::format("slice bounds out of range [:{}]", high));
   }
   if (std::cmp_greater(high, limit)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [:{}] with {} {}", high, limit_name, limit));
+    panic_bounds_error(fmt::format("slice bounds out of range [:{}] with {} {}", high, limit_name, limit));
   }
   if (std::cmp_less(low, 0)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [{}:]", low));
+    panic_bounds_error(fmt::format("slice bounds out of range [{}:]", low));
   }
   if (std::cmp_greater(low, high)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [{}:{}]", low, high));
+    panic_bounds_error(fmt::format("slice bounds out of range [{}:{}]", low, high));
   }
 }
 
@@ -71,30 +51,23 @@ void check_slice(L low, H high, N limit, const char* limit_name = "length") {
 template<go_integer L, go_integer H, go_integer M, go_integer N>
 void check_slice3(L low, H high, M max, N cap) {
   if (std::cmp_less(max, 0)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [::{}]", max));
+    panic_bounds_error(fmt::format("slice bounds out of range [::{}]", max));
   }
   if (std::cmp_greater(max, cap)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [::{}] with capacity {}", max, cap));
+    panic_bounds_error(fmt::format("slice bounds out of range [::{}] with capacity {}", max, cap));
   }
   if (std::cmp_less(high, 0)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [:{}:]", high));
+    panic_bounds_error(fmt::format("slice bounds out of range [:{}:]", high));
   }
   if (std::cmp_greater(high, max)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [:{}:{}]", high, max));
+    panic_bounds_error(fmt::format("slice bounds out of range [:{}:{}]", high, max));
   }
   if (std::cmp_less(low, 0)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [{}::]", low));
+    panic_bounds_error(fmt::format("slice bounds out of range [{}::]", low));
   }
   if (std::cmp_greater(low, high)) {
-    panic_runtime_error(fmt::format("slice bounds out of range [{}:{}:]", low, high));
+    panic_bounds_error(fmt::format("slice bounds out of range [{}:{}:]", low, high));
   }
 }
 
 } // namespace eo::detail
-
-template<>
-struct fmt::formatter<eo::detail::runtime_error> : fmt::formatter<std::string> {
-  auto format(const eo::detail::runtime_error& e, format_context& ctx) const -> decltype(ctx.out()) {
-    return fmt::formatter<std::string>::format(e.message, ctx);
-  }
-};

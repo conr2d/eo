@@ -1,0 +1,18 @@
+false true true
+3 true <nil>
+load "": not found: <empty>
+true <empty> true
+true 503
+true false
+layer 2: layer 1: sentinel
+true false
+true true
+true true k
+"sentinel\nnot found: k"
+true
+sentinel + temporary 1 true true true
+false <nil>
+*main.NotFound <nil>
+true <nil>
+<nil>|<nil>
+plain 7 bad %!w(int=7) nil %!w(<nil>)

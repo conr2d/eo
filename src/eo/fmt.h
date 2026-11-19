@@ -3,121 +3,20 @@
 //
 #pragma once
 #include <eo/core.h>
-#include <eo/float.h>
-#include <eo/interface.h>
+#include <eo/errors.h>
+#include <eo/print.h>
 
-#include <boost/pfr.hpp>
 #include <fmt/format.h>
+
 #include <array>
-#include <concepts>
+#include <cstddef>
 #include <cstdio>
-#include <iterator>
 #include <map>
 #include <string>
 #include <string_view>
-#include <type_traits>
-#include <utility>
-
-namespace eo::detail {
-
-template<typename T>
-inline constexpr bool is_std_array = false;
-
-template<typename T, std::size_t N>
-inline constexpr bool is_std_array<std::array<T, N>> = true;
-
-// A translated Go struct: a class aggregate, which Boost.PFR can visit field by field. This also
-// matches other aggregates, so it is ambiguous with fmt's own formatters for aggregate types, such as
-// std::tm in <fmt/chrono.h>, std::monostate in <fmt/std.h>, and fmt::streamed. Eo uses none of them
-// for Go values.
-template<typename T>
-concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_array<T>;
-
-template<typename T>
-inline constexpr bool is_composite = go_struct<T>;
-
-template<typename T>
-inline constexpr bool is_composite<eo::slice<T>> = true;
-
-template<typename K, typename V>
-inline constexpr bool is_composite<std::map<K, V>> = true;
-
-template<typename T>
-inline constexpr bool is_pointer_to_composite = false;
-
-// Go's fmt prints an operand that points to a struct, slice, or map as & followed by its target.
-template<typename T>
-inline constexpr bool is_pointer_to_composite<eo::ptr<T>> = is_composite<T>;
-
-// A value as Go's %v prints it, including inside slices, maps, and structs: an interface by its
-// dynamic value, and a value whose method set has Error or String by calling it, as Go's
-// handleMethods does. `top` is true for an operand of Println.
-template<typename T>
-struct printed {
-  const T& value;
-  bool top;
-};
-
-template<typename T>
-auto go_print(const T& value, bool top = false) -> printed<T> {
-  return {value, top};
-}
-
-// The method named `name` with signature `string()` in T's method set. It must exist.
-template<typename T>
-auto string_method(std::size_t position) -> const entry<std::string()>* {
-  return static_cast<const entry<std::string()>*>(method_set<T>::entries[position]);
-}
-
-// Calls an Error or String method for fmt. A panic in it prints as Go's fmt prints it, and as
-// <nil> for a nil pointer receiver.
-template<typename T>
-auto call_string_method(const T& value, const entry<std::string()>* method) -> std::string {
-  try {
-    return method->fn(&value);
-  } catch (const Panic& p) {
-    if constexpr (is_ptr<T>) {
-      if (value == nullptr) {
-        return "<nil>";
-      }
-    }
-    return "%!v(PANIC=" + std::string{method->name} + " method: " + p.message() + ")";
-  }
-}
-
-template<typename T>
-auto print_value(const T& value, bool top) -> std::string {
-  return fmt::format("{}", go_print(value, top));
-}
-
-} // namespace eo::detail
+#include <vector>
 
 namespace fmt {
-namespace detail {
-
-  // Go's fmt.Println writes each call to the unbuffered os.Stdout with a single write. Format the
-  // whole line first, then write and flush it, so output is not held in a stdio buffer and lines
-  // from concurrent goroutines do not interleave.
-  template<typename... T>
-  void print_line(std::FILE* f, T&&... args) {
-    auto buf = fmt::memory_buffer{};
-    bool first = true;
-    auto print_arg = [&](auto&& arg) {
-      if (!first) {
-        buf.push_back(' ');
-      }
-      fmt::format_to(std::back_inserter(buf), "{}", eo::detail::go_print(arg, true));
-      first = false;
-    };
-    (print_arg(std::forward<T>(args)), ...);
-    buf.push_back('\n');
-    std::fwrite(buf.data(), 1, buf.size(), f);
-    // runtime::exit skips stdout while another thread holds its lock, so this flush is what keeps a
-    // goroutine's last line before os::Exit.
-    std::fflush(f);
-  }
-
-} // namespace detail
 
 // Go's fmt.Stringer.
 struct Stringer : eo::interface<Stringer> {
@@ -134,117 +33,70 @@ inline auto Stringer::String() const -> std::string {
 namespace detail {
 
   // The operands are taken by value, as Go passes them. A reference would refer into a slice's backing
-  // array, which another operand's call can free before the line is formatted.
+  // array, which another operand's call can free before the text is formatted.
+
   struct println_fn {
     template<typename... T>
     void operator()(T... args) const {
-      print_line(stdout, std::move(args)...);
+      eo::detail::write_text(stdout, eo::detail::sprint(true, args...));
     }
   };
 
   struct fprintln_fn {
     template<typename... T>
     void operator()(std::FILE* f, T... args) const {
-      print_line(f, std::move(args)...);
+      eo::detail::write_text(f, eo::detail::sprint(true, args...));
+    }
+  };
+
+  struct sprint_fn {
+    template<typename... T>
+    auto operator()(T... args) const -> std::string {
+      return eo::detail::sprint(false, args...);
+    }
+  };
+
+  struct sprintln_fn {
+    template<typename... T>
+    auto operator()(T... args) const -> std::string {
+      return eo::detail::sprint(true, args...);
+    }
+  };
+
+  struct sprintf_fn {
+    template<typename... T>
+    auto operator()(const std::string& format, T... args) const -> std::string {
+      return eo::detail::sprintf(format, args...);
+    }
+  };
+
+  struct printf_fn {
+    template<typename... T>
+    void operator()(const std::string& format, T... args) const {
+      eo::detail::write_text(stdout, eo::detail::sprintf(format, args...));
+    }
+  };
+
+  struct fprintf_fn {
+    template<typename... T>
+    void operator()(std::FILE* f, const std::string& format, T... args) const {
+      eo::detail::write_text(f, eo::detail::sprintf(format, args...));
     }
   };
 
 } // namespace detail
 
-// Function objects rather than function templates, so that Go's fmt.Println(f()), where f has several
-// results, translates to std::apply(fmt::Println, f()).
+// Function objects rather than function templates, so that a call with the results of another call,
+// such as Go's fmt.Println(f()), translates to std::apply(fmt::Println, f()).
 inline constexpr detail::println_fn Println{};
 inline constexpr detail::fprintln_fn Fprintln{};
+inline constexpr detail::sprint_fn Sprint{};
+inline constexpr detail::sprintln_fn Sprintln{};
+inline constexpr detail::sprintf_fn Sprintf{};
+inline constexpr detail::printf_fn Printf{};
+inline constexpr detail::fprintf_fn Fprintf{};
 
-template<typename K, typename V>
-struct formatter<std::pair<K, V>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const std::pair<K, V>& p, FormatContext& ctx) const {
-    return fmt::format_to(ctx.out(), "{}:{}", eo::detail::go_print(p.first), eo::detail::go_print(p.second));
-  }
-};
-
-template<typename K, typename V>
-struct formatter<std::map<K, V>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const std::map<K, V>& p, FormatContext& ctx) const {
-    // fmt::join needs <fmt/ranges.h> since fmt 11, whose tuple formatter conflicts with formatter<std::pair> above.
-    auto out = fmt::format_to(ctx.out(), "map[");
-    bool first = true;
-    for (const auto& entry : p) {
-      if (!first) {
-        out = fmt::format_to(out, " ");
-      }
-      out = fmt::format_to(out, "{}", entry);
-      first = false;
-    }
-    return fmt::format_to(out, "]");
-  }
-};
-
-// Go's %v of a slice: the elements in brackets, separated by spaces, and [] for nil.
-template<typename T>
-struct formatter<eo::slice<T>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const eo::slice<T>& s, FormatContext& ctx) const {
-    auto out = fmt::format_to(ctx.out(), "[");
-    bool first = true;
-    for (const auto& element : s) {
-      if (!first) {
-        out = fmt::format_to(out, " ");
-      }
-      out = fmt::format_to(out, "{}", eo::detail::go_print(element));
-      first = false;
-    }
-    return fmt::format_to(out, "]");
-  }
-};
-
-// Go's %v of a struct: its fields in braces, separated by spaces, each printed as %v prints it.
-template<eo::detail::go_struct T>
-struct formatter<T> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const T& s, FormatContext& ctx) const {
-    auto out = fmt::format_to(ctx.out(), "{{");
-    bool first = true;
-    boost::pfr::for_each_field(s, [&](const auto& field) {
-      if (!first) {
-        out = fmt::format_to(out, " ");
-      }
-      out = fmt::format_to(out, "{}", eo::detail::go_print(field));
-      first = false;
-    });
-    return fmt::format_to(out, "}}");
-  }
-};
-
-// Go's %v of a pointer inside another value: <nil>, or its address. A pointer operand of Println to
-// a struct or slice prints its target instead (see formatter<printed<T>>).
-template<typename T>
-struct formatter<eo::ptr<T>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
-  }
-  template<typename FormatContext>
-  auto format(const eo::ptr<T>& p, FormatContext& ctx) const {
-    if (p == nullptr) {
-      return fmt::format_to(ctx.out(), "<nil>");
-    }
-    return fmt::format_to(ctx.out(), "{}", fmt::ptr(p.get()));
-  }
-};
+// fmt's formatters for Go values print them as Go's %v does inside another value.
 
 template<typename T>
 struct formatter<eo::detail::printed<T>> {
@@ -253,36 +105,44 @@ struct formatter<eo::detail::printed<T>> {
   }
   template<typename FormatContext>
   auto format(const eo::detail::printed<T>& p, FormatContext& ctx) const {
-    const auto& value = p.value;
-    if constexpr (eo::detail::interface_type<T>) {
-      if (value == nullptr) {
-        return fmt::format_to(ctx.out(), "<nil>");
-      }
-      return fmt::format_to(ctx.out(), "{}", value._eo_type->print(value._eo_value.get(), p.top));
-    } else {
-      // Go prefers Error to String.
-      constexpr auto error = eo::detail::method_position<T, std::string()>("Error");
-      constexpr auto string = eo::detail::method_position<T, std::string()>("String");
-      if constexpr (error != eo::detail::no_method || string != eo::detail::no_method) {
-        constexpr auto position = error != eo::detail::no_method ? error : string;
-        return fmt::format_to(ctx.out(),
-          "{}",
-          eo::detail::call_string_method(value, eo::detail::string_method<T>(position)));
-      } else if constexpr (eo::detail::is_pointer_to_composite<T>) {
-        // Go's fmt prints an operand of Println that points to a struct, slice, or map as & followed
-        // by its target, and any other pointer as <nil> or its address.
-        if (p.top && value != nullptr) {
-          return fmt::format_to(ctx.out(), "&{}", eo::detail::go_print(*value));
-        }
-        return fmt::format_to(ctx.out(), "{}", value);
-      } else {
-        return fmt::format_to(ctx.out(), "{}", eo::detail::go_value(value));
-      }
-    }
+    auto printer = eo::detail::printer{};
+    eo::detail::print_arg(printer, p.value, 'v', p.top ? 0 : 1);
+    return fmt::format_to(ctx.out(), "{}", printer.buf);
   }
 };
 
-// An interface value prints its dynamic value.
+template<typename K, typename V>
+struct formatter<std::map<K, V>> : formatter<eo::detail::printed<std::map<K, V>>> {
+  template<typename FormatContext>
+  auto format(const std::map<K, V>& value, FormatContext& ctx) const {
+    return formatter<eo::detail::printed<std::map<K, V>>>::format(eo::detail::go_print(value), ctx);
+  }
+};
+
+template<typename T>
+struct formatter<eo::slice<T>> : formatter<eo::detail::printed<eo::slice<T>>> {
+  template<typename FormatContext>
+  auto format(const eo::slice<T>& value, FormatContext& ctx) const {
+    return formatter<eo::detail::printed<eo::slice<T>>>::format(eo::detail::go_print(value), ctx);
+  }
+};
+
+template<eo::detail::go_struct T>
+struct formatter<T> : formatter<eo::detail::printed<T>> {
+  template<typename FormatContext>
+  auto format(const T& value, FormatContext& ctx) const {
+    return formatter<eo::detail::printed<T>>::format(eo::detail::go_print(value), ctx);
+  }
+};
+
+template<typename T>
+struct formatter<eo::ptr<T>> : formatter<eo::detail::printed<eo::ptr<T>>> {
+  template<typename FormatContext>
+  auto format(const eo::ptr<T>& value, FormatContext& ctx) const {
+    return formatter<eo::detail::printed<eo::ptr<T>>>::format(eo::detail::go_print(value), ctx);
+  }
+};
+
 template<eo::detail::interface_type T>
 struct formatter<T> : formatter<eo::detail::printed<T>> {
   template<typename FormatContext>
@@ -291,19 +151,80 @@ struct formatter<T> : formatter<eo::detail::printed<T>> {
   }
 };
 
-template<typename Clock>
-struct formatter<std::chrono::time_point<Clock>> {
-  constexpr auto parse(format_parse_context& ctx) -> decltype(ctx.begin()) {
-    return ctx.end();
+// *fmt.wrapError, which Errorf returns for one %w.
+struct wrapError {
+  static constexpr std::string_view _eo_name = "fmt.wrapError";
+
+  std::string msg;
+  eo::error err;
+
+  auto operator==(const wrapError&) const -> bool = default;
+
+  static auto Error(eo::ptr<wrapError> e) -> std::string {
+    return e->msg;
   }
-  template<typename FormatContext>
-  auto format(const std::chrono::time_point<Clock>& p, FormatContext& ctx) const {
-    auto buffer = std::vector<char>(256);
-    auto t = Clock::to_time_t(p);
-    auto size = std::strftime(buffer.data(), buffer.size(), "%F %T %z %Z", std::localtime(&t));
-    return fmt::format_to(ctx.out(), "{}", std::string_view(buffer.data(), size));
+
+  static auto Unwrap(eo::ptr<wrapError> e) -> eo::error {
+    return e->err;
   }
+
+  using _eo_methods = eo::methods<eo::method<&wrapError::Error, "Error">, eo::method<&wrapError::Unwrap, "Unwrap">>;
 };
+
+// *fmt.wrapErrors, which Errorf returns for several %w.
+struct wrapErrors {
+  static constexpr std::string_view _eo_name = "fmt.wrapErrors";
+
+  std::string msg;
+  eo::slice<eo::error> errs;
+
+  static auto Error(eo::ptr<wrapErrors> e) -> std::string {
+    return e->msg;
+  }
+
+  static auto Unwrap(eo::ptr<wrapErrors> e) -> eo::slice<eo::error> {
+    return e->errs;
+  }
+
+  using _eo_methods = eo::methods<eo::method<&wrapErrors::Error, "Error">, eo::method<&wrapErrors::Unwrap, "Unwrap">>;
+};
+
+namespace detail {
+
+  struct errorf_fn {
+    template<typename... T>
+    auto operator()(const std::string& format, T... args) const -> eo::error {
+      auto p = eo::detail::printer{.wrap_errs = true};
+      const auto operands = std::array<eo::detail::operand, sizeof...(T)>{eo::detail::make_operand(args)...};
+      auto wrapped = std::vector<std::size_t>{};
+      eo::detail::print_format(p, format, operands, &wrapped);
+      if (wrapped.empty()) {
+        return eo::errors::New(std::move(p.buf));
+      }
+      auto error_of = [&](std::size_t i) { return operands[i].as_error(operands[i].value); };
+      if (wrapped.size() == 1) {
+        return eo::New<wrapError>(wrapError{std::move(p.buf), error_of(wrapped[0])});
+      }
+      auto errs = std::vector<eo::error>{};
+      for (auto i : wrapped) {
+        if (auto e = error_of(i); e != nullptr) {
+          errs.push_back(std::move(e));
+        }
+      }
+      auto s = eo::slice<eo::error>{};
+      if (!errs.empty()) {
+        s = eo::slice<eo::error>::allocate(static_cast<int64_t>(errs.size()), static_cast<int64_t>(errs.size()));
+        std::move(errs.begin(), errs.end(), s.begin());
+      }
+      return eo::New<wrapErrors>(wrapErrors{std::move(p.buf), std::move(s)});
+    }
+  };
+
+} // namespace detail
+
+// fmt.Errorf: an error whose message is formatted as Sprintf formats it. Each %w operand that is an
+// error is wrapped, so errors.Is, errors.As, and errors.Unwrap see it.
+inline constexpr detail::errorf_fn Errorf{};
 
 } // namespace fmt
 
