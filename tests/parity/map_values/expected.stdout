@@ -1,0 +1,16 @@
+map[alice:29 bob:32 carol:40] 3 3
+0 3
+29 true
+0 false
+carol present
+map[alice:29 carol:40] 2
+map[101:1 104:1 108:2 111:1 122:2]
+776
+true 0 0 map[]
+map[{0 5}:b {1 2}:c] b 2
+map[even:[2 4] odd:[1]]
+map[x:map[y:1 z:2]] 0 1
+map[-1:false 2:true 3:false]
+map[-1:false 2:true 3:false]|map[%!d(string=k):7]|map[int]bool|map[string][]int
+map[] 0 false 0
+&map[x:1 y:2] 2

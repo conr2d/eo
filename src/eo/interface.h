@@ -34,6 +34,9 @@ class ptr;
 template<typename T>
 class slice;
 
+template<typename K, typename V>
+class map;
+
 // A method name, as a template argument.
 template<std::size_t N>
 struct method_name {
@@ -104,9 +107,15 @@ namespace detail {
   template<typename T>
   inline constexpr bool is_slice<slice<T>> = true;
 
+  template<typename T>
+  inline constexpr bool is_map = false;
+
+  template<typename K, typename V>
+  inline constexpr bool is_map<map<K, V>> = true;
+
   // Whether T is a translated Go type, which has a Go type name and so can be held in an interface:
-  // a basic type, a string, struct{}, a type that declares _eo_name, or a pointer or slice of such
-  // types. Maps wait on their own mapping.
+  // a basic type, a string, struct{}, a type that declares _eo_name, or a pointer, slice, or map of
+  // such types.
   template<typename T>
   consteval auto is_go_type() -> bool {
     if constexpr (requires { T::_eo_name; }) {
@@ -121,6 +130,8 @@ namespace detail {
       return is_go_type<typename pointee<T>::type>();
     } else if constexpr (is_slice<T>) {
       return is_go_type<typename T::value_type>();
+    } else if constexpr (is_map<T>) {
+      return is_go_type<typename T::key_type>() && is_go_type<typename T::mapped_type>();
     } else {
       return false;
     }
@@ -637,6 +648,8 @@ namespace detail {
       return "*" + type_name<typename pointee<U>::type>();
     } else if constexpr (is_slice<U>) {
       return "[]" + type_name<typename U::value_type>();
+    } else if constexpr (is_map<U>) {
+      return "map[" + type_name<typename U::key_type>() + "]" + type_name<typename U::mapped_type>();
     } else {
       static_assert(sizeof(U) == 0, "a type held in an interface needs a Go type name");
     }

@@ -376,7 +376,7 @@ The slice helpers are function objects with the same collision rule as the strin
 
 C++ leaves the order of a function's arguments unspecified, and every `eo::` helper is a function call. Go calls functions and methods in lexical left-to-right order, but it does not specify when the other operands of an expression are read relative to those calls. The translation must not leave that order to the C++ compiler. A reference that `eo::at` returns before a call that frees its backing array refers to freed storage, and the two orders can print different values.
 
-Eo fixes one order: an expression's nested Go calls run first, left to right, and the operands that remain in the statement are read after them. When an expression contains a call to an `eo::` slice or string helper, a call to `slice<T>::of`, or a keyed struct literal whose keys are out of declaration order (see [Composite literals](#composite-literals)), save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
+Eo fixes one order: an expression's nested Go calls run first, left to right, and the operands that remain in the statement are read after them. When an expression contains a call to an `eo::` slice, string, or map helper, a call to `slice<T>::of` or `map<K, V>::of`, or a keyed struct literal whose keys are out of declaration order (see [Composite literals](#composite-literals)), save the result of each nested Go call in a temporary, `auto _eo_call_<n> = ...;`, immediately before the statement, and use the temporary in its place:
 
 ```go
 fmt.Println(s[0], g())
@@ -398,7 +398,7 @@ eo::at(s, _eo_call_3) = h();
 
 The rule applies separately to each full expression that a statement evaluates: an expression statement, each side of an assignment, the initializer of a declaration, the operand of a `return`, and the condition of an `if` or the tag of a `switch` without an init statement, whose temporaries go before the `if` or `switch`:
 
-- Every Go function or method call in the full expression is a nested call, except the outermost operation when that operation is itself a Go call. This includes the arguments of an `eo::` helper, the elements of a braced list in `slice<T>::of` or `eo::append`, the elements of a struct literal, operands of operators and conversions, parenthesized calls, and the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. The outermost call stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so in `s[g()] = h()` above, `h()` runs after the saved `g()` and before the index check, as Go orders them. When the outermost operation is a helper, an operator, or a conversion, every Go call in the expression is nested, except inside an operand of `&&` or `||` (see below): `t := []int{f(), h(s[0], g())}` becomes `auto _eo_call_0 = f();`, `auto _eo_call_1 = g();`, `auto _eo_call_2 = h(eo::at(s, 0), _eo_call_1);`, then `auto t = slice<int64_t>::of({_eo_call_0, _eo_call_2});`, and `s = append(s, g())` becomes `auto _eo_call_3 = g();`, then `s = eo::append(s, {_eo_call_3});`.
+- Every Go function or method call in the full expression is a nested call, except the outermost operation when that operation is itself a Go call. This includes the arguments of an `eo::` helper, the elements of a braced list in `slice<T>::of`, `map<K, V>::of`, or `eo::append`, the elements of a struct literal, operands of operators and conversions, parenthesized calls, and the call that produces the function value of another call, as `next()` in `next()(s[0], g())`. The outermost call stays in place, such as `fmt.Println`, `f`, and `h` above, because C++ evaluates its arguments before it runs. C++ evaluates the right side of an assignment before the left, so in `s[g()] = h()` above, `h()` runs after the saved `g()` and before the index check, as Go orders them. When the outermost operation is a helper, an operator, or a conversion, every Go call in the expression is nested, except inside an operand of `&&` or `||` (see below): `t := []int{f(), h(s[0], g())}` becomes `auto _eo_call_0 = f();`, `auto _eo_call_1 = g();`, `auto _eo_call_2 = h(eo::at(s, 0), _eo_call_1);`, then `auto t = slice<int64_t>::of({_eo_call_0, _eo_call_2});`, and `s = append(s, g())` becomes `auto _eo_call_3 = g();`, then `s = eo::append(s, {_eo_call_3});`.
 - Builtins and conversions, such as `len`, `cap`, `append`, `string(b)`, and `int64(x)`, are not themselves Go calls for this rule, but the Go calls inside them are. A call inside a function literal's body belongs to that body.
 - A temporary's initializer is an expression in its own right. If it contains a helper and a nested Go call, that call is saved first. Temporaries are declared in the order Go makes their calls. `<n>` counts them from 0 through the enclosing function, statement by statement in source order and, within one statement, in call order, with the bodies of function literals numbered where they appear in the source, so no name is reused. `fmt.Println(f(s[0], k()), g())` becomes `auto _eo_call_0 = k();`, then `auto _eo_call_1 = f(eo::at(s, 0), _eo_call_0);`, then `auto _eo_call_2 = g();`.
 - Go evaluates the right operand of `&&` and `||` only when the left one does not decide the result, so a call is never moved out of either operand. Instead, a `&&` or `||` that contains a Go call and is nested in the expression is itself saved as one temporary, in its place in call order: `fmt.Println(s[0], f() && h(), g())` becomes `auto _eo_call_0 = f() && h();`, then `auto _eo_call_1 = g();`. Each operand is an expression in its own right, whose outermost call stays in place, so `i < len(t) && check(t[i])` needs no temporary. An operand that would need one is not covered yet.
@@ -409,6 +409,49 @@ The rule applies separately to each full expression that a statement evaluates: 
 The gc compiler does not always follow Eo's order. It reads `s`, `s[i]`, and a slice or string variable after the calls, as Eo does. It evaluates `len`, `cap`, slice expressions, and string indexing of a variable that are written before a call ahead of that call, so `fmt.Println(len(s), g())`, where `g` assigns `s`, prints the old length. The Go specification allows both orders, so a program whose output depends on this order is outside the mapping, and parity cases do not depend on it.
 
 `ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved by the rule above first, so that the pointer's owner and target are the same array.
+
+### Maps
+
+Go `map[K]V` maps to `map<K, V>` from `<eo/map.h>`, which `<eo/core.h>` includes. A `map<K, V>` is a handle to a hash table: copying it copies the handle, and every copy, including a function's parameter, refers to the same entries, as in Go. The table stays alive for as long as any handle refers to it.
+
+| Go | C++ |
+| --- | --- |
+| `map[K]V` | `map<K, V>` |
+| `nil` as a `map[K]V`, and the zero value of `map[K]V` | `map<K, V>{}`, or `nullptr` where it converts; `var m map[K]V` is `map<K, V> m;` |
+| `m == nil`, `m != nil` | `m == nullptr`, `m != nullptr` |
+| `map[K]V{k1: v1, k2: v2}`, `map[K]V{}` | `map<K, V>::of({{k1, v1}, {k2, v2}})`, `map<K, V>::of({})` |
+| `make(map[K]V)`, `make(map[K]V, n)` | `eo::make_map<K, V>()`, `eo::make_map<K, V>(n)` |
+| `len(m)` | `eo::len(m)`, as `int64_t` |
+| `m[k]` as a value | `eo::map_get(m, k)`, a copy of the value |
+| `v, ok := m[k]` | `auto [v, ok] = eo::map_get_ok(m, k);` |
+| `v, ok = m[k]` | `std::tie(v, ok) = eo::map_get_ok(m, k);` |
+| `m[k] = v`, `m[k] += v`, `m[k]++` | `eo::map_entry(m, k) = v`, `eo::map_entry(m, k) += v`, `eo::map_entry(m, k)++` |
+| `delete(m, k)` | `eo::delete_(m, k)` |
+| `clear(m)` | `eo::clear(m)` |
+
+The helpers are function objects, called qualified, with the same collision rule as the string helpers (see [Strings](#strings)). Go code rarely spells a name with an underscore, so the `map_` prefix keeps them apart from common Go names such as `lookup` and `entry`. `delete` is a C++ keyword, so the builtin is `eo::delete_`. A key argument converts to `K`, so a constant key is written as for any argument, and a rune literal key as its decimal value: `counts['z']++` is `eo::map_entry(counts, 122)++`.
+
+`map<K, V>{}` is the nil map, which reads as empty: `eo::map_get` returns the zero value, `eo::map_get_ok` returns the zero value and `false`, `eo::len` returns 0, `eo::delete_` and `eo::clear` do nothing, and a `range` loop has no iterations. A composite literal is never nil, even when it is empty, so it is written `map<K, V>::of({...})`. The braced list evaluates its entries left to right, each key before its value, and a later entry replaces an earlier one with an equal key, which Go allows when the keys are not constants. A nested literal whose key or value type Go elides spells it: `map[string]Point{"a": {1, 2}}` is `map<std::string, Point>::of({{"a"s, Point{1, 2}}})`. The size argument of `eo::make_map` accepts any Go integer type and only sizes the table. Go rejects a negative constant size and treats a negative variable as zero, and so does Eo.
+
+`eo::map_get` reads without inserting, so reading a missing key leaves `len(m)` unchanged, as in Go, while C++'s `operator[]` would insert it. `m[k].f` is `eo::map_get(m, k).f`. `eo::map_get_ok` returns a `std::pair` of the value and whether the key is present, and follows the forms of [Multiple results](#multiple-results) with a `std::pair`, as `eo::type_assert_ok` does: `_, ok := m[k]` is `auto ok = eo::map_get_ok(m, k).second;`.
+
+`eo::map_entry` is for a map index on the left of an assignment, an op-assignment, `++`, or `--`. It returns a reference to the value in the table, inserting the key with the zero value first when it is absent, so `m[k] += 1` on a missing key stores 1. Assigning to an entry of a nil map panics with Go's `assignment to entry in nil map`, whose value is a `runtime.plainError`. An op-assignment that needs a helper for its operator takes the entry as its operand: `m[k] /= d` is `eo::div_assign(eo::map_entry(m, k), d)`. C++ evaluates the right side of an assignment before the left, so `m[k] = len(m)` reads the length before the entry is inserted, as Go does. A map inside another map is indexed as a value first: `m[a][b] = v` is `eo::map_entry(eo::map_get(m, a), b) = v`. A call in a map operand follows [Calls next to slice and string operands](#calls-next-to-slice-and-string-operands), like a call in an operand of any other helper.
+
+A key type must be a bool, an integer or float type, a string, a pointer, `eo::empty_struct`, or a struct whose fields are such types. Other key types do not compile. Keys compare as Go compares them: pointers by address and structs field by field. A float key follows Go too. `-0.0` and `0.0` are the same key, and assigning with one of them stores it as the key, so the map prints the sign of the last assignment. Every assignment with a NaN key adds a new entry, which no lookup, assignment, or `delete` can reach, and which only `clear` removes.
+
+A map compares only with `nil`. A struct with a map field is not comparable, and comparing two interface values that hold maps panics with `runtime error: comparing uncomparable type map[string]int`, as in Go. Concurrent writes to a map, or a write concurrent with a read, are a data race in Eo, as for any other variable, and a program that has one is outside the mapping. Go detects some of them with the fatal error `concurrent map writes`, and Eo does not.
+
+`fmt` prints a map as Go does, as `map[k1:v1 k2:v2]` with the keys in the order of Go's `internal/fmtsort`: numbers by value, with NaN first, strings by bytes, `false` before `true`, structs field by field, and pointers by address. A verb applies to each key and value, so `%d` of a `map[string]int` prints `map[%!d(string=k):7]`. An operand that is a pointer to a map prints as `&` followed by the map. `%T` prints the Go type, such as `map[string][]int`. Pointer keys print in address order, which differs from run to run, so parity cases do not print a map with pointer keys.
+
+`for range` over a map is in [Range loops](#range-loops).
+
+Go's `maps` package maps to the namespace `maps` from `<eo/maps.h>`, whose functions are called as Go calls them, like those of `errors` (see [Errors](#errors)): `maps.Clone(m)`, `maps.Copy(dst, src)`, `maps.DeleteFunc(m, del)`, `maps.Equal(m1, m2)`, and `maps.EqualFunc(m1, m2, eq)` are `maps::Clone(m)`, `maps::Copy(dst, src)`, `maps::DeleteFunc(m, del)`, `maps::Equal(m1, m2)`, and `maps::EqualFunc(m1, m2, eq)`. A function literal argument is the lambda of [Function literals](#function-literals), passed directly. `maps::Clone` of nil is nil, and `maps::Copy` into a nil map panics when `src` has an entry.
+
+#### Maps not covered yet
+
+- interface, channel, and array key types, and array value types ([#93](https://github.com/conr2d/eo/issues/93));
+- the `maps` functions that take or return an iterator, `All`, `Keys`, `Values`, `Insert`, and `Collect`, which wait on range over functions ([#98](https://github.com/conr2d/eo/issues/98));
+- defined map types, such as `type Set map[string]bool` ([#104](https://github.com/conr2d/eo/issues/104)).
 
 ### Structs
 
@@ -534,7 +577,7 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 #### Struct forms not covered yet
 
 - printing a struct with an unexported field whose type has an `Error` or `String` method (see [Printing methods](#printing-methods));
-- defined types that are not structs, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), array fields ([#93](https://github.com/conr2d/eo/issues/93)), and structs as map keys ([#88](https://github.com/conr2d/eo/issues/88));
+- defined types that are not structs, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), and array fields ([#93](https://github.com/conr2d/eo/issues/93));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
 - a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
@@ -543,7 +586,7 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 
 ### Range loops
 
-A `for range` loop over an integer, a slice, or a string maps to a C++ range-based `for` statement over `eo::range(x)`, from `<eo/range.h>`, which `<eo/core.h>` includes. C++ evaluates `eo::range(x)` once, before the first iteration, as Go evaluates the range expression, and the result keeps its own copy of `x`.
+A `for range` loop over an integer, a slice, a string, or a map maps to a C++ range-based `for` statement over `eo::range(x)`, from `<eo/range.h>`, which `<eo/core.h>` includes. C++ evaluates `eo::range(x)` once, before the first iteration, as Go evaluates the range expression, and the result keeps its own copy of `x`.
 
 | Go | C++ |
 | --- | --- |
@@ -554,12 +597,16 @@ A `for range` loop over an integer, a slice, or a string maps to a C++ range-bas
 | `for i, r := range str`, where `str` is a string | `for (auto [i, r] : eo::range(str))` |
 | `for _, r := range str` | `for (auto [_eo_range_key, r] : eo::range(str))` |
 | `for i := range str` | `for (auto [i, _eo_range_value] : eo::range(str))` |
+| `for k, v := range m`, where `m` is a map | `for (auto [k, v] : eo::range(m))` |
+| `for _, v := range m` | `for (auto [_eo_range_key, v] : eo::range(m))` |
+| `for k := range m` | `for (auto [k, _eo_range_value] : eo::range(m))` |
 | `for range x` | `for ([[maybe_unused]] auto _eo_range_key : eo::range(x))`, with `eo::len(s)` in place of a slice `s` |
 
 A blank variable is the same as an omitted one, so `for i, _ := range s` is `for i := range s`, and `for _ = range x` and `for _, _ = range x` are `for range x`. Where the clause needs a C++ name that the Go source does not give, it uses the hidden name of the position: `_eo_range_key` for the first variable and `_eo_range_value` for the second. A clause never declares the same hidden name twice.
 
 - An integer `n` may have any Go integer type, and `i` has the same type. It takes the values 0 through `n-1`, and none when `n` is 0 or negative. An untyped constant `n` is written `T{L}`, as in [Untyped constant arguments](#untyped-constant-arguments), where `T` is the constant's default type, or the type of the variable in the assignment form below: `for i := range 3` is `for (auto i : eo::range(int64_t{3}))`, and `for i := range 'c' - 'a'` is `for (auto i : eo::range(int32_t{2}))`, because the default type of a rune constant is `rune`.
 - For a slice, `i` is an `int64_t` and `v` is a copy of the element. `eo::range(s)` holds a copy of `s`, so the number of iterations is `len(s)` when the loop starts: assigning `s` or appending to it in the body does not change the loop. Each element is read from the original backing array when its iteration starts, so the loop sees what the body wrote to a later element, as in Go. `for i := range s` reads no element, as in Go, so it ranges over `eo::len(s)`.
+- For a map, `k` and `v` are copies of each key and its value, in an unspecified order. Go randomizes the order, so a program that depends on it is outside the mapping, and parity cases do not print in it. `eo::range(m)` holds a copy of `m` and of the keys that `m` has when the loop starts, so assigning `m` in the body does not change the loop. Each iteration looks its key up again: an entry that the body deletes or clears before the loop reaches it is not produced, and `v` is the value that the entry has when its iteration starts, as in Go. An entry that the body adds is not produced, which Go allows: the specification leaves it to the implementation whether such an entry is produced. An entry whose key is NaN is produced unless the body clears the map.
 - For a string, `i` is the `int64_t` byte index of each UTF-8 sequence and `r` is its code point as an `int32_t`. A byte that does not start a valid sequence gives U+FFFD and advances one byte, as `[]rune(str)` does (see [Slices](#slices)). `eo::range(str)` holds a copy of `str`, so assigning `str` in the body does not change the loop.
 
 C++ declares the variables of a range-based `for` again for each iteration, as Go 1.22 does, so the loop's own update is not a write to the previous iteration's variables. A function literal that captures a range variable by reference and is not boxed captures it with `&`, as in `[=, &v]`, which C++20 allows for a structured binding.
@@ -623,7 +670,7 @@ for (auto [_eo_range_key, v] : eo::range(s)) {
 }
 ```
 
-Not covered yet: `range` over a channel ([#97](https://github.com/conr2d/eo/issues/97)), a map ([#88](https://github.com/conr2d/eo/issues/88)), an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
+Not covered yet: `range` over a channel ([#97](https://github.com/conr2d/eo/issues/97)), an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
 
 ### Pointers and escaping variables
 
@@ -822,7 +869,7 @@ Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay m
 
 #### Not covered yet
 
-- pointers held inside maps, whose mapping is not frozen, and slicing an array;
+- slicing an array;
 - printing a pointer with `fmt` inside another value, which shows an address;
 - method values and method expressions, and conversions through `unsafe.Pointer` or `uintptr`.
 
@@ -937,7 +984,7 @@ Go's `any` and `interface{}` map to `any`, Eo's empty interface, whose name is `
 
 A conversion from a non-interface value holds a copy of the value, as in Go. Copies of an interface value share that copy, which is never modified, so they behave like Go's copies. An interface that holds a pointer shares the pointer's target. A variable whose address is converted to an interface is usually moved to heap by Go, and so [boxed](#boxed-variables), so the interface holds an owning pointer: `var p Point; var s fmt.Stringer = &p` is `auto p = New<Point>();`, then `fmt::Stringer s = p;`. An untyped constant converted to an interface takes its default type and is written `T{L}`, as described in [Untyped constants](#untyped-constants): `var a any = 7` is `any a = int64_t{7};`.
 
-The dynamic type is the C++ type of the converted value, which must be a [basic type](#basic-types), a string, `eo::empty_struct`, a type that declares `_eo_name`, or a pointer or slice of such types. Maps wait on their own mapping ([#88](https://github.com/conr2d/eo/issues/88)). Go's `int` and `int64` both map to `int64_t`, and `uint`, `uint64`, and `uintptr` to `uint64_t`, so an interface cannot tell them apart: an `int64` value converted to an interface holds an `int`. A program whose behavior depends on telling them apart, by an assertion, a type switch, or a comparison of interface values, is outside the mapping ([#107](https://github.com/conr2d/eo/issues/107)).
+The dynamic type is the C++ type of the converted value, which must be a [basic type](#basic-types), a string, `eo::empty_struct`, a type that declares `_eo_name`, or a pointer, slice, or map of such types. Go's `int` and `int64` both map to `int64_t`, and `uint`, `uint64`, and `uintptr` to `uint64_t`, so an interface cannot tell them apart: an `int64` value converted to an interface holds an `int`. A program whose behavior depends on telling them apart, by an assertion, a type switch, or a comparison of interface values, is outside the mapping ([#107](https://github.com/conr2d/eo/issues/107)).
 
 Calling a method of a nil interface value panics with `runtime error: invalid memory address or nil pointer dereference`, which a deferred `recover()` can stop. An interface value that holds a nil pointer is not nil, as in Go. Its pointer-receiver methods receive the nil pointer, and its value-receiver methods panic as above.
 
@@ -1004,7 +1051,7 @@ Go calls these methods only for exported struct fields, and for the fields of st
 
 - methods translated as coroutines, whose signatures differ from the interface's ([#108](https://github.com/conr2d/eo/issues/108));
 - method values and method expressions of interfaces, and `go` and `defer` launches of interface method calls ([#67](https://github.com/conr2d/eo/issues/67));
-- interface values as map keys ([#88](https://github.com/conr2d/eo/issues/88));
+- interface values as map keys (see [Maps not covered yet](#maps-not-covered-yet));
 - generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
 - interface types declared inside a function, local struct types held in an interface, and methods with unexported names of interfaces from other packages;
 - a `break` inside a type switch clause, which would leave an enclosing loop;
@@ -1140,7 +1187,7 @@ A verb that the list above does not give for the operand's kind prints the bad-v
 #### Formatted printing not covered yet
 
 - flags, width, precision, and argument indexes, such as `%-10v`, `%08x`, `%.2f`, `%+v`, `%#v`, and `%[1]d`;
-- `%p`, `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, complex numbers, and the verbs other than `%v` for a map, which waits on its own mapping ([#88](https://github.com/conr2d/eo/issues/88));
+- `%p`, `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, and complex numbers;
 - the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
 - the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter`, `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;
@@ -1493,17 +1540,18 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- pointers held in maps, printing a pointer inside another value, method values, and method expressions (see [Not covered yet](#not-covered-yet));
+- printing a pointer inside another value, method values, and method expressions (see [Not covered yet](#not-covered-yet));
 - the interface forms in [Interfaces not covered yet](#interfaces-not-covered-yet);
 - the struct forms in [Struct forms not covered yet](#struct-forms-not-covered-yet), such as anonymous struct types and blank fields;
 - untyped complex constant arguments of `go` and `defer`;
 - goroutine launches of method expressions, interface method calls, and variadic calls, and launches with a nil function value (see [Unfrozen launch forms](./GOROUTINE.md#unfrozen-launch-forms));
 - the forms in [Multiple results not covered yet](#multiple-results-not-covered-yet), such as `a, b = b, a`;
 - `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
+- the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - labeled `break` and `continue`;
-- `range` loops over channels, maps, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
-- zero-value construction for translated types other than basic types, strings, slices, pointers, structs, and interfaces;
+- `range` loops over channels, arrays, and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
+- zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, and interfaces;
 - constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 

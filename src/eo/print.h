@@ -10,6 +10,7 @@
 #include <boost/pfr.hpp>
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <cmath>
@@ -18,8 +19,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <ctime>
+#include <functional>
 #include <iterator>
-#include <map>
 #include <span>
 #include <string>
 #include <string_view>
@@ -67,13 +68,35 @@ template<typename T>
 concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_array<T>;
 
 template<typename T>
-inline constexpr bool is_std_map = false;
+inline constexpr bool is_composite = go_struct<T> || is_slice<T> || is_map<T>;
 
-template<typename K, typename V>
-inline constexpr bool is_std_map<std::map<K, V>> = true;
-
-template<typename T>
-inline constexpr bool is_composite = go_struct<T> || is_slice<T> || is_std_map<T>;
+// Go's internal/fmtsort order of map keys, which fmt prints a map in: numbers by value, with NaN
+// before every other float, strings by bytes, false before true, pointers by address, and structs
+// field by field. Returns a negative number, zero, or a positive number.
+template<typename K>
+auto compare_keys(const K& a, const K& b) -> int {
+  if constexpr (std::is_floating_point_v<K>) {
+    if (std::isnan(a) || std::isnan(b)) {
+      return std::isnan(a) ? (std::isnan(b) ? 0 : -1) : 1;
+    }
+    return a < b ? -1 : (b < a ? 1 : 0);
+  } else if constexpr (std::is_arithmetic_v<K>) {
+    return a < b ? -1 : (b < a ? 1 : 0);
+  } else if constexpr (std::is_same_v<K, std::string>) {
+    auto c = a.compare(b);
+    return c < 0 ? -1 : (c > 0 ? 1 : 0);
+  } else if constexpr (is_ptr<K>) {
+    return std::less<const void*>{}(a.get(), b.get()) ? -1 : (a.get() == b.get() ? 0 : 1);
+  } else if constexpr (std::is_same_v<K, empty_struct>) {
+    return 0;
+  } else {
+    auto c = 0;
+    [&]<std::size_t... I>(std::index_sequence<I...>) {
+      ((c = c != 0 ? c : compare_keys(boost::pfr::get<I>(a), boost::pfr::get<I>(b))), ...);
+    }(std::make_index_sequence<boost::pfr::tuple_size_v<K>>{});
+    return c;
+  }
+}
 
 // The state of one call that prints, as Go's pp.
 struct printer {
@@ -438,16 +461,26 @@ void print_value(printer& p, const T& value, int32_t verb, int depth) {
       first = false;
     }
     p.buf += ']';
-  } else if constexpr (is_std_map<T>) {
+  } else if constexpr (is_map<T>) {
+    using K = typename T::key_type;
+    using V = typename T::mapped_type;
+    auto entries = std::vector<std::pair<const K*, const V*>>{};
+    if (auto* t = value.table(); t != nullptr) {
+      entries.reserve(static_cast<std::size_t>(t->size()));
+      t->for_each([&](const K& k, const V& v) { entries.emplace_back(&k, &v); });
+    }
+    std::stable_sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
+      return compare_keys(*a.first, *b.first) < 0;
+    });
     p.buf += "map[";
     auto first = true;
-    for (const auto& [k, v] : value) {
+    for (const auto& [k, v] : entries) {
       if (!first) {
         p.buf += ' ';
       }
-      print_arg(p, k, verb, depth + 1);
+      print_arg(p, *k, verb, depth + 1);
       p.buf += ':';
-      print_arg(p, v, verb, depth + 1);
+      print_arg(p, *v, verb, depth + 1);
       first = false;
     }
     p.buf += ']';

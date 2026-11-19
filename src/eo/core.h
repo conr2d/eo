@@ -8,6 +8,7 @@
 #include <eo/integer.h>
 #include <eo/interface.h>
 #include <eo/invoke.h>
+#include <eo/map.h>
 #include <eo/panic.h>
 #include <eo/ptr.h>
 #include <eo/range.h>

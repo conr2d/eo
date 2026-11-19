@@ -11,7 +11,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdio>
-#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -112,10 +111,10 @@ struct formatter<eo::detail::printed<T>> {
 };
 
 template<typename K, typename V>
-struct formatter<std::map<K, V>> : formatter<eo::detail::printed<std::map<K, V>>> {
+struct formatter<eo::map<K, V>> : formatter<eo::detail::printed<eo::map<K, V>>> {
   template<typename FormatContext>
-  auto format(const std::map<K, V>& value, FormatContext& ctx) const {
-    return formatter<eo::detail::printed<std::map<K, V>>>::format(eo::detail::go_print(value), ctx);
+  auto format(const eo::map<K, V>& value, FormatContext& ctx) const {
+    return formatter<eo::detail::printed<eo::map<K, V>>>::format(eo::detail::go_print(value), ctx);
   }
 };
 

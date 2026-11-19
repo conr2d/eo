@@ -36,6 +36,11 @@ target_link_libraries(eo_interface PRIVATE eo::eo)
 
 add_test(NAME eo.interface COMMAND eo_interface)
 
+add_executable(eo_map map.cpp)
+target_link_libraries(eo_map PRIVATE eo::eo)
+
+add_test(NAME eo.map COMMAND eo_map)
+
 add_executable(eo_select select.cpp)
 target_link_libraries(eo_select PRIVATE eo::eo)
 

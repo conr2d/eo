@@ -27,9 +27,13 @@ static_assert(sizeof("é") == 3 && static_cast<unsigned char>("é"[0]) == 0xc3 &
 
 namespace eo {
 
-// Defined in <eo/slice.h>. len and indexing take both strings and slices.
+// Defined in <eo/slice.h> and <eo/map.h>. len and indexing take both strings and slices, and len
+// also takes maps.
 template<typename T>
 class slice;
+
+template<typename K, typename V>
+class map;
 
 // Go string literals translate to "..."s.
 using namespace std::string_literals;
@@ -48,6 +52,11 @@ namespace detail {
     template<typename T>
     auto operator()(const slice<T>& s) const -> int64_t {
       return s.size();
+    }
+
+    template<typename K, typename V>
+    auto operator()(const map<K, V>& m) const -> int64_t {
+      return m.size();
     }
   };
 

@@ -269,6 +269,17 @@ namespace detail {
     void operator()(const slice<T>& s) const {
       std::fill(s.begin(), s.end(), T{});
     }
+
+    // clear(m): deletes every entry of m, including those whose key is NaN. A nil map has none. The
+    // map is defined in <eo/map.h>.
+    template<typename K, typename V>
+    void operator()(const map<K, V>& m) const {
+      if (auto* t = m.table(); t != nullptr) {
+        t->entries.clear();
+        t->nans.clear();
+        ++t->clears;
+      }
+    }
   };
 
   struct bytes_from_string_fn {
