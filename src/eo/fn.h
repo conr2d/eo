@@ -136,25 +136,34 @@ public:
       detail::fn_target_fits<std::decay_t<F>, R, A...>())
   fn(F&& f): target_(std::make_shared<target<std::decay_t<F>>>(std::forward<F>(f))) {}
 
-  // A plain function value where a coroutine one is expected. A nil value stays nil.
+  // A plain function value where a coroutine one of the same signature is expected, as Go assigns
+  // only identical function types. A nil value stays nil.
   template<typename T>
-    requires(detail::is_awaitable_v<R> && !detail::is_awaitable_v<T> && detail::fn_target_fits<fn<T(A...)>, R, A...>())
+    requires(detail::is_awaitable_v<R> && std::is_same_v<T, typename detail::awaitable_traits<R>::result>)
   fn(const fn<T(A...)>& f) {
     if (f.target_) {
       target_ = std::make_shared<target<fn<T(A...)>>>(f);
     }
   }
 
-  auto operator()(A... a) const -> R {
+  auto operator()(A... a) const -> R
+    requires(!detail::is_awaitable_v<R>)
+  {
     if (!target_) {
       detail::panic_nil_dereference();
     }
-    if constexpr (detail::is_awaitable_v<R>) {
-      return detail::fn_keep<R>(target_, std::move(a)...);
-    } else {
-      auto self = target_;
-      return self->call(std::move(a)...);
+    auto self = target_;
+    return self->call(std::move(a)...);
+  }
+
+  // A coroutine call does nothing until it is awaited, so dropping its awaitable is diagnosed.
+  [[nodiscard]] auto operator()(A... a) const -> R
+    requires(detail::is_awaitable_v<R>)
+  {
+    if (!target_) {
+      detail::panic_nil_dereference();
     }
+    return detail::fn_keep<R>(target_, std::move(a)...);
   }
 
   // Go compares a function value only with nil.

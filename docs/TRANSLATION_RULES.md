@@ -696,8 +696,9 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
 - a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
-- struct types declared in other files of the same package, which wait on a mapping of packages;
-- method values and method expressions, including promoted ones.
+- struct types declared in other files of the same package, which wait on a mapping of packages.
+
+Method values and method expressions, including promoted ones, are described in [Function values](#function-values).
 
 ### Switch statements
 
@@ -1163,7 +1164,7 @@ The behavior follows Go:
 - A call keeps its target alive until it returns, also while a coroutine call is suspended. A function that assigns the variable holding it, as `self = nil` inside `self`, and another goroutine that replaces a field while a call through it is blocked, are safe.
 - Calling a nil function value panics with `runtime error: invalid memory address or nil pointer dereference` after the arguments are evaluated, as in Go. A deferred `recover()` can stop it. For a coroutine slot, the panic comes from the call, before the `co_await` can suspend.
 - An `fn` compares only with `nullptr`, as Go compares a function value only with nil. `fn` has no `==` of its own, so a struct with a field of function type has a deleted `operator==`, as described in [Structs](#structs).
-- The call of a function value is an ordered operation (see [Evaluation order](#evaluation-order)), and so is a call that produces the function value: `fmt.Println(makeAdder(1)(2), g())` saves `makeAdder(1)`, then its call, then `g()`. C++ evaluates the function value of a call before its arguments.
+- The call of a function value is an ordered operation (see [Evaluation order](#evaluation-order)), and so is a call that produces the function value: `fmt.Println(makeAdder(1)(2), g())` saves `makeAdder(1)`, then its call, then `g()`. C++ evaluates the function value of a call before its arguments, but `fn` reads its target when the call runs, after the arguments. In `f(g())`, where `g` assigns `f`, the call reaches the new value, as it does with gc. The Go specification does not order this read against the calls, so a program whose output depends on it is outside the mapping (see [Other operands](#other-operands)).
 
 `defer f(args)` and `go f(args)` with `f` a variable of function type save `f` as a function-valued callee, `auto _eo_defer_fn_<n> = f;` and `auto _eo_go_fn_<n> = f;`, because Go evaluates the function value at the statement (see [Defer](#defer) and [Function-valued calls](./GOROUTINE.md#function-valued-calls)). A nil deferred function value panics when the deferred call runs, as in Go.
 
@@ -1175,7 +1176,7 @@ A method value `x.M` translates to a lambda whose init capture `_eo_receiver` ho
 | --- | --- |
 | `p.M`, pointer receiver, `p` a pointer | `[_eo_receiver = p](A _eo_arg_0) { return T::M(_eo_receiver, _eo_arg_0); }` |
 | `x.M`, pointer receiver, `x` addressable | `[_eo_receiver = &x](A _eo_arg_0) { ... }`, with `&x` translated as in [Pointer type](#pointer-type), such as `ref(x)` |
-| `x.M`, value receiver | `[_eo_receiver = x](A _eo_arg_0) { ... }` |
+| `x.M`, value receiver | `[_eo_receiver = x](A _eo_arg_0) { ... }`, with `x` the translated value of `x`, such as `*x` when `x` is boxed |
 | `p.M`, value receiver, `p` a pointer | `[_eo_receiver = *p](A _eo_arg_0) { ... }` |
 
 ```go
@@ -1197,6 +1198,8 @@ The init capture runs where Go evaluates the method value. A value receiver is c
 | `T.M`, value receiver | `T::M`, a value of type `fn<R(T, A...)>` |
 | `(*T).M`, pointer receiver | `T::M`, a value of type `fn<R(ptr<T>, A...)>` |
 | `(*T).M`, value receiver | `[](ptr<T> _eo_receiver, A _eo_arg_0) { return T::M(eo::value_receiver(_eo_receiver, "M"), _eo_arg_0); }` |
+
+For a method translated as a coroutine, the result in each type is `func<R>`, as in `fn<func<R>(T, A...)>`, and a method value of it declared with its type is `fn<func<R>(A...)>`.
 
 `eo::value_receiver(p, "M")` returns `*p`. For a nil `p` it panics as Go does, with the `runtime.Error` `value method main.T.M called using nil *T pointer`, built from `T::_eo_name`.
 
@@ -1229,7 +1232,7 @@ co_await run(send, 3);
 co_await run(twice, 4);
 ```
 
-A plain value stored in a coroutine slot, such as `twice` above, is adapted by `fn`. It runs when it is called, and the awaitable completes without suspending. A plain `fn` converts to a coroutine `fn` too, and a nil one stays nil. A coroutine value does not convert to a plain slot. The conversion does not compile, so a slot decided wrongly is a compile error, never an awaitable that a plain call drops without running it.
+A plain value stored in a coroutine slot, such as `twice` above, is adapted by `fn`. It runs when it is called, and the awaitable completes without suspending. A plain `fn` converts to a coroutine `fn` of the same signature too, and a nil one stays nil. A coroutine value does not convert to a plain slot. The conversion does not compile, so a slot decided wrongly is a compile error, never an awaitable that a plain call drops without running it. A call of a coroutine slot without `co_await` is diagnosed too, because its `operator()` is `[[nodiscard]]`.
 
 A `defer` of a call through a coroutine slot is unsupported, as is any deferred coroutine call (see [Blocking operations](#blocking-operations)).
 

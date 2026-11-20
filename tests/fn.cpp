@@ -51,6 +51,9 @@ static_assert(std::is_constructible_v<fn<func<int64_t>(int64_t)>, decltype(&twic
 static_assert(std::is_constructible_v<fn<func<int64_t>(int64_t)>, fn<int64_t(int64_t)>>);
 static_assert(!std::is_constructible_v<fn<int64_t(int64_t)>, fn<func<int64_t>(int64_t)>>);
 static_assert(!std::is_constructible_v<fn<int64_t(int64_t)>, fn<int64_t()>>);
+// Go assigns only identical function types, so the plain-to-coroutine conversion keeps the signature.
+static_assert(!std::is_constructible_v<fn<func<>()>, fn<int64_t()>>);
+static_assert(!std::is_constructible_v<fn<func<int32_t>(int64_t)>, fn<int64_t(int64_t)>>);
 // Go compares function values only with nil, and a struct with a function field is uncomparable.
 static_assert(!std::equality_comparable<fn<void()>>);
 static_assert(!std::equality_comparable<Holder>);
