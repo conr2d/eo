@@ -1,0 +1,60 @@
+cell 0 0
+cell 1 0
+cell 1 1
+cell 2 0
+cell 2 1
+cell 2 2
+row done 2
+p 0
+p 1
+p 2
+p 3
+row 0 3 1
+row 1 negative
+row 2 6 6
+small int 1
+after 1
+string two
+after 3
+after 4.5
+root bound 6
+bound done
+small 3
+bound done
+scan 0 0
+scan 0 1
+scan 2 0
+scan 2 1
+scan 3 0
+scan 3 1
+even 0
+even 2
+even 4
+pumped
+got 0
+got 10
+got 20
+left 40 true
+tick 3
+tick 2
+tick 1
+5 hello
+f
+f
+small 2
+5 hello
+p 0
+p 1
+p 4
+recovered runtime error: integer divide by zero
+negative
+25 -1 -2
+early 2
+recovered <nil>
+early 0
+recovered <nil>
+recovered runtime error: index out of range [5] with length 2
+mid
+mid
+42 7 42
+10

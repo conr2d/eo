@@ -323,7 +323,7 @@ The rule is unconditional.
 
 This preserves Go's clause-local variable scope and avoids position-dependent C++ initialization restrictions.
 
-Each non-terminating case ends with an explicit `break`.
+Each case whose body does not end with a terminating statement, as the Go specification defines it in "Terminating statements", ends with an explicit `break`. A `return`, a `goto`, and a `panic` call are terminating statements. A `continue`, a `break L`, and a `continue L` are not, so a body that ends with one of them still ends with `break;`. A body that ends with an unlabeled `break` already ends with it.
 
 ## Control flow
 
@@ -334,7 +334,7 @@ Within a translated select:
 - an unlabeled `break` remains `break`;
 - a `continue` remains `continue`;
 - a return follows the normal translation rule for that function;
-- labeled Go control flow requires a separate Eo mapping.
+- a labeled `break` or `continue`, and a `goto`, follow [Labeled statements](./TRANSLATION_RULES.md#labeled-statements): each becomes a C++ `goto` to the label that rule places, which is outside the `switch` when the target is a statement outside the clause, and inside the clause's block when the target is a statement in it.
 
 Using a real C++ `switch` is important because it preserves the targets of ordinary `break` and `continue` without introducing callback boundaries.
 
@@ -540,7 +540,7 @@ Translation through reference-capturing lambdas must not accidentally defer thos
 
 Go supports labeled `break` and `continue`.
 
-These require an explicit C++ translation rule when labels target constructs not directly representable by an unlabeled C++ statement. Select's real `switch` representation remains compatible with such a rule because it does not introduce a callback boundary.
+[Labeled statements](./TRANSLATION_RULES.md#labeled-statements) maps them, and `goto`, to C++ `goto` statements. A `break L` that targets a select jumps to `_eo_break_L:;` after its `switch` statement. Select's real `switch` representation allows these jumps because it does not introduce a callback boundary.
 
 ### Nil and zero values
 

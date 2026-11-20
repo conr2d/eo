@@ -266,7 +266,7 @@ constexpr double Pi = 0x1.921fb54442d18p+01;
 
 - An untyped constant whose value its default type cannot represent, such as `Big`, or `1e400`, whose value overflows `float64`, has no declaration. Go uses it only inside constant expressions, which are written from their values, and every such expression is written without it.
 - The blank identifier `_` declares nothing.
-- A constant declared in a function is `static`: `const n = 10` is `static constexpr int64_t n = 10;`. A function literal or a goroutine then reads it without capturing it, and it does not end with the frame. A local constant is renamed as in [Redeclared names](#redeclared-names) when it is declared directly in the body of a statement whose clause declares the same name, as `const i = 10` in the body of `for i := 0; ...`, which is `static constexpr int64_t _eo_shadow_i = 10;`. The other case there does not arise, because the initializer is a literal. A `goto` that jumps over a local constant declaration is not covered yet ([#119](https://github.com/conr2d/eo/issues/119)): C++ initializes a `static const std::string` only when control passes through its declaration.
+- A constant declared in a function is `static`: `const n = 10` is `static constexpr int64_t n = 10;`. A function literal or a goroutine then reads it without capturing it, and it does not end with the frame. A local constant is renamed as in [Redeclared names](#redeclared-names) when it is declared directly in the body of a statement whose clause declares the same name, as `const i = 10` in the body of `for i := 0; ...`, which is `static constexpr int64_t _eo_shadow_i = 10;`. The other case there does not arise, because the initializer is a literal. A `goto` that jumps over a local constant declaration follows [Goto](#goto).
 - The package-level constants come first in a translated file, before the declarations listed in [Declaration order](#declaration-order).
 - Go allows a constant that is never used. A constant whose C++ name the translation never writes, because it is unused or because every use is written from a value, gets `[[maybe_unused]]`, as in `[[maybe_unused]] static constexpr int64_t unused = 1;`, so that `-Wunused` stays quiet.
 
@@ -901,7 +901,7 @@ The other forms:
 
 - A `switch` with an init statement puts it in a block of its own, `{ init; if ... }`, as a type switch does. The init statement's temporaries go in the block before it, and the tag's after it. The block gives the init statement's variables the scope that Go gives them, and the clauses' blocks are nested in it, so a clause can declare a variable of the same name without the renaming of [Redeclared names](#redeclared-names). A declaration that refers to the hidden variable, as `y := y * 10`, is still renamed.
 - A `switch` whose only clause is `default`, or that has no clause, evaluates the tag as an expression statement, then runs the `default` body in a block of its own, as every clause has one, all in a block: `{ init; tag; { body } }`. A `switch` with no clause has no body block: `{ init; tag; }`. A `switch` without a tag and without a case clause is `{ init; { body } }`, or `{ body }` without an init statement. These forms have no `if` chain, and the label of a `break` (below) follows the body's block.
-- A `break` that leaves the `switch` becomes `goto _eo_break_<n>;`, and the label `_eo_break_<n>:;` follows the `if` chain, inside the block when the `switch` has one. This applies to a `break` in a clause that is not inside a nested `for`, `switch`, type switch, or `select`, and also to such a `break` in a type switch clause. `<n>` counts, from 0 in each function, the expression switches and type switches that have such a `break`, together, in the source order of their `switch` keywords, so an outer switch has a smaller number than a switch nested in one of its clauses. `continue` stays as written: it continues the enclosing loop in Go and in C++.
+- An unlabeled `break` that leaves the `switch` becomes `goto _eo_break_<n>;`, and the label `_eo_break_<n>:;` follows the `if` chain, inside the block when the `switch` has one. This applies to a `break` in a clause that is not inside a nested `for`, `switch`, type switch, or `select`, and also to such a `break` in a type switch clause. `<n>` counts, from 0 in each function, the expression switches and type switches that have such a `break`, together, in the source order of their `switch` keywords, so an outer switch has a smaller number than a switch nested in one of its clauses. An unlabeled `continue` stays as written: it continues the enclosing loop in Go and in C++. A labeled `break` or `continue` follows [Labeled statements](#labeled-statements).
 - `fallthrough` becomes `goto _eo_fallthrough_<n>;`, and the body of the next clause in source order starts with the label `_eo_fallthrough_<n>:;`. `<n>` counts the `fallthrough` statements of each function from 0, in source order. The jump enters the next clause's block without evaluating its case expressions, as Go does. It also works when the next clause is a `default` that the chain moved to the end, or when `default` falls through to the clause after it, which the chain placed before it.
 
 ```go
@@ -971,8 +971,7 @@ case h(), k() * m():
 
 #### Switch statements not covered yet
 
-- a `fallthrough` whose target clause's block is inside an `else` block that declares temporaries, when the `fallthrough` itself is outside that `else` block. This happens when the target's condition, or for a `default` target any condition of the chain, needs temporaries and comes after the clause that falls through in the chain's order, which places `default` last. The jump would skip the temporaries' declarations, which C++ rejects;
-- labeled `break` and `continue`, and `goto` ([#119](https://github.com/conr2d/eo/issues/119)).
+- a `fallthrough` whose target clause's block is inside an `else` block that declares temporaries, when the `fallthrough` itself is outside that `else` block. This happens when the target's condition, or for a `default` target any condition of the chain, needs temporaries and comes after the clause that falls through in the chain's order, which places `default` last. The jump would skip the temporaries' declarations, which C++ rejects.
 
 ### Range loops
 
@@ -1003,7 +1002,7 @@ A blank variable is the same as an omitted one, so `for i, _ := range s` is `for
 
 C++ declares the variables of a range-based `for` again for each iteration, as Go 1.22 does, so the loop's own update is not a write to the previous iteration's variables. A function literal that captures a range variable by reference and is not boxed captures it with `&`, as in `[=, &v]`, which C++20 allows for a structured binding.
 
-`break` and `continue` are C++ `break` and `continue`. The range expression is the argument of `eo::range` and follows [Evaluation order](#evaluation-order) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_key, v] : eo::range(next()))`. A nested operation that the rule saves goes before the `for` statement, as in `for _, v := range next()[g():]`, which is `auto _eo_call_0 = next();`, `auto _eo_call_1 = g();`, and `for (auto [_eo_range_key, v] : eo::range(eo::subslice(_eo_call_0, _eo_call_1)))`.
+An unlabeled `break` and `continue` are C++ `break` and `continue`, and labeled ones follow [Labeled statements](#labeled-statements). The range expression is the argument of `eo::range` and follows [Evaluation order](#evaluation-order) as if it were the initializer of a declaration, so its outermost call stays inside `eo::range(...)`, as in `for (auto [_eo_range_key, v] : eo::range(next()))`. A nested operation that the rule saves goes before the `for` statement, as in `for _, v := range next()[g():]`, which is `auto _eo_call_0 = next();`, `auto _eo_call_1 = g();`, and `for (auto [_eo_range_key, v] : eo::range(eo::subslice(_eo_call_0, _eo_call_1)))`.
 
 #### Boxed range variables
 
@@ -1092,7 +1091,94 @@ The `if (!_eo_range_ok) { break; }` statement always follows the receive. The in
 
 A boxed range variable is declared under its hidden name, `_eo_range_key`, and boxed right after the `if`, as in [Boxed range variables](#boxed-range-variables): `auto n = New<int64_t>(_eo_range_key);`. The structured binding is declared again in each iteration, so a goroutine or a pointer keeps the value of its own iteration. A variable that the body declares with the name `v` is renamed as in [Clause variables redeclared in the body](#clause-variables-redeclared-in-the-body). A loop that ranges over a channel is in a coroutine, because it receives.
 
-Not covered yet: `range` over an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)), and labeled `break` and `continue` (see [Unfrozen constructs](#unfrozen-constructs)).
+Not covered yet: `range` over an array or a pointer to an array ([#93](https://github.com/conr2d/eo/issues/93)), and a function ([#98](https://github.com/conr2d/eo/issues/98)).
+
+### Labeled statements
+
+A Go label names a statement for `goto`, and a `for`, `switch`, type switch, or `select` statement for `break` and `continue`. C++ has no labeled `break` or `continue`, so all three jumps become a C++ `goto` to a label that the translation places. A Go label `L` gives up to three C++ labels, and each is written only when a jump to it is:
+
+| Go | C++ jump | C++ label |
+| --- | --- | --- |
+| `goto L` | `goto _eo_label_L;` | `_eo_label_L:;` immediately before the labeled statement, and before the temporaries of that statement |
+| `break L` | `goto _eo_break_L;` | `_eo_break_L:;` immediately after the labeled statement: after the loop, after the `if` chain of a `switch` or type switch, or after the C++ `switch` of a `select`, inside the block of the statement when its translation has one |
+| `continue L` | `goto _eo_continue_L;` | `_eo_continue_L:;` as the last statement of the loop's C++ body, after a block that holds the rest of the body (below) |
+
+The labeled statement itself is translated as usual. A `break L` or `continue L` is a `goto` even when an unlabeled `break` or `continue` would reach the same place, and a `break L` does not count toward the `<n>` of `_eo_break_<n>` in [Switch statements](#switch-statements). An unlabeled `break` and `continue` keep their own rules. A Go label never starts with a digit, so `_eo_break_L` is never an `_eo_break_<n>`, and the prefix also keeps a label such as `class`, which Go allows, from being a C++ keyword. Go and C++ both scope labels to a function, and a function literal, which is a C++ lambda, has its own. Go forbids a jump into a block, so every jump leaves blocks, including the body of a loop and the C++ `switch` of a `select`, and never enters one.
+
+#### Labeled loops
+
+When a loop is the target of a `continue L`, its translated body, everything that its C++ body would hold, goes in a block of its own, and `_eo_continue_L:;` follows the block. A variable declared directly in the Go loop body is still declared directly in a loop body for rule 2 of [Boxed variables](#boxed-variables), although this block holds it. The body includes the boxes of [Boxed range variables](#boxed-range-variables), the receive of [Range over channels](#range-over-channels), and the temporaries and the `if (!(c)) { break; }` of a [loop condition](#positions-that-no-statement-can-precede) that moved into the body. C++ rejects a `goto` that jumps forward over a declaration into its scope, and the body's declarations end with the block, so the jump skips none of them. After the label, the loop runs its post statement, including the new boxes of [Loop clause variables](#loop-clause-variables), as Go's `continue` does:
+
+```go
+rows:
+	for r, row := range table {
+		total := 0
+		for _, v := range row {
+			if v < 0 {
+				continue rows
+			}
+			total += v
+		}
+		avg := total / len(row)
+		fmt.Println(r, total, avg)
+	}
+```
+
+```cpp
+for (auto [r, row] : eo::range(table)) {
+  {
+    auto total = int64_t{0};
+    for (auto [_eo_range_key, v] : eo::range(row)) {
+      if (v < 0) {
+        goto _eo_continue_rows;
+      }
+      total += v;
+    }
+    auto avg = eo::div(total, eo::len(row));
+    fmt::Println(r, total, avg);
+  }
+_eo_continue_rows:;
+}
+```
+
+A loop that is only the target of a `break L` keeps its body as it is, and `_eo_break_L:;` follows the loop. A `break L` or `continue L` in a clause of a `select` ends the clause's body without being a terminating statement, so the clause still ends with `break;` (see [Case body rule](./SELECT.md#case-body-rule)).
+
+#### Goto
+
+`goto L` jumps to `_eo_label_L:;`. A backward jump needs nothing more: C++ ends the scope of every variable declared after the label, and a declaration that runs again makes a new variable, so a boxed variable gets a new box each time, as in Go.
+
+Go forbids a forward `goto` that brings a variable into scope, so no Go variable is declared between the jump and its label in the label's block. The translation adds declarations that Go does not have, and a forward jump must not skip them either. For each forward `goto`, consider the statements of the label's block after the one that contains the `goto` and before the labeled statement:
+
+- A statement whose translation declares temporaries before it, such as the `_eo_call_<n>` of [Evaluation order](#evaluation-order), the argument temporaries of `go` and `defer`, and the temporaries of a loop's init statement, goes in a block of its own with them, `{ temporaries; statement }`. When that statement is itself labeled, its `_eo_label_L2:;` goes before the block, because a jump into a block is rejected. The temporaries of the labeled statement itself follow its label, so they need no block.
+- A local constant is `static` (see [Constant declarations](#constant-declarations)), and C++ initializes a `static const std::string` only when control passes through its declaration. A local constant declared there, of any type, is therefore never written by name: every use is written from its value, and its declaration gets `[[maybe_unused]]`.
+
+```go
+	if n > 1 {
+		goto done
+	}
+	fmt.Println("small", f()+f())
+	const greeting = "hello"
+	n = len(greeting)
+done:
+	return fmt.Sprint(n, " ", greeting)
+```
+
+```cpp
+  if (n > 1) {
+    goto _eo_label_done;
+  }
+  {
+    auto _eo_call_0 = f();
+    auto _eo_call_1 = f();
+    fmt::Println("small"s, _eo_call_0 + _eo_call_1);
+  }
+  [[maybe_unused]] static const std::string greeting = "hello"s;
+  n = 5;
+_eo_label_done:;
+  return fmt::Sprint(n, " "s, "hello"s);
+```
+
+C++ also rejects a jump into a `try` block. In a function with a `defer` statement, `try {` opens before the first top-level statement that contains a `defer` (see [Defer](#defer)). When a top-level statement before `try {` contains a `goto` whose label is inside the `try` block, `try {` opens instead before the first such statement, and before that statement's temporaries. Moving it can bring another label inside the `try` block, so the step repeats until no top-level statement before `try {` contains a `goto` to a label inside it. The locals declared after `try {` are then inside the `try` block, with what [Defer](#defer) and rule 2 of [Boxed variables](#boxed-variables) say about them. A panic before the first `defer` statement then reaches `eo_defer_panic` with no deferred call to run, which rethrows it unchanged.
 
 ### Pointers and escaping variables
 
@@ -1826,7 +1912,7 @@ auto f(int64_t x) -> int64_t {
 ```
 
 - Each result has storage declared before `eo_defer_scope`: a named result uses its translated name, and an unnamed result `N` uses `_eo_result_N`. Both are declared as `T name{}` with the translated result type, one declaration per result.
-- `try {` opens immediately before the first statement at the top level of the function body that is, or contains, a `defer` statement, and before that statement's argument temporaries. It closes at the end of the function body. A panic before that point has no deferred call to run and leaves the function directly. A `defer` inside a nested function literal belongs to that literal, which gets this shape itself, and does not count for the enclosing function.
+- `try {` opens immediately before the first statement at the top level of the function body that is, or contains, a `defer` statement, and before that statement's argument temporaries. It closes at the end of the function body. A `goto` that jumps into it moves it earlier (see [Goto](#goto)). A panic before that point has no deferred call to run and leaves the function directly. A `defer` inside a nested function literal belongs to that literal, which gets this shape itself, and does not count for the enclosing function.
 - After the catch handler, the function returns its result storage: `return _eo_result_0;`, `co_return _eo_result_0;`, or the named results, and `return {_eo_result_0, _eo_result_1};` for several results (see [Multiple results](#multiple-results)). A function without results ends with nothing, or with `co_return;` for a coroutine. This return is reached only when a deferred call recovered the panic.
 
 A direct named-function defer evaluates and saves its argument expressions in source order before registration. Temporary names use the source defer ordinal followed by the argument ordinal. Defer statements are counted like `go` statements, as described in [Temporary names](./GOROUTINE.md#temporary-names), with a separate count:
@@ -2186,7 +2272,6 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - packages with several files, and programs with several packages (see [Package-level variables not covered yet](#package-level-variables-not-covered-yet));
-- labeled `break` and `continue`;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, interfaces, function types, and defined types;
