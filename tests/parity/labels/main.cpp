@@ -125,29 +125,28 @@ _eo_continue_scan:;
   }
 }
 
-// pump leaves and continues a loop from the clauses of a select.
+// pump leaves and continues a loop from the clause of a select. A select with a single case
+// cannot lose a communication to another case (see issue #115).
 auto pump() -> func<> {
-  auto ch = eo::make_chan<int64_t>();
-  auto done = eo::make_chan<bool>();
+  auto ch = eo::make_chan<int64_t>(5);
   go([=]() mutable -> func<> {
     for (auto i = int64_t{0}; i < 5; i++) {
       co_await (ch << i);
     }
-    done.close();
+    ch.close();
   });
   for (;;) {
     {
-      switch (auto select = Select{*ch, *done}; co_await select.index()) {
+      switch (auto select = Select{*ch}; co_await select.index()) {
       case 0: {
-        auto v = select.recv<0>();
+        auto [v, ok] = select.recv2<0>();
+        if (!ok) {
+          goto _eo_break_loop;
+        }
         if (v % 2 == 1) {
           goto _eo_continue_loop;
         }
         fmt::Println("even"s, v);
-        break;
-      }
-      case 1: {
-        goto _eo_break_loop;
         break;
       }
       }

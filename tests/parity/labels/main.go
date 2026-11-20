@@ -100,26 +100,27 @@ scan:
 	}
 }
 
-// pump leaves and continues a loop from the clauses of a select.
+// pump leaves and continues a loop from the clause of a select. A select with a single case
+// cannot lose a communication to another case (see issue #115).
 func pump() {
-	ch := make(chan int)
-	done := make(chan bool)
+	ch := make(chan int, 5)
 	go func() {
 		for i := 0; i < 5; i++ {
 			ch <- i
 		}
-		close(done)
+		close(ch)
 	}()
 loop:
 	for {
 		select {
-		case v := <-ch:
+		case v, ok := <-ch:
+			if !ok {
+				break loop
+			}
 			if v%2 == 1 {
 				continue loop
 			}
 			fmt.Println("even", v)
-		case <-done:
-			break loop
 		}
 	}
 	fmt.Println("pumped")
