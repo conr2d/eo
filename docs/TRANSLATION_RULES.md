@@ -699,7 +699,9 @@ Go resolves the package-level types of a file in any order, but C++ needs a stru
 2. the struct and interface definitions, in source order, except that a type that a struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct or interface it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration, and so does a type in an interface's method signatures;
 3. the definitions of the interface methods and of the forwarders of promoted methods (see [Interfaces](#interfaces)), in the order of their types' definitions, and for each type in the order it declares them;
 4. a prototype of each function that is called above its definition, in source order;
-5. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods.
+5. the package-level variables, in source order (see [Declaring package-level variables](#declaring-package-level-variables));
+6. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods, and the `init` functions;
+7. `eo_init`, if the file defines it (see [Package initialization](#package-initialization)).
 
 A comment on a type declaration moves with its definition. A struct type declared inside a function is a local struct at the place of its declaration. Go allows no methods on it, so its definition holds only the fields and `operator==`.
 
@@ -1287,7 +1289,6 @@ A `defer` of a call through a coroutine slot is unsupported, as is any deferred 
 #### Function values not covered yet
 
 - defined function types, such as `type HandlerFunc func(int)`, and their methods ([#104](https://github.com/conr2d/eo/issues/104));
-- package-level variables of function type ([#101](https://github.com/conr2d/eo/issues/101));
 - a function value converted to an interface, and type assertions and type switches on a function type;
 - printing a function value with `fmt`, which Go prints as an address, or `<nil>`;
 - variadic function types, such as `func(...int)`;
@@ -1583,7 +1584,6 @@ These behave as in Go:
 
 #### Errors not covered yet
 
-- sentinel errors declared at package level, such as `var ErrNotFound = errors.New("not found")`, which wait on package-level variables ([#101](https://github.com/conr2d/eo/issues/101));
 - `errors.ErrUnsupported`, and `Unwrap`, `Is`, and `As` methods translated as coroutines ([#108](https://github.com/conr2d/eo/issues/108)).
 
 ### Formatted printing
@@ -1965,13 +1965,83 @@ Holding a lock across a blocking operation, such as a channel send, needs nothin
 
 The following are not frozen:
 
-- the C++ form of package-level variables and struct fields, as used in `tests/parity/mutex_counter`. Sharing a local Mutex or RWMutex follows the WaitGroup rules above and is frozen, as in `tests/parity/mutex_local_shared`;
+- a Mutex or RWMutex as a struct field. A package-level one follows [Package-level variables](#package-level-variables), as in `tests/parity/mutex_counter`, and sharing a local one follows the WaitGroup rules above, as in `tests/parity/mutex_local_shared`;
 - `RLocker`, and passing a lock as a `sync.Locker`, have no mapping;
 - `sync::Mutex`, `sync::RWMutex`, and `sync::WaitGroup` cannot be copied or moved. A Go program that copies one, which `go vet` reports, is unsupported.
 
+### Package-level variables
+
+Go initializes package-level variables in dependency order and then runs the `init` functions, all in the main goroutine before `main`. C++ runs the dynamic initializers of namespace-scope variables before `main` too, but in declaration order, and outside the Eo runtime, where a goroutine, a blocking operation, or a panic cannot work. So a package-level variable is declared at namespace scope with nothing that C++ has to run in order, and its initializer runs in a generated function, `eo_init`, which the runtime calls in the main goroutine before `eo_main`.
+
+#### Declaring package-level variables
+
+Each package-level variable is one C++ declaration at namespace scope, in source order, and a `var` group or a declaration of several names is one declaration per name. The storage lasts for the whole program, so a package-level variable is never [boxed](#boxed-variables), `&x` is `ref(x)` (see [Pointer type](#pointer-type)), and function literals use it without capturing it (see [Function literals](#function-literals)).
+
+- A variable without an initializer, or with a constant initializer (one for which `go/types` records a constant value), is declared as the same `var` declaration in a function body is, without boxing: `var count int` is `int64_t count{};`, `var limit = 3` is `auto limit = int64_t{3};`, and `var name = "eo"` is `auto name = "eo"s;` (see [Untyped constants](#untyped-constants)). `var mu sync.Mutex`, `var rw sync.RWMutex`, and `var wg sync.WaitGroup` are `sync::Mutex mu;`, `sync::RWMutex rw;`, and `sync::WaitGroup wg;`. Such an initializer reads no variable and has no effect, so running it before `main` is the same as running it in Go's order.
+- Any other variable is declared with the zero value of its type, written out, as `T x{};`, or `slice<T> s;`, `map<K, V> m;`, and `chan<T> ch;` for the types whose tables give that form. Its initializer is an assignment in `eo_init`. `var ErrEmpty = errors.New("empty")` is `error ErrEmpty{};`, `var twice = func(n int) int { return n * 2 }` is `fn<int64_t(int64_t)> twice{};`, and `var p = &count` is `ptr<int64_t> p{};`.
+- The blank identifier `_` declares nothing.
+
+A comment on a variable declaration moves with its declaration.
+
+#### Package initialization
+
+`func<> eo_init()` is defined after every other declaration of the file. Its body has, in order:
+
+1. one statement for each entry of `go/types` `Info.InitOrder` whose initializer is not a constant, in that order. The entry `x = e` is the translation of the assignment `x = e` in a function body, which follows [Evaluation order](#evaluation-order), `co_await`s a coroutine call (see [Blocking operations](#blocking-operations)), and writes a function literal as a lambda. An entry with several variables, as in `var q, r = divmod(17, 5)`, is the assignment `q, r = divmod(17, 5)`, so it is `std::tie(q, r) = divmod(17, 5);` (see [Declaring and assigning several results](#declaring-and-assigning-several-results));
+2. a call of each `init` function, in source order: `_eo_init_0();`, or `co_await _eo_init_0();` for a coroutine;
+3. `co_return;`.
+
+`eo_init` is one function for the temporaries `_eo_call_<n>` of [Saving ordered operations](#saving-ordered-operations), so they are numbered from 0 across all its statements.
+
+A blank variable's initializer is still evaluated, at its place in `Info.InitOrder`, unless it is a constant. Where the declaration names a type `T`, the statement is `static_cast<void>(T(e));`, so `var _ fmt.Stringer = (*Box)(nil)`, Go's compile-time check that `*Box` implements `fmt.Stringer`, is `static_cast<void>(fmt::Stringer(ptr<Box>{}));`, which C++ checks too. Otherwise a call is the call statement, as `var _ = f()` is `f();`, and any other initializer is `static_cast<void>(e);`. The comment on a blank variable's declaration moves with its statement.
+
+Each `func init()` is a function named `_eo_init_<n>`, where `n` is its position among the file's `init` functions, from 0. It is defined where Go declares it, as `void _eo_init_0()`, or as `func<> _eo_init_0()` when it is a coroutine, by the same rule as any other function. Go code cannot call or refer to an `init` function, so nothing else names it.
+
+A file with no `init` function and no package-level variable whose initializer is not a constant defines no `eo_init`. `eo::main` provides an empty one, as a weak definition, in its place.
+
+```go
+var total = sum(first, second)
+var first = trace("first", 1)
+var second = 2
+var ErrEmpty = errors.New("empty")
+
+func init() {
+	fmt.Println("init:", total)
+}
+```
+
+```cpp
+int64_t total{};
+int64_t first{};
+auto second = int64_t{2};
+error ErrEmpty{};
+
+// sum and trace
+
+void _eo_init_0() {
+  fmt::Println("init:"s, total);
+}
+
+// main
+
+func<> eo_init() {
+  first = trace("first"s, 1);
+  total = sum(first, second);
+  ErrEmpty = errors::New("empty"s);
+  _eo_init_0();
+  co_return;
+}
+```
+
+`eo::main` runs `co_await eo_init();` and then `co_await eo_main();` as one coroutine, the main goroutine. So an initializer or an `init` function can block, and a goroutine that it starts runs while initialization continues, as in Go. A panic that escapes `eo_init` is an unrecovered panic of the main goroutine: `eo_main` does not run, and the process exits with status 2 (see [Program termination](#program-termination)).
+
+#### Package-level variables not covered yet
+
+- a package with several files, and a program with several packages, whose initialization order spans files and packages ([#123](https://github.com/conr2d/eo/issues/123)).
+
 ### Program termination
 
-A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`. The runtime ends the process the way Go does:
+A translated program links `eo::main` and defines `func<> eo_main()` in place of Go's `main`, which runs after package initialization (see [Package initialization](#package-initialization)). The runtime ends the process the way Go does:
 
 - when `eo_main` completes, the process exits with status 0 at once, without waiting for other goroutines. If another goroutine has an `eo::Panic` that is not yet recovered, the runtime first waits up to about 100 ms for it, as Go's `runtime.main` yields to goroutines running deferred calls for a panic. Another C++ exception counts only while one function runs its deferred calls for it, not while it passes between functions. If a panic is then being reported, it ends the process with status 2 instead;
 - `os.Exit(code)` translates to `os::Exit(code)` from `<eo/os.h>`. It ends the process at once from any goroutine, and deferred calls do not run. Do not translate it to `std::exit`: that runs static destructors, and the runtime's thread pool destructor then waits forever for its worker threads;
@@ -2003,6 +2073,7 @@ Examples currently requiring additional canonical rules include:
 - `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
+- packages with several files, and programs with several packages (see [Package-level variables not covered yet](#package-level-variables-not-covered-yet));
 - labeled `break` and `continue`;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;

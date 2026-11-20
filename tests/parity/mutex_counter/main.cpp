@@ -1,4 +1,3 @@
-// Provisional: package-level variables are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/sync.h>
 
@@ -7,7 +6,7 @@
 using namespace eo;
 
 sync::Mutex mu;
-int64_t count = 0;
+int64_t count{};
 sync::WaitGroup wg;
 
 func<> inc() {
