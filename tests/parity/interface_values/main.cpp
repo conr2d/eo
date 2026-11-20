@@ -1,8 +1,6 @@
-// Provisional: func() as std::function is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <string_view>
 
@@ -163,7 +161,7 @@ auto total(slice<Areaer> shapes) -> int64_t {
   return sum;
 }
 
-void attempt(std::string name, std::function<void()> f) {
+void attempt(std::string name, fn<void()> f) {
   eo_defer_scope;
   try {
     eo_defer([&] { fmt::Println(name, "recovered:"s, recover()); });

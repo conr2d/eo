@@ -1131,7 +1131,116 @@ Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay m
 
 - slicing an array;
 - printing a pointer with `fmt` inside another value, which shows an address;
-- method values and method expressions, and conversions through `unsafe.Pointer` or `uintptr`.
+- conversions through `unsafe.Pointer` or `uintptr`.
+
+Method values and method expressions are described in [Function values](#function-values).
+
+### Function values
+
+A Go function type maps to `fn<Sig>` from `<eo/fn.h>`, which `<eo/core.h>` includes. `Sig` is the translated signature `R(A...)`, with `void` for no result and `std::tuple` for several (see [Multiple results](#multiple-results)): `func(int) string` is `fn<std::string(int64_t)>`, `func()` is `fn<void()>`, and `func(int, int) (int, int)` is `fn<std::tuple<int64_t, int64_t>(int64_t, int64_t)>`. A slot that can hold a coroutine has the signature `func<R>(A...)` instead, as described in [Coroutine function values](#coroutine-function-values).
+
+| Go | C++ |
+| --- | --- |
+| `func(A...) R` | `fn<R(A...)>`, or `fn<func<R>(A...)>` for a coroutine slot |
+| `nil` as a function value, and the zero value of a function type | `fn<Sig>{}`, or `nullptr` where it converts; `var f func()` is `fn<void()> f{};` |
+| `f == nil`, `f != nil` | `f == nullptr`, `f != nullptr` |
+| `f(args)`, where `f` is a function value | `f(args)`, or `co_await f(args)` for a coroutine slot |
+| a function `g` used as a value | `g` |
+| a function literal | the lambda described in [Function literals](#function-literals) |
+| a method value `x.M` | a lambda, as described in [Method values](#method-values) |
+| a method expression `T.M` or `(*T).M` | `T::M`, or a lambda, as described in [Method expressions](#method-expressions) |
+
+A function, a lambda, or a plain `fn` converts to `fn<Sig>` implicitly, so it is written as is in an initializer, an assignment, an argument, a result, or an element of a braced list: `apply(twice, 4)`, `h.on = [=](std::string s) mutable -> std::string { return s + "!"s; };`, and `slice<fn<int64_t(int64_t)>>::of({twice, makeAdder(3), nullptr})`.
+
+`x := v` is `auto x = v;` when `v` already has an `fn` type, such as the result of a call. Otherwise:
+
+- `x := g` of a function or a method expression is `fn<Sig> x = g;`, so `x` is a function value and not a C++ function pointer;
+- `x := v` of a function literal or a method value stays `auto x = v;`, as in [Function literals](#function-literals), when `x` is never assigned again, never compared with `nil`, and not [boxed](#boxed-variables). Otherwise it is `fn<Sig> x = v;`, because a lambda's type cannot hold another function or nil. A boxed function variable is `auto x = New<fn<Sig>>(v);`.
+
+The behavior follows Go:
+
+- Copies of an `fn` share its target, as copies of a Go function value share its closure. Copying an `fn` never copies a lambda's captured variables.
+- A call keeps its target alive until it returns, also while a coroutine call is suspended. A function that assigns the variable holding it, as `self = nil` inside `self`, and another goroutine that replaces a field while a call through it is blocked, are safe.
+- Calling a nil function value panics with `runtime error: invalid memory address or nil pointer dereference` after the arguments are evaluated, as in Go. A deferred `recover()` can stop it. For a coroutine slot, the panic comes from the call, before the `co_await` can suspend.
+- An `fn` compares only with `nullptr`, as Go compares a function value only with nil. `fn` has no `==` of its own, so a struct with a field of function type has a deleted `operator==`, as described in [Structs](#structs).
+- The call of a function value is an ordered operation (see [Evaluation order](#evaluation-order)), and so is a call that produces the function value: `fmt.Println(makeAdder(1)(2), g())` saves `makeAdder(1)`, then its call, then `g()`. C++ evaluates the function value of a call before its arguments.
+
+`defer f(args)` and `go f(args)` with `f` a variable of function type save `f` as a function-valued callee, `auto _eo_defer_fn_<n> = f;` and `auto _eo_go_fn_<n> = f;`, because Go evaluates the function value at the statement (see [Defer](#defer) and [Function-valued calls](./GOROUTINE.md#function-valued-calls)). A nil deferred function value panics when the deferred call runs, as in Go.
+
+#### Method values
+
+A method value `x.M` translates to a lambda whose init capture `_eo_receiver` holds the receiver that Go binds when it evaluates `x.M`. It calls the method in the [method form](#methods), with the parameters named `_eo_arg_<n>`:
+
+| Go | C++ |
+| --- | --- |
+| `p.M`, pointer receiver, `p` a pointer | `[_eo_receiver = p](A _eo_arg_0) { return T::M(_eo_receiver, _eo_arg_0); }` |
+| `x.M`, pointer receiver, `x` addressable | `[_eo_receiver = &x](A _eo_arg_0) { ... }`, with `&x` translated as in [Pointer type](#pointer-type), such as `ref(x)` |
+| `x.M`, value receiver | `[_eo_receiver = x](A _eo_arg_0) { ... }` |
+| `p.M`, value receiver, `p` a pointer | `[_eo_receiver = *p](A _eo_arg_0) { ... }` |
+
+```go
+add := c.Add // func (c *Counter) Add(d int) int
+get := v.Get // func (c Counter) Get() int
+```
+
+```cpp
+auto add = [_eo_receiver = c](int64_t _eo_arg_0) { return Counter::Add(_eo_receiver, _eo_arg_0); };
+auto get = [_eo_receiver = v]() { return Counter::Get(_eo_receiver); };
+```
+
+The init capture runs where Go evaluates the method value. A value receiver is copied then, so a later change to `v` does not reach `get`, and `*p` on a nil `p` panics then, before any call. A pointer receiver keeps the pointer, and a nil one panics only where the method dereferences it, as in Go. The lambda is not `mutable`, because it never changes its capture, and its result type is the method's. A coroutine method gives a lambda that returns its `func<R>`, called as `co_await add(1)`. A promoted method binds the path to its embedded field, as in [Embedded fields](#embedded-fields).
+
+#### Method expressions
+
+| Go | C++ |
+| --- | --- |
+| `T.M`, value receiver | `T::M`, a value of type `fn<R(T, A...)>` |
+| `(*T).M`, pointer receiver | `T::M`, a value of type `fn<R(ptr<T>, A...)>` |
+| `(*T).M`, value receiver | `[](ptr<T> _eo_receiver, A _eo_arg_0) { return T::M(eo::value_receiver(_eo_receiver, "M"), _eo_arg_0); }` |
+
+`eo::value_receiver(p, "M")` returns `*p`. For a nil `p` it panics as Go does, with the `runtime.Error` `value method main.T.M called using nil *T pointer`, built from `T::_eo_name`.
+
+#### Coroutine function values
+
+A function value is a coroutine value when it is a function or a function literal translated as a coroutine (see [Blocking operations](#blocking-operations)), a method value of such a method, or a value read from a coroutine slot. A slot is a variable, a parameter, a result, or a struct field of function type, or a function type inside the type of one of them, such as the element of `[]func()`, `map[K]func()`, or `chan func()`, or a parameter or result of `func(func())`.
+
+A slot is a coroutine slot, `fn<func<R>(A...)>`, when a coroutine value can be stored in it, by an initialization, an assignment, an argument, a result, a send, or an element of a composite literal. Every other slot is plain, `fn<R(A...)>`. The decision is made over the whole program and repeated until no slot changes, since storing a value read from a slot that has become a coroutine slot makes the target one too. A function type inside another type is one decision for every value that flows between two slots: assigning a `[]func()` to another `[]func()` variable makes both element types coroutine slots if either is, because `slice<fn<void()>>` and `slice<fn<func<>()>>` are different C++ types.
+
+Calling a coroutine slot is `co_await f(args)`, so a function that calls one is translated as a coroutine. Calling a plain slot is a plain call.
+
+```go
+func run(f func(int) int, v int) int { return f(v) }
+
+send := func(v int) int { ch <- v; return v + 1 }
+run(send, 3)
+run(twice, 4) // func twice(n int) int
+```
+
+```cpp
+auto run(fn<func<int64_t>(int64_t)> f, int64_t v) -> func<int64_t> {
+  co_return co_await f(v);
+}
+
+auto send = [=](int64_t v) mutable -> func<int64_t> {
+  co_await (ch << v);
+  co_return v + 1;
+};
+co_await run(send, 3);
+co_await run(twice, 4);
+```
+
+A plain value stored in a coroutine slot, such as `twice` above, is adapted by `fn`. It runs when it is called, and the awaitable completes without suspending. A plain `fn` converts to a coroutine `fn` too, and a nil one stays nil. A coroutine value does not convert to a plain slot. The conversion does not compile, so a slot decided wrongly is a compile error, never an awaitable that a plain call drops without running it.
+
+A `defer` of a call through a coroutine slot is unsupported, as is any deferred coroutine call (see [Blocking operations](#blocking-operations)).
+
+#### Function values not covered yet
+
+- defined function types, such as `type HandlerFunc func(int)`, and their methods ([#104](https://github.com/conr2d/eo/issues/104));
+- package-level variables of function type ([#101](https://github.com/conr2d/eo/issues/101));
+- a function value converted to an interface, and type assertions and type switches on a function type;
+- printing a function value with `fmt`, which Go prints as an address, or `<nil>`;
+- variadic function types, such as `func(...int)`;
+- method values and method expressions of interfaces ([#67](https://github.com/conr2d/eo/issues/67)), and of methods translated as coroutines that an interface declares ([#108](https://github.com/conr2d/eo/issues/108)).
 
 ### Interfaces
 
@@ -1573,7 +1682,7 @@ eo_defer([=] { cleanup(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 
 Defer argument temporaries are still declared with `auto`, unlike goroutine argument temporaries, which use the translated parameter type (see [Argument temporary types](./GOROUTINE.md#argument-temporary-types)). An untyped constant argument follows [Untyped constant arguments](#untyped-constant-arguments). Until the defer shape is aligned, any other defer argument whose Go conversion changes its type, such as `nil` or a non-constant value passed to an interface parameter, is provisional.
 
-If the deferred callee is itself a function-valued expression, evaluate and save it before the arguments:
+If the deferred callee is itself a function-valued expression, such as a call that returns a function or a variable of function type, evaluate and save it before the arguments:
 
 ```go
 defer next()(x())
@@ -1730,7 +1839,7 @@ A Go operation that blocks the calling goroutine translates to an awaitable that
 | `for v := range ch` | a loop on `co_await eo::recv_ok(...)` | frozen, see [Range loops](#range-loops) |
 | `time.Sleep(d)` | `co_await time::Sleep(d)` | provisional, including the duration |
 
-A Go function whose body contains a blocking operation, or a call to a function translated as a coroutine, is translated as a coroutine returning `func<T>`, and every call to it is `co_await`ed. Other functions stay plain C++ functions. Calls through function values and interface methods, whose target is not known statically, are provisional.
+A Go function whose body contains a blocking operation, or a call to a function translated as a coroutine, is translated as a coroutine returning `func<T>`, and every call to it is `co_await`ed. Other functions stay plain C++ functions. Calls through function values follow [Coroutine function values](#coroutine-function-values). Calls through interface methods, whose target is not known statically, are provisional ([#108](https://github.com/conr2d/eo/issues/108)).
 
 Two call sites do not `co_await`:
 
@@ -1833,7 +1942,8 @@ Translation-facing mappings with broad source impact should be frozen before lar
 Examples currently requiring additional canonical rules include:
 
 - goroutine launches that pass a non-owning view argument, or a value that refers to storage through a type whose mapping is not frozen, such as a slice of a local array (see [Lifetime boundary](./GOROUTINE.md#lifetime-boundary));
-- printing a pointer inside another value, method values, and method expressions (see [Not covered yet](#not-covered-yet));
+- printing a pointer inside another value (see [Not covered yet](#not-covered-yet));
+- the forms in [Function values not covered yet](#function-values-not-covered-yet);
 - the interface forms in [Interfaces not covered yet](#interfaces-not-covered-yet);
 - the struct forms in [Struct forms not covered yet](#struct-forms-not-covered-yet), such as anonymous struct types and blank fields;
 - untyped complex constant arguments of `go` and `defer`;
@@ -1845,7 +1955,7 @@ Examples currently requiring additional canonical rules include:
 - labeled `break` and `continue`;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
-- zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, and interfaces;
+- zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, interfaces, and function types;
 - constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 

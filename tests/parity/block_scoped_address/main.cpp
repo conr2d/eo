@@ -1,8 +1,6 @@
-// Provisional: func() int as std::function is not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 
 #include <cstdint>
-#include <functional>
 
 using namespace eo;
 
@@ -21,7 +19,7 @@ auto value() -> int64_t {
 // header declares y in an if statement's init, whose C++ scope ends with the statement.
 auto header() -> int64_t {
   ptr<int64_t> p;
-  std::function<int64_t()> f;
+  fn<int64_t()> f{};
   if (auto y = New<int64_t>(3); *y > 0) {
     p = y;
     f = [=]() mutable -> int64_t {

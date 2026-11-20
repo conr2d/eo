@@ -64,7 +64,7 @@ Temporaries are named `_eo_go_fn_N`, `_eo_go_receiver_N`, and `_eo_go_arg_N_I`, 
 
 ## Function-valued calls
 
-If the callee is itself an expression, evaluate and save the function value before its arguments:
+If the callee is itself an expression, such as a call that returns a function or a variable of function type (see [Function values](./TRANSLATION_RULES.md#function-values)), evaluate and save the function value before its arguments:
 
 ```go
 go next()(x()) // next returns func(int64)
@@ -240,7 +240,7 @@ The following are not covered by this contract yet:
 - calls to a variadic function, such as `go f(a, b, c)` or `go f(xs...)` with a `...T` parameter, where Go builds or passes the variadic slice in the launching goroutine; an ordinary variadic call is mapped in [Slices](./TRANSLATION_RULES.md#slices), but its argument temporaries are not ([#95](https://github.com/conr2d/eo/issues/95));
 - multi-value calls such as `go x.M(g())`, where one call supplies several arguments, other than those in [Calls with the results of another call](./TRANSLATION_RULES.md#calls-with-the-results-of-another-call), which covers `go f(g())` for a package-level function `f`;
 - untyped complex constant arguments (see [Untyped constant arguments](./TRANSLATION_RULES.md#untyped-constant-arguments));
-- a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the failure, if any, happens later in the launched goroutine: undefined behavior for a raw function pointer, or an exception for a `std::function`.
+- a nil function value. For `go f()` with a nil `f`, Go stops the program in the launching goroutine with the fatal error `go of nil func value` before the statement completes. With this mapping the launch completes, and the launched goroutine later panics with Go's nil dereference error when it calls the `fn`, which ends the program with status 2 after the launching goroutine has gone on running.
 
 The nil function value is an instance of the panic-producing operations listed under [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs). The shapes above remain canonical when the function value is not nil.
 

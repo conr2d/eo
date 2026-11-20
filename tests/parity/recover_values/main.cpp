@@ -1,9 +1,7 @@
-// Provisional: func() as std::function is not a frozen mapping (see ../README.md).
 #include <eo/errors.h>
 #include <eo/fmt.h>
 
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -52,7 +50,7 @@ auto Bad::String(Bad) -> std::string {
   panic(Loud{.N = 7});
 }
 
-void classify(std::string name, std::function<void()> f) {
+void classify(std::string name, fn<void()> f) {
   eo_defer_scope;
   try {
     eo_defer([&] {
