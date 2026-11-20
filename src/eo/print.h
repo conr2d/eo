@@ -721,11 +721,12 @@ auto sprintf(const std::string& format, const T&... args) -> std::string {
   return std::move(p.buf);
 }
 
-// Whether Go's Sprint would see the operand as a string, which gets no space next to another string.
+// Whether Go's Sprint would see the operand as a string, which gets no space next to another
+// operand: a value whose kind is string, such as a string or a defined string type.
 template<typename T>
 auto is_string_operand(const T& value) -> bool {
   if constexpr (interface_type<T>) {
-    return value._eo_type == &descriptor<std::string>;
+    return value._eo_type != nullptr && value._eo_type->string_kind;
   } else {
     return is_string_like<T>;
   }

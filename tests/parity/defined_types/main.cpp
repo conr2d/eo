@@ -187,7 +187,7 @@ func<> eo_main() {
   fmt::Printf("%v %g %T %T\n"s, c, c, c, f);
 
   auto d = Tuesday;
-  auto next = Weekday::Next;
+  fn<Weekday(Weekday)> next = Weekday::Next;
   fmt::Println(d, Monday, Weekday::Next(d), next(Weekday{6}), Weekday{9}, int64_t(d));
   fmt::Printf("%v %d %s %T\n"s, d, d, d, d);
 

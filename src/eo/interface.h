@@ -285,10 +285,12 @@ namespace detail {
     return method_position_in<D, Signature>(name, typename methods_of<D>::type{});
   }
 
-  // The descriptor of a dynamic type: its Go name, its equality, which is null for an uncomparable
-  // type, its printing with a verb, and its method set. Its address identifies the type.
+  // The descriptor of a dynamic type: its Go name, whether its kind is string, its equality, which
+  // is null for an uncomparable type, its printing with a verb, and its method set. Its address
+  // identifies the type.
   struct type_descriptor {
     auto (*name)() -> std::string;
+    bool string_kind;
     auto (*equal)(const void*, const void*) -> bool;
     void (*print)(printer& p, const void* value, int32_t verb, int depth);
     std::span<const entry_base* const> methods;
@@ -320,6 +322,7 @@ namespace detail {
   template<typename D>
   inline constexpr type_descriptor descriptor{
     &type_name<D>,
+    std::is_convertible_v<const D&, std::string_view>,
     equality_of<D>(),
     &print_dynamic<D>,
     method_set<D>::entries,

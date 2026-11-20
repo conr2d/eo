@@ -60,6 +60,11 @@ struct Data : eo::defined<Data, slice<uint8_t>> {
   static constexpr std::string_view _eo_name = "main.Data";
 };
 
+struct Blob : eo::defined<Blob, slice<uint8_t>> {
+  using defined::defined;
+  static constexpr std::string_view _eo_name = "main.Blob";
+};
+
 struct Set : eo::defined<Set, map<std::string, bool>> {
   using defined::defined;
   static constexpr std::string_view _eo_name = "main.Set";
@@ -70,6 +75,9 @@ static_assert(!std::is_aggregate_v<Prio> && !std::is_aggregate_v<Name>, "a defin
 static_assert(!std::is_convertible_v<double, Celsius> && !std::is_convertible_v<Celsius, double>,
   "a numeric defined type converts only explicitly, as in Go");
 static_assert(std::is_convertible_v<slice<uint8_t>, Data>, "a slice is assignable to a defined slice type");
+static_assert(!std::is_convertible_v<Blob, Data> && !std::is_convertible_v<std::string, Name> &&
+    std::is_constructible_v<Name, std::string>,
+  "a string or another defined type converts to a defined type only explicitly, as in Go");
 
 void test_operators_keep_the_type_and_wrap() {
   static_assert(std::is_same_v<decltype(Prio{1} + Prio{2}), Prio>);
@@ -130,6 +138,10 @@ void test_printing() {
     Data{});
   check(got == "01ab|6869|ab|%!d(main.Name=x)|%!t(main.Celsius=1.5)|&map[a:true]|[]main.Celsius|[]",
     "a defined type should print as its underlying value, and a bad verb should name the defined type");
+  any a = Name{"a"s};
+  any b = Name{"b"s};
+  check(fmt::Sprint(a, b, int64_t{1}) == "ab1" && fmt::Sprint(int64_t{1}, int64_t{2}, a) == "1 2a",
+    "Sprint should see a defined string type in an interface as a string");
 }
 
 void test_interfaces_tell_defined_types_apart() {

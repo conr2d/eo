@@ -220,8 +220,10 @@ struct defined<D, U> {
 };
 
 // A defined type whose underlying type is a string, a slice, a map, or a function type derives from
-// it, so the helpers of U take it as they take U. A value of U converts to D implicitly, as Go assigns
-// a value of an unnamed type to a defined type with the same underlying type.
+// it, so the helpers of U take it as they take U. A value of an unnamed slice, map, or function type
+// U converts to D implicitly, as Go assigns it to a defined type with the same underlying type. A
+// string, which is a defined type in Go, converts only explicitly, and so does another defined type
+// with the same underlying type, which this constructor does not take.
 template<typename D, typename U>
   requires std::is_class_v<U>
 struct defined<D, U> : U {
@@ -231,9 +233,9 @@ struct defined<D, U> : U {
 
   defined() = default;
 
-  defined(const U& u): U(u) {}
-
-  defined(U&& u): U(std::move(u)) {}
+  template<typename V>
+    requires std::same_as<std::remove_cvref_t<V>, U>
+  explicit(std::same_as<U, std::string>) defined(V&& u): U(std::forward<V>(u)) {}
 
   // Go's + of strings keeps the defined type.
   friend auto operator+(const D& a, const D& b) -> D
