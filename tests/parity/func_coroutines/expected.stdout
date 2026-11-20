@@ -1,0 +1,9 @@
+run 4 3
+run 8
+relay relay true
+fire 6 5
+fire 12
+method value 8 7
+go 8
+replaced while blocked 42 true
+nil coroutine recovered: runtime error: invalid memory address or nil pointer dereference

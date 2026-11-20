@@ -1,0 +1,28 @@
+nil true false
+named 6 false
+apply 8 15 12
+chained 3 11
+split 3 2
+op 9
+op 20
+fs 0 14
+fs 1 10
+fs 2 nil
+table 16
+table missing true
+hook shout true
+hook hi! false
+fib 55
+method value 5
+value receiver 1 100
+addressable 4
+method expr 100 15 15
+eval argument
+nil call recovered: runtime error: invalid memory address or nil pointer dereference
+nil field recovered: runtime error: invalid memory address or nil pointer dereference
+nil method value recovered: runtime error: invalid memory address or nil pointer dereference
+nil method expr recovered: value method main.Counter.Get called using nil *Counter pointer
+bound false
+nil receiver recovered: runtime error: invalid memory address or nil pointer dereference
+deferred nil registered
+deferred nil recovered: runtime error: invalid memory address or nil pointer dereference
