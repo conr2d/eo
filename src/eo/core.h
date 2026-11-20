@@ -5,6 +5,7 @@
 
 #include <eo/chan.h>
 #include <eo/defer.h>
+#include <eo/defined.h>
 #include <eo/fn.h>
 #include <eo/integer.h>
 #include <eo/interface.h>

@@ -68,14 +68,27 @@ template<typename T>
 concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_array<T>;
 
 template<typename T>
-inline constexpr bool is_composite = go_struct<T> || is_slice<T> || is_map<T>;
+consteval auto is_composite_type() -> bool {
+  if constexpr (defined_type<T>) {
+    return is_slice<typename T::_eo_underlying> || is_map<typename T::_eo_underlying>;
+  } else {
+    return go_struct<T> || is_slice<T> || is_map<T>;
+  }
+}
+
+// Whether a pointer to T prints as & followed by its target: a struct, a slice, or a map, or a defined
+// type whose underlying type is a slice or a map.
+template<typename T>
+inline constexpr bool is_composite = is_composite_type<T>();
 
 // Go's internal/fmtsort order of map keys, which fmt prints a map in: numbers by value, with NaN
 // before every other float, strings by bytes, false before true, pointers by address, and structs
 // field by field. Returns a negative number, zero, or a positive number.
 template<typename K>
 auto compare_keys(const K& a, const K& b) -> int {
-  if constexpr (std::is_floating_point_v<K>) {
+  if constexpr (defined_type<K>) {
+    return compare_keys(underlying(a), underlying(b));
+  } else if constexpr (std::is_floating_point_v<K>) {
     if (std::isnan(a) || std::isnan(b)) {
       return std::isnan(a) ? (std::isnan(b) ? 0 : -1) : 1;
     }
@@ -513,6 +526,46 @@ void print_value(printer& p, const T& value, int32_t verb, int depth) {
   }
 }
 
+// Whether a verb prints a value of the basic type T, rather than the bad-verb form.
+template<typename T>
+constexpr auto accepts_verb(int32_t verb) -> bool {
+  if constexpr (std::is_same_v<T, bool>) {
+    return verb == 't' || verb == 'v';
+  } else if constexpr (go_integer<T>) {
+    switch (verb) {
+    case 'v':
+    case 'd':
+    case 'b':
+    case 'o':
+    case 'O':
+    case 'x':
+    case 'X':
+    case 'c':
+    case 'q':
+    case 'U':
+      return true;
+    default:
+      return false;
+    }
+  } else if constexpr (std::floating_point<T>) {
+    switch (verb) {
+    case 'v':
+    case 'g':
+    case 'e':
+    case 'E':
+    case 'f':
+    case 'F':
+      return true;
+    default:
+      return false;
+    }
+  } else if constexpr (std::is_same_v<T, std::string>) {
+    return verb == 'v' || verb == 's' || verb == 'x' || verb == 'X' || verb == 'q';
+  } else {
+    return true;
+  }
+}
+
 // Go's printArg: prints one operand with a verb. `depth` is 0 for an operand of the call.
 template<typename T>
 void print_arg(printer& p, const T& value, int32_t verb, int depth) {
@@ -534,7 +587,19 @@ void print_arg(printer& p, const T& value, int32_t verb, int depth) {
       p.buf += type_of(value);
       return;
     }
-    if constexpr (std::is_same_v<T, bool>) {
+    if constexpr (defined_type<T>) {
+      // A defined type prints by its Error or String method, and otherwise as its underlying value,
+      // except that a bad verb names the defined type, as Go's does.
+      if (handle_methods(p, value, verb)) {
+        return;
+      }
+      using U = typename T::_eo_underlying;
+      if (!accepts_verb<U>(verb)) {
+        bad_verb(p, verb, value);
+        return;
+      }
+      print_arg(p, underlying(value), verb, depth);
+    } else if constexpr (std::is_same_v<T, bool>) {
       if (verb == 't' || verb == 'v') {
         p.buf += value ? "true" : "false";
       } else {

@@ -31,6 +31,11 @@ target_link_libraries(eo_integer PRIVATE eo::eo)
 
 add_test(NAME eo.integer COMMAND eo_integer)
 
+add_executable(eo_defined defined.cpp)
+target_link_libraries(eo_defined PRIVATE eo::eo)
+
+add_test(NAME eo.defined COMMAND eo_defined)
+
 add_executable(eo_interface interface.cpp)
 target_link_libraries(eo_interface PRIVATE eo::eo)
 

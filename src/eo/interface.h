@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/defined.h>
 #include <eo/struct.h>
 
 #include <algorithm>
@@ -114,8 +115,8 @@ namespace detail {
   inline constexpr bool is_map<map<K, V>> = true;
 
   // Whether T is a translated Go type, which has a Go type name and so can be held in an interface:
-  // a basic type, a string, struct{}, a type that declares _eo_name, or a pointer, slice, or map of
-  // such types.
+  // a basic type, a string, struct{}, a type that declares _eo_name, such as a translated struct or
+  // defined type, or a pointer, slice, or map of such types.
   template<typename T>
   consteval auto is_go_type() -> bool {
     if constexpr (requires { T::_eo_name; }) {
