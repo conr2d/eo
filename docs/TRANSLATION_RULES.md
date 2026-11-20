@@ -233,19 +233,67 @@ Go evaluates a constant expression exactly and converts an untyped constant to a
 
   `_` digit separators are removed, an octal prefix `0o` or `0O` is written `0`, and a floating-point literal converted to `float32` gets an `f` suffix, as in `0.25f`. The usual arithmetic conversions of C++ then give the operation Go's type, and a narrow result is converted back as described in [Arithmetic operators](#arithmetic-operators). Any other constant is written `T{L}`: `x + 1<<20` is `x + int64_t{1048576}`, `u & 0xffffffff` with a `uint32` `u` is `u & uint32_t{4294967295u}`, `n * 2.0` with an `int` `n` is `n * int64_t{2}`, and `[]float32{16777217}` is `slice<float>::of({float{1.6777216e+07f}})`.
 
-A constant that names a declared constant, such as `N` after `const N = 10`, or an expression that contains one, is not covered yet, because constant declarations have no mapping ([#68](https://github.com/conr2d/eo/issues/68)). The argument temporaries of `go` and `defer` statements are always `T{L}`, even for a single literal (see [Untyped constant arguments](#untyped-constant-arguments)).
+A constant expression that contains a declared constant, such as `KB * 3 / 2` after `const KB = 1024`, is written the same way, from its value: `int64_t{1536}`. A declared constant on its own is written by its name when the rule in [Named constants](#named-constants) allows it. The argument temporaries of `go` and `defer` statements are always `T{L}`, even for a single literal or a constant name (see [Untyped constant arguments](#untyped-constant-arguments)).
+
+#### Constant declarations
+
+Each constant that a `const` declaration declares is one C++ declaration, in source order. Its initializer is the constant's value, which the Go type checker records (`go/types` `Const.Val`), so `iota` and the repeated expressions of a constant group need no translation of their own. `T` is the constant's translated type, or the default type of an untyped constant, as above: `int64_t`, `int32_t`, or `double`. `L` is the literal described in [Untyped constant arguments](#untyped-constant-arguments).
+
+| Constant | C++ declaration |
+| --- | --- |
+| integer, rune, or floating-point | `constexpr T N = L;` |
+| boolean | `constexpr bool N = L;` |
+| string | `const std::string N = L;` |
+
+```go
+const Greeting = "hello"
+const (
+	KB = 1 << (10 * (iota + 1))
+	MB
+)
+const MaxU8 uint8 = 255
+const Pi = 3.14159265358979323846264338327950288
+const Big = 1 << 100
+```
+
+```cpp
+const std::string Greeting = "hello"s;
+constexpr int64_t KB = 1024;
+constexpr int64_t MB = 1048576;
+constexpr uint8_t MaxU8 = 255u;
+constexpr double Pi = 0x1.921fb54442d18p+01;
+```
+
+- An untyped constant whose value its default type cannot represent, such as `Big`, or `1e400`, which rounds to infinity as a `float64`, has no declaration. Go uses it only inside constant expressions, which are written from their values, and every such expression is written without it.
+- The blank identifier `_` declares nothing.
+- A constant declared in a function is `static`: `const n = 10` is `static constexpr int64_t n = 10;`. A function literal or a goroutine then reads it without capturing it, and it does not end with the frame. A local constant is renamed as in [Redeclared names](#redeclared-names) when it is declared directly in the body of a statement whose clause declares the same name, as `const i = 10` in the body of `for i := 0; ...`, which is `static constexpr int64_t _eo_shadow_i = 10;`. The other case there does not arise, because the initializer is a literal.
+- The package-level constants come first in a translated file, before the declarations listed in [Declaration order](#declaration-order).
+- Go allows a constant that is never used. Such a constant gets `[[maybe_unused]]`, as in `[[maybe_unused]] static constexpr int64_t unused = 1;`, so that `-Wunused` stays quiet.
+
+Constants of a defined type, such as `const Monday Weekday = 1`, are not covered yet ([#104](https://github.com/conr2d/eo/issues/104)), nor are complex constants.
+
+#### Named constants
+
+A declared constant that is used on its own, not as part of a larger constant expression, is written by its C++ name when the constant has a C++ declaration and its type there is the type that the use converts it to, which the Go type checker records for the identifier (`go/types` `TypeAndValue.Type`). Otherwise the constant is written from its value as `T{L}`, like any other constant:
+
+- A typed constant is used with its own type, so it is always written by name: `u == MaxU8` with a `uint8` `u`.
+- An untyped constant is written by name where it takes its default type: `n * KB` and `case KB:` with an `int` `n`, `x := KB`, which is `auto x = KB;`, `fmt.Println(KB)`, and `r * Pi` with a `float64` `r`. With another type it is `T{L}`: `y + KB` with an `int32` `y` is `y + int32_t{1024}`, and `f * Pi` with a `float32` `f` is `f * float{0x1.921fb6p+01f}`. Go converts `Pi` to `float32` before it multiplies, while C++ would multiply `f * Pi` in `double`.
+- A boolean or string constant is always written by name, because its C++ type is already Go's, as in `if debug`.
+- The type checker records an untyped constant shift count as untyped. A count that is a constant of an integer type is written by name, and the rules for a constant count in [Arithmetic operators](#arithmetic-operators) apply to its value: `n << A` when `A` is less than the width of `n`'s type, and `eo::shl(n, A)` otherwise. Another constant count, such as `const two = 2.0`, is written as its decimal value.
+
+A constant name inside a struct definition or its methods follows [Package-level names hidden by members](#package-level-names-hidden-by-members), as `b.KB * ::KB` in a method of a struct with a field `KB`, and a constant hidden by a local declaration follows ordinary C++ scoping, as in Go.
 
 #### Printing numbers
 
 `fmt.Println` prints every integer type in decimal, including `int8_t` and `uint8_t`, which a C++ stream would print as characters. It prints a `float` or `double` as Go's `%v` does, which differs from fmt's `{}`: the shortest decimal that reads back as the same value, in exponent form when the decimal exponent is below -4 or at least 6, as in `1e+06` and `1.234567e+06`, and `+Inf`, `-Inf`, and `NaN`. Floats inside slices, maps, and structs print the same way.
 
-Not covered yet: `complex64` and `complex128`, constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), defined types whose underlying type is a basic type, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), and the `math` package.
+Not covered yet: `complex64` and `complex128`, defined types whose underlying type is a basic type, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), and the `math` package.
 
 ### Untyped constant arguments
 
 Go evaluates an untyped constant expression exactly, in its own kind, and only then converts its value to the type the context requires. For a call argument, that type is the parameter type, or, for an interface parameter, the constant's default type (`bool`, `rune`, `int`, `float64`, `complex128`, or `string`), which is then converted to the interface.
 
-This rule applies to the argument temporaries of `go` and `defer` statements, which are always written `T{L}`, even for a single literal. Every other constant follows [Untyped constants](#untyped-constants).
+This rule applies to the argument temporaries of `go` and `defer` statements, which are always written `T{L}`, even for a single literal or a constant name. Every other constant follows [Untyped constants](#untyped-constants).
 
 Do not translate the source expression of an untyped constant argument. C++ would evaluate it in a fixed-width type with its own operator precedence. Instead, write the folded constant value that the Go type checker reports for the argument (`go/types` `TypeAndValue.Value`) as `T{L}`, where `T` is the translated target type, including a translated defined type such as `type Celsius float64`, and `L` is a C++ literal of the value:
 
@@ -645,7 +693,7 @@ show(_eo_call_2, Point{.X = _eo_call_4, .Y = _eo_call_3});
 
 #### Declaration order
 
-Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated file therefore has:
+Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated file therefore has, after its package-level constants (see [Constant declarations](#constant-declarations)):
 
 1. a forward declaration `struct T;` of every struct and interface type the file declares, in source order;
 2. the struct and interface definitions, in source order, except that a type that a struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct or interface it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration, and so does a type in an interface's method signatures;
@@ -1959,7 +2007,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, interfaces, and function types;
-- constant declarations and named constants ([#68](https://github.com/conr2d/eo/issues/68)), and complex numbers;
+- complex numbers and complex constants;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 
 ## Unsupported constructs
