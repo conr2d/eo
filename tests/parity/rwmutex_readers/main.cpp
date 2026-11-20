@@ -1,4 +1,3 @@
-// Provisional: package-level variables are not a frozen mapping (see ../README.md).
 #include <eo/fmt.h>
 #include <eo/sync.h>
 
