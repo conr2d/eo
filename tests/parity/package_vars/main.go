@@ -27,6 +27,7 @@ var count int
 var ErrEmpty = errors.New("empty")
 var twice = func(n int) int { return n * 2 }
 var q, r = divmod(17, 5)
+var u, v = trace("u", 4), trace("v", u+1)
 var _ = trace("blank", 0)
 var p = &count
 var box = &Box{n: limit}

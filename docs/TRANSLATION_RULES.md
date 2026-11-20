@@ -1548,7 +1548,7 @@ eo_defer([=] { show(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 
 #### Multiple results not covered yet
 
-- an assignment or declaration of several values that are not one call, such as `a, b = b, a` and `x, y := 1, 2` ([#111](https://github.com/conr2d/eo/issues/111));
+- an assignment or declaration of several values that are not one call, such as `a, b = b, a` and `x, y := 1, 2` ([#111](https://github.com/conr2d/eo/issues/111)). A package-level `var` follows [Package initialization](#package-initialization) instead;
 - an assignment `=` whose left side has an operand other than a variable or `_`, such as `x.f`, `*p`, or `s[i]`: Go evaluates the index and pointer operands on the left before the call and assigns the operands left to right, while C++ evaluates the operands of `std::tie` after the call, so a nil `*p` or an index out of range would panic before the operands to its left are assigned;
 - an assignment that names the same variable twice, as in `x, x = f()`, where Go keeps the last value and `std::tuple` does not specify the order in which it assigns its elements;
 - a `:=` in the init statement of an `if` or `switch` that would need form 3, because one of its variables is boxed or it has `_` and at least two other operands, and a `for` init statement with several results;
@@ -1987,7 +1987,7 @@ A comment on a variable declaration moves with its declaration.
 
 `func<> eo_init()` is defined after every other declaration of the file. Its body has, in order:
 
-1. one statement for each entry of `go/types` `Info.InitOrder` whose initializer is a dynamic initializer, in that order. A constant and an empty struct literal `T{}` get no statement. The entry `x = e` is the translation of the assignment `x = e` in a function body, which follows [Evaluation order](#evaluation-order), `co_await`s a coroutine call (see [Blocking operations](#blocking-operations)), and writes a function literal as a lambda. An entry with several variables, as in `var q, r = divmod(17, 5)`, is the assignment `q, r = divmod(17, 5)`, which takes the first form of [Declaring and assigning several results](#declaring-and-assigning-several-results) that applies to an assignment: `std::tie(q, r) = divmod(17, 5);`, and `var _, w = f()` is `w = std::get<1>(f());`;
+1. one statement for each entry of `go/types` `Info.InitOrder` whose initializer is a dynamic initializer, in that order. A constant and an empty struct literal `T{}` get no statement. The entry `x = e` is the translation of the assignment `x = e` in a function body, which follows [Evaluation order](#evaluation-order), `co_await`s a coroutine call (see [Blocking operations](#blocking-operations)), and writes a function literal as a lambda. An entry with several variables, as in `var q, r = divmod(17, 5)`, is the assignment `q, r = divmod(17, 5)`, which takes the first form of [Declaring and assigning several results](#declaring-and-assigning-several-results) that applies to an assignment: `std::tie(q, r) = divmod(17, 5);`, and `var _, w = f()` is `w = std::get<1>(f());`. A declaration with one initializer per variable, as in `var u, v = trace("u", 4), trace("v", u+1)`, has one entry for each variable, so it is `u = trace("u"s, 4);` and then `v = trace("v"s, u + 1);`, each at its own place in `Info.InitOrder`. Unlike the assignment `u, v = ...` in a function body, the second initializer sees the first variable's new value, as in Go;
 2. a call of each `init` function, in source order: `_eo_init_0();`, or `co_await _eo_init_0();` for a coroutine;
 3. `co_return;`.
 
@@ -2039,7 +2039,6 @@ func<> eo_init() {
 
 - a package with several files, and a program with several packages, whose initialization order spans files and packages ([#123](https://github.com/conr2d/eo/issues/123));
 - a dynamic initializer of a struct type that holds a `sync.Mutex`, `sync.RWMutex`, or `sync.WaitGroup`, as in `var c = Cache{items: make(map[string]int)}`. C++ cannot assign such a struct, and a lock as a struct field is not frozen (see [Mutex](#mutex));
-- a declaration with several initializers, as in `var a, b = f(), g()`. Go evaluates both before it assigns either, as in the assignment `a, b = f(), g()`, which is not covered yet either ([#111](https://github.com/conr2d/eo/issues/111));
 - an initializer or `init` function that blocks forever: Go reports a deadlock and exits with status 2, and Eo hangs, as it does when every goroutine blocks during `main`.
 
 ### Program termination

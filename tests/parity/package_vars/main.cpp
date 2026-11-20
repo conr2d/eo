@@ -34,6 +34,8 @@ error ErrEmpty{};
 fn<int64_t(int64_t)> twice{};
 int64_t q{};
 int64_t r{};
+int64_t u{};
+int64_t v{};
 ptr<int64_t> p{};
 ptr<Box> box{};
 Box origin{};
@@ -107,6 +109,8 @@ func<> eo_init() {
   ErrEmpty = errors::New("empty"s);
   twice = [=](int64_t n) mutable -> int64_t { return n * 2; };
   std::tie(q, r) = divmod(17, 5);
+  u = trace("u"s, 4);
+  v = trace("v"s, u + 1);
   trace("blank"s, 0);
   p = ref(count);
   box = New<Box>(Box{.n = limit});
