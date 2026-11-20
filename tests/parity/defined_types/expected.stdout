@@ -1,0 +1,30 @@
+37.5C 99.5 37.5 true 38C
+99.5 37.5C 37
+37.5C 37.5 main.Celsius main.Fahrenheit
+Tue Mon Weekday(3) Sun Weekday(9) 2
+Tue 2 Tue main.Weekday
+-128 -128 0 -128 -64 -128
+3 252 2 1 0 16
+true false true
+main.Flag %!s(main.Flag=true)
+eo! hi eo! 3 o! true eo!? anon
+"eo!" main.Name %!d(main.Name=eo!)
+[1 2 10] 3 2
+01020a main.Data &[1 2 10]
+0 1
+1 2
+2 10
+true 0 []
+map[a:true b:true] true false 2
+6 18 true
+code 4 code 4 true true
+map[Sun:18.5C Mon:20C] 20C
+{1C Mon} true
+Tue true
+celsius 37.5C
+[Sun Tue] 2
+[ mon ] 3 false Weekday(10) raw false 310.65
+main.Kelvin 310.65C
+0 233
+2 33
+O O 2

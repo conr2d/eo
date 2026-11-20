@@ -25,7 +25,9 @@ namespace detail {
   // Whether a key of type K can be unequal to itself, as a float NaN is, or a struct with a NaN field.
   template<typename K>
   consteval auto has_float_key() -> bool {
-    if constexpr (std::is_floating_point_v<K>) {
+    if constexpr (defined_type<K>) {
+      return has_float_key<typename K::_eo_underlying>();
+    } else if constexpr (std::is_floating_point_v<K>) {
       return true;
     } else if constexpr (go_struct<K> && !std::is_same_v<K, empty_struct>) {
       return []<std::size_t... I>(std::index_sequence<I...>) {
@@ -40,7 +42,9 @@ namespace detail {
   // which the standard library's float hash does not promise.
   template<typename K>
   auto hash_key(const K& k) -> std::size_t {
-    if constexpr (std::is_floating_point_v<K>) {
+    if constexpr (defined_type<K>) {
+      return hash_key(underlying(k));
+    } else if constexpr (std::is_floating_point_v<K>) {
       return std::hash<K>{}(k == K{0} ? K{0} : k);
     } else if constexpr (std::is_arithmetic_v<K> || std::is_same_v<K, std::string>) {
       return std::hash<K>{}(k);
@@ -71,7 +75,9 @@ namespace detail {
   // new key in that case.
   template<typename K>
   auto key_bits_differ(const K& a, const K& b) -> bool {
-    if constexpr (std::is_floating_point_v<K>) {
+    if constexpr (defined_type<K>) {
+      return key_bits_differ(underlying(a), underlying(b));
+    } else if constexpr (std::is_floating_point_v<K>) {
       return std::signbit(a) != std::signbit(b);
     } else if constexpr (go_struct<K> && has_float_key<K>()) {
       return [&]<std::size_t... I>(std::index_sequence<I...>) {

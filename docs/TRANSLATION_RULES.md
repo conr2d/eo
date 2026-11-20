@@ -201,7 +201,7 @@ Go's signed `+`, `-`, `*`, and unary `-` wrap on overflow. C++ leaves signed ove
 
 The helpers return the type of `x`. They are function objects, called qualified, with the same collision rule as the string helpers (see [Strings](#strings)). The `_assign` forms take `x` by reference and evaluate it once, as Go does: `s[i] /= d` is `eo::div_assign(eo::at(s, i), d)`. Their arguments follow [Evaluation order](#evaluation-order), like those of any helper.
 
-C++ converts an operand narrower than `int` to `int` before an arithmetic or bitwise operator, so the result of `a + b` for two `int8` values is an `int`, which can be outside `int8`'s range. When the Go type of an operator expression in the table is `int8`, `int16`, `uint8`, or `uint16`, convert its result back: `a + b` is `int8_t(a + b)`, `^b` is `uint8_t(~b)`, and `s[i] - '0'` is `uint8_t(eo::at(s, i) - '0')`. The conversion wraps modulo 2<sup>N</sup>, as Go's arithmetic does. A helper already returns the type of `x`, and a compound assignment, `++`, and `--` convert when they assign, so none of them needs a conversion. A comparison yields `bool` and needs none either.
+C++ converts an operand narrower than `int` to `int` before an arithmetic or bitwise operator, so the result of `a + b` for two `int8` values is an `int`, which can be outside `int8`'s range. When the Go type of an operator expression in the table is `int8`, `int16`, `uint8`, or `uint16`, but not a defined type, whose operators convert their own results (see [Operators of defined types](#operators-of-defined-types)), convert its result back: `a + b` is `int8_t(a + b)`, `^b` is `uint8_t(~b)`, and `s[i] - '0'` is `uint8_t(eo::at(s, i) - '0')`. The conversion wraps modulo 2<sup>N</sup>, as Go's arithmetic does. A helper already returns the type of `x`, and a compound assignment, `++`, and `--` convert when they assign, so none of them needs a conversion. A comparison yields `bool` and needs none either.
 
 Go's operator precedence differs from C++'s for the bitwise operators and shifts: Go groups `<<`, `>>`, `&`, and `&^` with `*`, and `|` and `^` with `+`, all above the comparisons, while C++ places the shifts below `+` and `&`, `^`, and `|` below the comparisons. So an operand that is itself a binary operator expression is written in parentheses when either operator is `<<`, `>>`, `&`, `&^`, `|`, or `^`, even where Go has none: `a + b<<c` is `a + (b << c)`, `x&mask == 0` is `(x & mask) == 0`, and `a &^ b + c` is `(a & ~b) + c`. Parentheses in the Go source are kept, except around an expression that is a whole argument of a helper or a conversion, which already delimits it: `(a+b)/2` of `int8` values is `int8_t(int8_t(a + b) / 2)`, and `7/(n+2)` is `eo::div(int64_t{7}, n + 2)`.
 
@@ -231,7 +231,7 @@ Go evaluates a constant expression exactly and converts an untyped constant to a
   - a rune literal whose value is below `0x80`, as an operand of an operator that the translation writes as a C++ operator, where C++ promotes the `char` to `int`: `b == 'a'`, `s[i] - '0'`. A rune literal anywhere else, such as an index or an argument, is written as its decimal value, because the helpers reject a `char`: `table['a']` is `eo::at(table, 97)`, and `x << 'a'` is `eo::shl(x, 97)`;
   - a floating-point literal converted to a float type: `f * 0.5`. A literal whose value rounds to zero in the target type drops a leading `-`, because a Go constant has no negative zero: `f * -0.0` is `f * 0.0`, and `-1e-400` converted to `float64` is `0.0`.
 
-  `_` digit separators are removed, an octal prefix `0o` or `0O` is written `0`, and a floating-point literal converted to `float32` gets an `f` suffix, as in `0.25f`. The usual arithmetic conversions of C++ then give the operation Go's type, and a narrow result is converted back as described in [Arithmetic operators](#arithmetic-operators). Any other constant is written `T{L}`: `x + 1<<20` is `x + int64_t{1048576}`, `u & 0xffffffff` with a `uint32` `u` is `u & uint32_t{4294967295u}`, `n * 2.0` with an `int` `n` is `n * int64_t{2}`, and `[]float32{16777217}` is `slice<float>::of({float{1.6777216e+07f}})`.
+  `_` digit separators are removed, an octal prefix `0o` or `0O` is written `0`, and a floating-point literal converted to `float32` gets an `f` suffix, as in `0.25f`. The usual arithmetic conversions of C++ then give the operation Go's type, and a narrow result is converted back as described in [Arithmetic operators](#arithmetic-operators). Any other constant is written `T{L}`: `x + 1<<20` is `x + int64_t{1048576}`, `u & 0xffffffff` with a `uint32` `u` is `u & uint32_t{4294967295u}`, `n * 2.0` with an `int` `n` is `n * int64_t{2}`, and `[]float32{16777217}` is `slice<float>::of({float{1.6777216e+07f}})`. A constant converted to a [defined type](#defined-types) is always `T{L}`, as in `c > Celsius{30.0}` (see [Constants of defined types](#constants-of-defined-types)).
 
 A constant expression that contains a declared constant, such as `KB * 3 / 2` after `const KB = 1024`, is written the same way, from its value: `int64_t{1536}`. A declared constant on its own is written by its name when the rule in [Named constants](#named-constants) allows it. The argument temporaries of `go` and `defer` statements are always `T{L}`, even for a single literal or a constant name (see [Untyped constant arguments](#untyped-constant-arguments)).
 
@@ -270,7 +270,7 @@ constexpr double Pi = 0x1.921fb54442d18p+01;
 - The package-level constants come first in a translated file, before the declarations listed in [Declaration order](#declaration-order).
 - Go allows a constant that is never used. A constant whose C++ name the translation never writes, because it is unused or because every use is written from a value, gets `[[maybe_unused]]`, as in `[[maybe_unused]] static constexpr int64_t unused = 1;`, so that `-Wunused` stays quiet.
 
-Constants of a defined type, such as `const Monday Weekday = 1`, are not covered yet ([#104](https://github.com/conr2d/eo/issues/104)), nor are complex constants.
+A constant of a defined type, such as `const Monday Weekday = 1`, follows [Constants of defined types](#constants-of-defined-types). Complex constants are not covered yet.
 
 #### Named constants
 
@@ -278,7 +278,7 @@ A declared constant that is used on its own, not as part of a larger constant ex
 
 - A typed constant is used with its own type, so it is always written by name: `u == MaxU8` with a `uint8` `u`.
 - An untyped constant is written by name where it takes its default type: `n * KB` and `case KB:` with an `int` `n`, `x := KB`, which is `auto x = KB;`, `fmt.Println(KB)`, and `r * Pi` with a `float64` `r`. With another type it is `T{L}`: `y + KB` with an `int32` `y` is `y + int32_t{1024}`, and `f * Pi` with a `float32` `f` is `f * float{0x1.921fb6p+01f}`. Go converts `Pi` to `float32` before it multiplies, while C++ would multiply `f * Pi` in `double`.
-- A boolean or string constant is always written by name, because its C++ type is already Go's, as in `if debug`.
+- A boolean or string constant is written by name, because its C++ type is already Go's, as in `if debug`, except where it converts to a defined type, where it is `T{L}`.
 - The type checker records an untyped constant shift count as untyped. A count that is a declared constant of an integer type is written by name, and the rules for a constant count in [Arithmetic operators](#arithmetic-operators) apply to its value: `n << A` when `A` is less than the width of `n`'s type, and `eo::shl(n, A)` otherwise. Any other constant count, such as `const two = 2.0` or `1 << 63`, is written as its value as a decimal integer literal, with a `u` suffix when the value exceeds 9223372036854775807, and the same rules apply to that value: `n << 2`, and `eo::shl(n, 10000000000000000000u)` for `const big = 1e19`.
 
 A constant name inside a struct definition or its methods follows [Package-level names hidden by members](#package-level-names-hidden-by-members), as `b.KB * ::KB` in a method of a struct with a field `KB`, and a constant hidden by a local declaration follows ordinary C++ scoping, as in Go.
@@ -287,7 +287,9 @@ A constant name inside a struct definition or its methods follows [Package-level
 
 `fmt.Println` prints every integer type in decimal, including `int8_t` and `uint8_t`, which a C++ stream would print as characters. It prints a `float` or `double` as Go's `%v` does, which differs from fmt's `{}`: the shortest decimal that reads back as the same value, in exponent form when the decimal exponent is below -4 or at least 6, as in `1e+06` and `1.234567e+06`, and `+Inf`, `-Inf`, and `NaN`. Floats inside slices, maps, and structs print the same way.
 
-Not covered yet: `complex64` and `complex128`, defined types whose underlying type is a basic type, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), and the `math` package.
+A defined type with a numeric underlying type prints as its underlying value unless it has an `Error` or `String` method (see [Printing defined types](#printing-defined-types)).
+
+Not covered yet: `complex64` and `complex128`, and the `math` package.
 
 ### Untyped constant arguments
 
@@ -324,7 +326,7 @@ float _eo_go_arg_5_0 = float{0x1.99999ap-04f};
 double _eo_go_arg_6_0 = double{0x1.52d02c7e14af6p+76};
 ```
 
-Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type. The C++ mapping of Go defined types is not frozen; `T{L}` applies to whatever type it produces. Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
+Because of the `T{L}` form, the constant's C++ type is always `T`, even when `T` is a defined type whose literals would otherwise have the underlying type (see [Defined types](#defined-types)). Goroutine temporaries are declared with the parameter's value type, as for any argument. A defer temporary may stay `auto` when `T` is the parameter's value type; for an interface parameter, where `T` is the default type, declare the defer temporary with the parameter's value type, so that the conversion happens at the defer statement.
 
 ### Evaluation order
 
@@ -613,8 +615,7 @@ Go's `maps` package maps to the namespace `maps` from `<eo/maps.h>`, whose funct
 #### Maps not covered yet
 
 - interface, channel, and array key types, and array value types ([#93](https://github.com/conr2d/eo/issues/93));
-- the `maps` functions that take or return an iterator, `All`, `Keys`, `Values`, `Insert`, and `Collect`, which wait on range over functions ([#98](https://github.com/conr2d/eo/issues/98));
-- defined map types, such as `type Set map[string]bool` ([#104](https://github.com/conr2d/eo/issues/104)).
+- the `maps` functions that take or return an iterator, `All`, `Keys`, `Values`, `Insert`, and `Collect`, which wait on range over functions ([#98](https://github.com/conr2d/eo/issues/98)).
 
 ### Structs
 
@@ -695,13 +696,14 @@ show(_eo_call_2, Point{.X = _eo_call_4, .Y = _eo_call_3});
 
 Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated file therefore has, after its package-level constants (see [Constant declarations](#constant-declarations)):
 
-1. a forward declaration `struct T;` of every struct and interface type the file declares, in source order;
-2. the struct and interface definitions, in source order, except that a type that a struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct or interface it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration, and so does a type in an interface's method signatures;
-3. the definitions of the interface methods and of the forwarders of promoted methods (see [Interfaces](#interfaces)), in the order of their types' definitions, and for each type in the order it declares them;
-4. a prototype of each function that is called above its definition, in source order;
-5. the package-level variables, in source order (see [Declaring package-level variables](#declaring-package-level-variables));
-6. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods, and the `init` functions;
-7. `eo_init`, if the file defines it (see [Package initialization](#package-initialization)).
+1. a forward declaration `struct T;` of every struct, interface, and [defined type](#defined-types) the file declares, in source order;
+2. the struct, interface, and defined type definitions, in source order, except that a type that a struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct, interface, or defined type it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration, and so does a type in an interface's method signatures. A defined type holds what a field of its underlying type would hold;
+3. the constants of defined types, in source order (see [Constants of defined types](#constants-of-defined-types));
+4. the definitions of the interface methods and of the forwarders of promoted methods (see [Interfaces](#interfaces)), in the order of their types' definitions, and for each type in the order it declares them;
+5. a prototype of each function that is called above its definition, in source order;
+6. the package-level variables, in source order (see [Declaring package-level variables](#declaring-package-level-variables));
+7. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods, and the `init` functions;
+8. `eo_init`, if the file defines it (see [Package initialization](#package-initialization)).
 
 A comment on a type declaration moves with its definition. A struct type declared inside a function is a local struct at the place of its declaration. Go allows no methods on it, so its definition holds only the fields and `operator==`.
 
@@ -742,13 +744,122 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 #### Struct forms not covered yet
 
 - printing a struct with an unexported field whose type has an `Error` or `String` method (see [Printing methods](#printing-methods));
-- defined types that are not structs, such as `type Celsius float64` ([#104](https://github.com/conr2d/eo/issues/104)), and array fields ([#93](https://github.com/conr2d/eo/issues/93));
+- array fields ([#93](https://github.com/conr2d/eo/issues/93));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
 - a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`;
 - struct types declared in other files of the same package, which wait on a mapping of packages.
 
 Method values and method expressions, including promoted ones, are described in [Function values](#function-values).
+
+### Defined types
+
+A Go defined type whose underlying type is not a struct or an interface, such as `type Celsius float64`, maps to a C++ struct of the same name derived from `eo::defined<T, U>`, from `<eo/defined.h>`, which `<eo/core.h>` includes. `U` is the translated underlying type: a [basic type](#basic-types), `std::string`, a `slice`, a `map`, or an `fn`. The underlying type of `type Kelvin Celsius` is `float64`, so `Kelvin` derives from `eo::defined<Kelvin, double>` and does not get the methods of `Celsius`, as in Go. The struct first inherits the constructors of its base with `using defined::defined;`, then declares `_eo_name`, its methods as static member functions, and `_eo_methods` if it has methods, as a struct does (see [Methods](#methods) and [Method tables](#method-tables)). It has no fields and no `operator==` of its own:
+
+```go
+type Celsius float64
+
+func (c Celsius) String() string {
+	return fmt.Sprintf("%gC", float64(c))
+}
+
+type Counter uint32
+
+func (c *Counter) Inc() {
+	*c++
+}
+
+type Data []byte
+```
+
+```cpp
+struct Celsius : eo::defined<Celsius, double> {
+  using defined::defined;
+  static constexpr std::string_view _eo_name = "main.Celsius";
+
+  static auto String(Celsius c) -> std::string;
+
+  using _eo_methods = eo::methods<eo::method<&Celsius::String, "String">>;
+};
+
+struct Counter : eo::defined<Counter, uint32_t> {
+  using defined::defined;
+  static constexpr std::string_view _eo_name = "main.Counter";
+
+  static void Inc(ptr<Counter> c);
+
+  using _eo_methods = eo::methods<eo::method<&Counter::Inc, "Inc">>;
+};
+
+struct Data : eo::defined<Data, slice<uint8_t>> {
+  using defined::defined;
+  static constexpr std::string_view _eo_name = "main.Data";
+};
+
+auto Celsius::String(Celsius c) -> std::string {
+  return fmt::Sprintf("%gC"s, double(c));
+}
+
+void Counter::Inc(ptr<Counter> c) {
+  (*c)++;
+}
+```
+
+A defined type is thus a C++ type of its own, so `fmt`, interfaces, type assertions, and type switches tell it apart from its underlying type, as Go does, and `%T` prints `main.Celsius`. Methods, method values, and method expressions are written as for a struct: `c.String()` is `Celsius::String(c)`, `n.Inc()` is `Counter::Inc(ref(n))` by the pointer rules, and `Weekday.Next` is `Weekday::Next`.
+
+| Go | C++ |
+| --- | --- |
+| `var x T`, the zero value of `T` | `T x{};`, `T{}`, or `auto x = New<T>();` when `x` is [boxed](#boxed-variables) |
+| a constant of type `T` | `T{L}` (see [Constants of defined types](#constants-of-defined-types)) |
+| `T(x)` and `V(x)` between numeric types, where `T` is a defined type and `V` a basic one or another defined type | `T(x)` and `V(x)`, as in `Celsius(f)`, `double(c)`, and `int64_t(d)` |
+| `T(x)` where `x` has `T`'s underlying string, slice, map, or function type, or is of another defined type with that underlying type, and `U(x)` | `T(x)` and `U(x)`, as in `Name(s)` and `std::string(n)` |
+| another conversion to `T`, such as `Name(b)` with a `[]byte` `b` | `T(e)`, where `e` is the conversion to `U`: `Name(eo::string_from_bytes(b))` |
+| a composite literal `T{...}` of a slice or map type | `T(U::of({...}))`, as in `Data(slice<uint8_t>::of({1, 2}))` |
+
+#### Operators of defined types
+
+When `U` is a number or `bool`, `eo::defined` holds the value and defines Go's operators on two values of `T`, each returning `T`, as Go's operators keep the defined type: the arithmetic and bitwise operators, `&^` as `x & ~y`, comparisons, compound assignments, `++`, `--`, and `!` of a boolean `T`. Each converts its result back to `U`, so a narrow `U` wraps as in Go, and a defined type needs none of the narrow-type conversions of [Arithmetic operators](#arithmetic-operators): `p + q` of a `type Prio int8` is `p + q`. Integer division, remainder, and shifts use the helpers under the same conditions as for a basic type, and the helpers take a defined integer type and return it: `p / q` is `eo::div(p, q)`, `n << k` is `eo::shl(n, k)`, `p >> 1` is `p >> 1`, and `x / 2` is `x / Weekday{2}`. Every other integer that a helper takes, such as an index, a slice bound, a `make` size, a shift count, or the operand of `eo::string_from_rune`, must have a basic type, so an operand of a defined integer type there is converted to its underlying type: `s[d]` is `eo::at(s, int64_t(d))`, and `string(d)` is `eo::string_from_rune(int64_t(d))`. `a && b` and `a || b` of a boolean `T` yield `bool`, so they are written `T(a && b)` and `T(a || b)` except as a condition.
+
+When `U` is a string, slice, map, or function type, `eo::defined` derives from `U`, so the helpers, operators, and members of `U` take a `T` as they take a `U`: `eo::len(d)`, `eo::at(d, i)`, `eo::map_get(s, k)`, `eo::map_entry(s, k) = v`, `eo::range(d)`, `d == nullptr`, `f(x)`, and `n < m` and `n += m` of strings. A value of an unnamed slice, map, or function type `U` converts to `T` implicitly, as Go assigns a value of an unnamed type to a defined type with the same underlying type: `Op op = [=](int64_t x) mutable -> int64_t { return x * 3; };`. A `std::string` and a value of another defined type convert only explicitly, `Name(s)`, as Go requires. `n + m` of a string `T` returns `T`. Every helper whose result has type `U` in C++ and `T` in Go, such as `eo::append`, `eo::subslice`, and `eo::substr`, is converted: `d = append(d, 10)` is `d = Data(eo::append(d, {10}));`, and `n[1:]` is `Name(eo::substr(n, 1))`.
+
+#### Constants of defined types
+
+A constant of a defined type is declared as in [Constant declarations](#constant-declarations), with `T{L}` as its value: `constexpr T N = T{L};`, or `const T N = T{L};` when `U` is `std::string`. These declarations follow the type definitions (see [Declaration order](#declaration-order)), because C++ needs `T` complete. A constant converted to a defined type is always written `T{L}`, including a single literal and a boolean or string constant, because the operators of `T` take two values of `T`. A declared constant of type `T` used on its own is written by name, as any typed constant (see [Named constants](#named-constants)):
+
+```go
+type Weekday int
+
+const (
+	Sunday Weekday = iota
+	Monday
+)
+
+const Default Name = "anon"
+
+next := (d + 1) % 7
+ok := d == Monday && c > 30
+```
+
+```cpp
+constexpr Weekday Sunday = Weekday{0};
+constexpr Weekday Monday = Weekday{1};
+
+const Name Default = Name{"anon"s};
+
+auto next = (d + Weekday{1}) % Weekday{7};
+auto ok = d == Monday && c > Celsius{30.0};
+```
+
+#### Printing defined types
+
+`fmt` prints a value of a defined type by its `Error` or `String` method, as described in [Printing methods](#printing-methods), and otherwise as its underlying value: a `Celsius` without methods prints as `37.5`, and a `Data` as `[1 2]`. A verb that the underlying type does not take prints the bad-verb form with the name of the defined type, as `%!s(main.Flag=true)`. `%d` of a `Weekday` with a `String` method prints its number, as in Go. A pointer operand to a defined slice or map type prints as `&` followed by its target. A defined type whose underlying type can be a map key can be a key itself, and fmt sorts those keys by their underlying values.
+
+#### Defined types not covered yet
+
+- defined array types, such as `type Bytes32 [32]byte` ([#93](https://github.com/conr2d/eo/issues/93));
+- defined pointer and channel types, defined types whose underlying type is a struct, such as `type B A` for a struct `A`, and generic defined types;
+- defined types declared inside a function;
+- `range` over a value of a defined integer type.
 
 ### Switch statements
 
@@ -1288,7 +1399,6 @@ A `defer` of a call through a coroutine slot is unsupported, as is any deferred 
 
 #### Function values not covered yet
 
-- defined function types, such as `type HandlerFunc func(int)`, and their methods ([#104](https://github.com/conr2d/eo/issues/104));
 - a function value converted to an interface, and type assertions and type switches on a function type;
 - printing a function value with `fmt`, which Go prints as an address, or `<nil>`;
 - variadic function types, such as `func(...int)`;
@@ -1300,7 +1410,7 @@ A Go interface type maps to a C++ class derived from `eo::interface<I>`, from `<
 
 #### Method tables
 
-Every package-level struct type declares its Go type name as its first member. The name is the package name and the type name joined by a dot, as Go's runtime prints it:
+Every package-level struct type declares its Go type name as its first member, and a [defined type](#defined-types) right after `using defined::defined;`. The name is the package name and the type name joined by a dot, as Go's runtime prints it:
 
 ```cpp
 static constexpr std::string_view _eo_name = "main.Point";
@@ -2079,7 +2189,8 @@ Examples currently requiring additional canonical rules include:
 - labeled `break` and `continue`;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
-- zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, interfaces, and function types;
+- zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, interfaces, function types, and defined types;
+- the forms in [Defined types not covered yet](#defined-types-not-covered-yet), such as defined array types;
 - complex numbers and complex constants;
 - panic-producing operations whose naive C++ equivalent would throw differently or invoke undefined behavior.
 

@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/bounds.h>
+#include <eo/defined.h>
 
 #include <climits>
 #include <cstdint>
@@ -44,6 +45,12 @@ namespace detail {
       }
       return static_cast<T>(x / y);
     }
+
+    // A defined integer type divides as its underlying type, and keeps the defined type.
+    template<defined_integer T>
+    constexpr auto operator()(T x, std::type_identity_t<T> y) const -> T {
+      return T((*this)(x._eo_value, y._eo_value));
+    }
   };
 
   struct rem_fn {
@@ -59,6 +66,11 @@ namespace detail {
         }
       }
       return static_cast<T>(x % y);
+    }
+
+    template<defined_integer T>
+    constexpr auto operator()(T x, std::type_identity_t<T> y) const -> T {
+      return T((*this)(x._eo_value, y._eo_value));
     }
   };
 
@@ -80,6 +92,11 @@ namespace detail {
       }
       return static_cast<T>(static_cast<std::make_unsigned_t<T>>(x) << n);
     }
+
+    template<defined_integer T, go_integer N>
+    constexpr auto operator()(T x, N n) const -> T {
+      return T((*this)(x._eo_value, n));
+    }
   };
 
   struct shr_fn {
@@ -93,12 +110,18 @@ namespace detail {
       }
       return static_cast<T>(x >> n);
     }
+
+    template<defined_integer T, go_integer N>
+    constexpr auto operator()(T x, N n) const -> T {
+      return T((*this)(x._eo_value, n));
+    }
   };
 
   // x op= y: evaluates x once, as Go does, and assigns the result of op.
   template<typename Op>
   struct assign_fn {
-    template<go_integer T, go_integer U>
+    template<typename T, typename U>
+      requires(go_integer<T> || defined_integer<T>) && (go_integer<U> || defined_integer<U>)
     constexpr void operator()(T& x, U y) const {
       x = Op{}(x, y);
     }
