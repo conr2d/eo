@@ -60,7 +60,7 @@ Names that begin with `_eo_` are reserved for the names that the translation int
 
 Go lets a local variable hide anything of the same name from an enclosing block or the package: a variable, a constant, a function, or a type. C++ allows the same hiding, with two differences, so a local variable declaration of `x` that hides another `x` is renamed in two cases:
 
-1. The declaration refers to the hidden `x`, at any block depth, as in `x := x`, `x, y := x+1, 0`, `g := g()` for a function `g`, or `point := point{1, 2}` for a type `point`. In C++ the scope of a variable starts at its declarator, so the `x` in its own initializer names the new variable, and `auto x = x;` and `auto g = g();` are ill-formed.
+1. The declaration refers to the hidden `x`, at any block depth, as in `x := x`, `x, y := x+1, 0`, `g := g()` for a function `g`, or `point := point{1, 2}` for a type `point`. In C++ the scope of a variable starts at its declarator, so the `x` in its own initializer names the new variable, and `auto x = x;` and `auto g = g();` are ill-formed. An initializer that is written from a constant value does not refer to the hidden name, so `K := K + 1` for a constant `K` is `auto K = int64_t{1025};`.
 2. The declaration is directly in the body of a statement whose own clause declares `x`. C++ rejects such a declaration. This covers:
    - the body of a three-clause `for` or a `range` loop whose clause declares `x`;
    - the `if` and `else` branches of an `if` whose init statement declares `x`.
@@ -274,7 +274,7 @@ Constants of a defined type, such as `const Monday Weekday = 1`, are not covered
 
 #### Named constants
 
-A declared constant that is used on its own, not as part of a larger constant expression, is written by its C++ name when the constant has a C++ declaration and its type there is the type that the use converts it to, which the Go type checker records for the identifier (`go/types` `TypeAndValue.Type`). Parentheses around the name do not make a larger expression, so `n * (KB)` is `n * KB`. Otherwise the constant is written from its value as `T{L}`, like any other constant:
+A declared constant that is used on its own, not as part of a larger constant expression, is written by its C++ name when the constant has a C++ declaration and its type there is the type that the use converts it to, which the Go type checker records for the identifier (`go/types` `TypeAndValue.Type`). Parentheses around the name do not make a larger expression, and they are kept as [Arithmetic operators](#arithmetic-operators) says, so `n * (KB)` is `n * (KB)`. Otherwise the constant is written from its value as `T{L}`, like any other constant:
 
 - A typed constant is used with its own type, so it is always written by name: `u == MaxU8` with a `uint8` `u`.
 - An untyped constant is written by name where it takes its default type: `n * KB` and `case KB:` with an `int` `n`, `x := KB`, which is `auto x = KB;`, `fmt.Println(KB)`, and `r * Pi` with a `float64` `r`. With another type it is `T{L}`: `y + KB` with an `int32` `y` is `y + int32_t{1024}`, and `f * Pi` with a `float32` `f` is `f * float{0x1.921fb6p+01f}`. Go converts `Pi` to `float32` before it multiplies, while C++ would multiply `f * Pi` in `double`.
