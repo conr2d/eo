@@ -36,6 +36,7 @@ int64_t q{};
 int64_t r{};
 ptr<int64_t> p{};
 ptr<Box> box{};
+Box origin{};
 
 // echoed blocks on a channel, so its initializer is a coroutine call.
 chan<int64_t> ch;
@@ -88,7 +89,7 @@ void _eo_init_1() {
 
 func<> eo_main() {
   fmt::Println("main:"s, total, first, second, limit, name, count);
-  fmt::Println(twice(limit), q, r, echoed, box);
+  fmt::Println(twice(limit), q, r, echoed, box, origin.n);
   auto _eo_call_0 = check(0);
   auto _eo_call_1 = check(0);
   auto _eo_call_2 = errors::Is(_eo_call_1, ErrEmpty);
@@ -111,6 +112,7 @@ func<> eo_init() {
   box = New<Box>(Box{.n = limit});
   ch = eo::make_chan<int64_t>(1);
   echoed = co_await echo(7);
+  co_await echo(8);
   ready = eo::make_chan<std::string>();
   _eo_init_0();
   _eo_init_1();

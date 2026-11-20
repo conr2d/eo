@@ -30,10 +30,12 @@ var q, r = divmod(17, 5)
 var _ = trace("blank", 0)
 var p = &count
 var box = &Box{n: limit}
+var origin = Box{}
 
 // echoed blocks on a channel, so its initializer is a coroutine call.
 var ch = make(chan int, 1)
 var echoed = echo(7)
+var _ = echo(8)
 
 var ready = make(chan string)
 
@@ -77,7 +79,7 @@ func init() {
 
 func main() {
 	fmt.Println("main:", total, first, second, limit, name, count)
-	fmt.Println(twice(limit), q, r, echoed, box)
+	fmt.Println(twice(limit), q, r, echoed, box, origin.n)
 	fmt.Println(check(0) == ErrEmpty, errors.Is(check(0), ErrEmpty), check(1))
 	fmt.Println(<-ready)
 }
