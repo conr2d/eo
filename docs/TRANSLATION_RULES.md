@@ -2038,6 +2038,7 @@ func<> eo_init() {
 #### Package-level variables not covered yet
 
 - a package with several files, and a program with several packages, whose initialization order spans files and packages ([#123](https://github.com/conr2d/eo/issues/123));
+- a dynamic initializer of a struct type that holds a `sync.Mutex`, `sync.RWMutex`, or `sync.WaitGroup`, as in `var c = Cache{items: make(map[string]int)}`. C++ cannot assign such a struct, and a lock as a struct field is not frozen (see [Mutex](#mutex));
 - a declaration with several initializers, as in `var a, b = f(), g()`. Go evaluates both before it assigns either, as in the assignment `a, b = f(), g()`, which is not covered yet either ([#111](https://github.com/conr2d/eo/issues/111));
 - an initializer or `init` function that blocks forever: Go reports a deadlock and exits with status 2, and Eo hangs, as it does when every goroutine blocks during `main`.
 

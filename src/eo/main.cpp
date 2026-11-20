@@ -9,7 +9,7 @@ using namespace eo;
 
 extern func<> eo_main();
 
-// A translated program defines eo_init when its package has variable initializers or init
+// A translated program defines eo_init when its package has dynamic variable initializers or init
 // functions. This weak definition stands in for it otherwise.
 [[gnu::weak]] func<> eo_init() {
   co_return;
