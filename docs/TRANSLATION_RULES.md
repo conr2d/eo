@@ -1107,7 +1107,7 @@ The labeled statement itself is translated as usual. A `break L` or `continue L`
 
 #### Labeled loops
 
-When a loop is the target of a `continue L`, its translated body, everything that its C++ body would hold, goes in a block of its own, and `_eo_continue_L:;` follows the block. The body includes the boxes of [Boxed range variables](#boxed-range-variables), the receive of [Range over channels](#range-over-channels), and the temporaries and the `if (!(c)) { break; }` of a [loop condition](#positions-that-no-statement-can-precede) that moved into the body. C++ rejects a `goto` that jumps forward over a declaration into its scope, and the body's declarations end with the block, so the jump skips none of them. After the label, the loop runs its post statement, including the new boxes of [Loop clause variables](#loop-clause-variables), as Go's `continue` does:
+When a loop is the target of a `continue L`, its translated body, everything that its C++ body would hold, goes in a block of its own, and `_eo_continue_L:;` follows the block. A variable declared directly in the Go loop body is still declared directly in a loop body for rule 2 of [Boxed variables](#boxed-variables), although this block holds it. The body includes the boxes of [Boxed range variables](#boxed-range-variables), the receive of [Range over channels](#range-over-channels), and the temporaries and the `if (!(c)) { break; }` of a [loop condition](#positions-that-no-statement-can-precede) that moved into the body. C++ rejects a `goto` that jumps forward over a declaration into its scope, and the body's declarations end with the block, so the jump skips none of them. After the label, the loop runs its post statement, including the new boxes of [Loop clause variables](#loop-clause-variables), as Go's `continue` does:
 
 ```go
 rows:
@@ -1149,7 +1149,7 @@ A loop that is only the target of a `break L` keeps its body as it is, and `_eo_
 
 Go forbids a forward `goto` that brings a variable into scope, so no Go variable is declared between the jump and its label in the label's block. The translation adds declarations that Go does not have, and a forward jump must not skip them either. For each forward `goto`, consider the statements of the label's block after the one that contains the `goto` and before the labeled statement:
 
-- A statement whose translation declares temporaries before it, such as the `_eo_call_<n>` of [Evaluation order](#evaluation-order), the argument temporaries of `go` and `defer`, and the temporaries of a loop's init statement, goes in a block of its own with them, `{ temporaries; statement }`. The temporaries of the labeled statement itself follow its label, so they need no block.
+- A statement whose translation declares temporaries before it, such as the `_eo_call_<n>` of [Evaluation order](#evaluation-order), the argument temporaries of `go` and `defer`, and the temporaries of a loop's init statement, goes in a block of its own with them, `{ temporaries; statement }`. When that statement is itself labeled, its `_eo_label_L2:;` goes before the block, because a jump into a block is rejected. The temporaries of the labeled statement itself follow its label, so they need no block.
 - A local constant is `static` (see [Constant declarations](#constant-declarations)), and C++ initializes a `static const std::string` only when control passes through its declaration. A local constant declared there, of any type, is therefore never written by name: every use is written from its value, and its declaration gets `[[maybe_unused]]`.
 
 ```go
@@ -1178,7 +1178,7 @@ _eo_label_done:;
   return fmt::Sprint(n, " "s, "hello"s);
 ```
 
-C++ also rejects a jump into a `try` block. In a function with a `defer` statement, `try {` opens before the first top-level statement that contains a `defer` (see [Defer](#defer)). When a `goto` before that statement jumps to a label inside the `try` block, `try {` opens instead before the top-level statement that contains the first such `goto`. The locals declared after it are then inside the `try` block, with what [Defer](#defer) says about them. A panic before the first `defer` statement then reaches `eo_defer_panic` with no deferred call to run, which rethrows it unchanged.
+C++ also rejects a jump into a `try` block. In a function with a `defer` statement, `try {` opens before the first top-level statement that contains a `defer` (see [Defer](#defer)). When a top-level statement before `try {` contains a `goto` whose label is inside the `try` block, `try {` opens instead before the first such statement, and before that statement's temporaries. Moving it can bring another label inside the `try` block, so the step repeats until no top-level statement before `try {` contains a `goto` to a label inside it. The locals declared after `try {` are then inside the `try` block, with what [Defer](#defer) and rule 2 of [Boxed variables](#boxed-variables) say about them. A panic before the first `defer` statement then reaches `eo_defer_panic` with no deferred call to run, which rethrows it unchanged.
 
 ### Pointers and escaping variables
 

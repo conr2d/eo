@@ -334,7 +334,7 @@ Within a translated select:
 - an unlabeled `break` remains `break`;
 - a `continue` remains `continue`;
 - a return follows the normal translation rule for that function;
-- a labeled `break` or `continue`, and a `goto`, follow [Labeled statements](./TRANSLATION_RULES.md#labeled-statements): each becomes a C++ `goto` to a label outside the `switch`.
+- a labeled `break` or `continue`, and a `goto`, follow [Labeled statements](./TRANSLATION_RULES.md#labeled-statements): each becomes a C++ `goto` to the label that rule places, which is outside the `switch` when the target is a statement outside the clause, and inside the clause's block when the target is a statement in it.
 
 Using a real C++ `switch` is important because it preserves the targets of ordinary `break` and `continue` without introducing callback boundaries.
 

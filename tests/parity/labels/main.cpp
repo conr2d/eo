@@ -285,6 +285,33 @@ auto safeEarly(int64_t i) -> void {
   }
 }
 
+// twoJumps moves its try block twice: goto done moves it before the second if, which brings
+// mid inside it, so it moves again before the first if.
+auto twoJumps(int64_t n) -> int64_t {
+  int64_t r{};
+  eo_defer_scope;
+  try {
+    if (n == 1) {
+      goto _eo_label_mid;
+    }
+    if (n == 2) {
+      goto _eo_label_done;
+    }
+_eo_label_mid:;
+    fmt::Println("mid"s);
+    eo_defer([&] { r = 42; });
+    eo_defer_run;
+    return r;
+_eo_label_done:;
+    r = 7;
+    eo_defer_run;
+    return r;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return r;
+}
+
 func<> eo_main() {
   grid();
   rows();
@@ -305,6 +332,10 @@ func<> eo_main() {
   safeEarly(0);
   safeEarly(1);
   safeEarly(5);
+  auto _eo_call_3 = twoJumps(1);
+  auto _eo_call_4 = twoJumps(2);
+  auto _eo_call_5 = twoJumps(3);
+  fmt::Println(_eo_call_3, _eo_call_4, _eo_call_5);
   auto sum = [=](slice<int64_t> xs) mutable -> int64_t {
     int64_t t{};
     auto i = int64_t{0};

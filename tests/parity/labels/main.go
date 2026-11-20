@@ -219,6 +219,23 @@ func safeEarly(i int) {
 	fmt.Println("early", early([]int{1, -2}, i))
 }
 
+// twoJumps moves its try block twice: goto done moves it before the second if, which brings
+// mid inside it, so it moves again before the first if.
+func twoJumps(n int) (r int) {
+	if n == 1 {
+		goto mid
+	}
+	if n == 2 {
+		goto done
+	}
+mid:
+	fmt.Println("mid")
+	defer func() { r = 42 }()
+	return
+done:
+	return 7
+}
+
 func main() {
 	grid()
 	rows()
@@ -236,6 +253,7 @@ func main() {
 	safeEarly(0)
 	safeEarly(1)
 	safeEarly(5)
+	fmt.Println(twoJumps(1), twoJumps(2), twoJumps(3))
 	sum := func(xs []int) (t int) {
 		i := 0
 	next:
