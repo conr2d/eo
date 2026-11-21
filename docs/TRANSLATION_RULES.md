@@ -132,7 +132,7 @@ auto Node::Size(ptr<Node> n) -> int64_t {
 
 A type that the translation spells where the Go source does not, such as the type of a boxed variable, is qualified in the same way when a local variable of the same name is in scope, including the variable being declared, whose scope starts at its declarator. The Go source cannot name the type there, but the translation can: `point := 1` followed by a boxed `p := mk(point)` is `auto p = New<::point>(mk(point));`, and a boxed `point := mk()` is `auto point = New<::point>(mk());`.
 
-A member can also hide an Eo name that `using namespace eo;` makes visible, such as a field named `ptr`, `ref`, `slice`, or `New`. Inside such a struct and its method definitions, that Eo name is written `eo::ptr`, `eo::ref`, and so on (see [#83](https://github.com/conr2d/eo/issues/83) for Eo name collisions in general).
+A member can also hide an Eo name that `using namespace eo;` makes visible, such as a field named `ptr`, `ref`, `slice`, or `New`. Inside such a struct and its method definitions, that Eo name is written `eo::ptr`, `eo::ref`, and so on (see [#83](https://github.com/conr2d/eo/issues/83) for Eo name collisions in general). A member or package-level name `eo`, `std`, or `boost`, which would hide the qualifier of such a spelling, is not covered.
 
 `::` reaches only package-level names. A struct type declared inside a function is not one, so a local struct type that a member or a local variable hides where the translation spells it has no translation yet: a field or embedded field named after another local type or after its own struct, and a boxed variable named after its local type.
 
@@ -2256,9 +2256,9 @@ The package header has, in order:
 2. the Eo and C++ standard headers that any file of the package needs, then the headers of the packages that any file imports, sorted by import path, including a blank import `_`;
 3. `using namespace eo;`;
 4. the package namespace (see [Package namespaces](#package-namespaces)), which holds the rest;
-5. the namespace aliases of [Import names](#import-names) that the header declares, sorted by the import path they alias;
+5. the namespace aliases of [Import names](#import-names) that the header declares, sorted by the import path they alias and then by name;
 6. the package-level constants, then the declarations of [Declaration order](#declaration-order) steps 1 to 3, over all the package's files, each group taken in file order and then in source order. Step 2 applies across files, so a struct that holds a type of another file by value is defined after that type;
-7. a prototype of every function the package declares, including `init` functions and `eo_main`, in file order and then in source order. `eo_main` is always `func<> eo_main()`, because the global `eo_main` `co_await`s it;
+7. a prototype of every function the package declares, including `init` functions and `eo_main`, in file order and then in source order. `eo_main` is always `func<> eo_main()`, because the global `eo_main` `co_await`s it. A function `main` of a package other than `main` keeps its name, which C++ allows in a namespace;
 8. the package-level variables, in file order and then in source order;
 9. the package's `eo_init` (see [Initialization of packages](#initialization-of-packages)).
 
@@ -2268,7 +2268,7 @@ A file `F.cpp` has, in order:
 
 1. `#include "P/package.h"`, its only include, because the header includes what every file needs;
 2. the package namespace, which holds the rest;
-3. the namespace aliases of [Import names](#import-names) that this file declares, sorted by the import path they alias;
+3. the namespace aliases of [Import names](#import-names) that this file declares, sorted by the import path they alias and then by name;
 4. the definitions of [Declaration order](#declaration-order) step 4 for the types that `F.go` declares;
 5. the definitions of the functions and methods that `F.go` declares, in source order. A method is defined in the file that declares it, which can differ from the file that declares its type.
 
