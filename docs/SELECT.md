@@ -455,17 +455,19 @@ For the non-blocking path, Select may synchronously probe candidate operations i
 
 For the blocking path, cancellation of losing asynchronous operations is not by itself a sufficient correctness mechanism. Multiple channel operations may become ready before cancellation reaches the losers.
 
-The long-term channel implementation should support selection-aware waiters sharing one arbitration state. Conceptually:
+Eo therefore owns its channel core, in `<eo/chan.h>`, modeled on Go's `hchan` and `selectgo`:
 
-```cpp
-struct select_state {
-  std::atomic<int> chosen{-1};
-};
-```
+- Each channel has one mutex, a buffer, and queues of blocked receivers and blocked senders.
+- A blocked goroutine waits on one `wait_token`, which holds its resumption handler and an atomic `done` flag. A single send or receive has its own token. A blocking select has one token, which every one of its waiters refers to.
+- An operation that finds a queued waiter, a send finding a receiver or a receive finding a sender, and `close`, first claims the waiter's token with a compare-and-swap on `done`. Only the operation that claims the token completes the communication: it moves the value, records the case index, and posts the handler to the waiting goroutine's executor. A queued waiter whose token is already claimed belongs to a select that chose another case, and the operation skips it.
+- A blocking select first probes its cases in a random order, as `try_index()` does. If none is ready, it locks the channels of all its cases in address order, so that two selects cannot deadlock, probes them again in a random order, and otherwise queues one waiter per case under its token and unlocks the channels. When it resumes, it removes its other waiters from their queues before it returns the index.
+- A waiting goroutine can resume on another thread as soon as its handler is posted. So an operation that completes another goroutine's token touches its waiter only before it posts the handler, and a select or single operation that finds a case ready while it arms its own wait releases its locks first and completes its token as its last action. A resumed select removes its waiters under each channel's lock, so it cannot pass an operation that still holds a pointer to one of them.
 
-Before committing a communication, a channel waiter must atomically win the selection. Losing waiters must be removed without committing their communication.
+- The code between claiming a token and completing it, and a select's code between locking its channels and unlocking them, is `noexcept`. A throw there could only come from running out of memory, or from a throwing move of a value, which no translated type has. Like Go's runtime, Eo treats running out of memory as fatal, so such a throw terminates the program instead of leaving a goroutine blocked and a channel locked.
 
-This may require an Eo-owned channel core or another channel abstraction that allows arbitration before commitment. The syntax described in this document does not depend on the exact internal arbitration implementation.
+So a losing case never receives or sends a value: its waiter can complete only by claiming the token, which the winning case already holds. `tests/select_exactly_one.cpp` checks this on a multi-threaded pool, for losing receives and for losing sends.
+
+The syntax described in this document does not depend on this arbitration mechanism.
 
 ## Receive result storage
 
@@ -634,6 +636,8 @@ Implement or verify:
 Introduce a channel core or equivalent mechanism that allows selection arbitration before a communication commits.
 
 Add conformance and stress tests demonstrating that losing operations never consume, send, or otherwise mutate channel state.
+
+Done: see [Exactly-one arbitration](#exactly-one-arbitration).
 
 ### Phase 4 — defer semantics
 

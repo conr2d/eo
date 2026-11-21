@@ -66,7 +66,7 @@ void test_reset_discards_stale_expired_value() {
   io.run();
   timer->Reset(1h);
 
-  const auto received = timer->C.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  const auto received = timer->C.try_receive().has_value();
   check(!received, "reset should discard a stale value from the previous timer configuration");
 }
 
@@ -78,7 +78,7 @@ void test_stop_discards_pending_expired_value() {
   io.run();
 
   check(timer->Stop(), "stop should report a pending unread timer delivery as stopped");
-  const auto received = timer->C.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  const auto received = timer->C.try_receive().has_value();
   check(!received, "stop should prevent stale timer values from being received afterward");
 }
 
@@ -88,7 +88,7 @@ void test_stop_reports_consumed_expired_timer() {
   auto timer = eo::time::Timer::create_with_executor(executor, 0ms);
 
   io.run();
-  const auto received = timer->C.raw().try_receive([](boost::system::error_code, eo::time::Timer::time_point) {});
+  const auto received = timer->C.try_receive().has_value();
   check(received, "expired timer should have a pending value before it is consumed");
   check(!timer->Stop(), "stop should report false after the expired value was already received");
 }

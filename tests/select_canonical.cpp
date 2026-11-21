@@ -20,13 +20,13 @@ void check(bool condition, const char* message) {
 void test_try_index_commits_receive() {
   asio::io_context io;
   eo::chan<int> ch{io.get_executor(), 1};
-  check(ch.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+  check(ch.try_send(7), "test setup send should succeed");
 
   auto select = eo::Select{*ch};
   auto index = select.try_index();
 
   check(index == 0, "try_index should select a ready receive");
-  check(!ch.raw().ready(), "try_index should commit the selected receive");
+  check(ch.buffered() == 0, "try_index should commit the selected receive");
   check(select.recv<0>() == 7, "recv should return the already committed receive value");
 }
 
@@ -71,7 +71,7 @@ void test_recv_rejects_unselected_case() {
   asio::io_context io;
   eo::chan<int> first{io.get_executor(), 1};
   eo::chan<int> second{io.get_executor(), 1};
-  check(first.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+  check(first.try_send(7), "test setup send should succeed");
 
   auto select = eo::Select{*first, *second};
   check(select.try_index() == 0, "first receive should be selected");
@@ -88,7 +88,7 @@ void test_recv_rejects_unselected_case() {
 void test_recv_rejects_double_consume() {
   asio::io_context io;
   eo::chan<int> ch{io.get_executor(), 1};
-  check(ch.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+  check(ch.try_send(7), "test setup send should succeed");
 
   auto select = eo::Select{*ch};
   check(select.try_index() == 0, "receive should be selected");
@@ -106,7 +106,7 @@ void test_recv_rejects_double_consume() {
 void test_select_rejects_reexecution_after_selection() {
   asio::io_context io;
   eo::chan<int> ch{io.get_executor(), 1};
-  check(ch.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+  check(ch.try_send(7), "test setup send should succeed");
 
   auto select = eo::Select{*ch};
   check(select.try_index() == 0, "receive should be selected");

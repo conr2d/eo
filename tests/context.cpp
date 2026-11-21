@@ -64,12 +64,12 @@ void test_cancel_closes_done_and_sets_error() {
   auto done = ctx->Done();
 
   check(done.has_value(), "cancelable context should have a done channel");
-  check(done->raw().is_open(), "done channel should start open");
+  check(done->is_open(), "done channel should start open");
   check(ctx->Err() == nullptr, "cancelable context should start without an error");
 
   cancel();
 
-  check(!done->raw().is_open(), "cancel should close the done channel");
+  check(!done->is_open(), "cancel should close the done channel");
   check(ctx->Err() == eo::context::Canceled, "cancel should set context canceled error");
 }
 
@@ -90,7 +90,7 @@ void test_parent_cancel_propagates_to_child() {
   cancel_parent();
 
   check(child->Err() == eo::context::Canceled, "parent cancel should propagate the cancellation error");
-  check(!child_done->raw().is_open(), "parent cancel should close the child done channel");
+  check(!child_done->is_open(), "parent cancel should close the child done channel");
 
   cancel_child();
 }
@@ -138,7 +138,7 @@ void test_child_survives_released_parent() {
   cancel_child();
 
   check(child->Err() == eo::context::Canceled, "child cancel should survive a released parent");
-  check(!child_done->raw().is_open(), "child cancel should still close done after parent release");
+  check(!child_done->is_open(), "child cancel should still close done after parent release");
 }
 
 void test_shared_custom_parent_survives_external_release() {
@@ -175,7 +175,7 @@ void test_child_of_canceled_parent_is_canceled_immediately() {
   auto done = child->Done();
 
   check(child->Err() == eo::context::Canceled, "child should inherit an already canceled parent error");
-  check(!done->raw().is_open(), "child of canceled parent should start with closed done channel");
+  check(!done->is_open(), "child of canceled parent should start with closed done channel");
 
   cancel_child();
 }
@@ -208,7 +208,7 @@ void test_concurrent_state_access_during_cancel() {
 
   check(valid, "concurrent context access observed invalid state");
   check(ctx->Err() == eo::context::Canceled, "concurrent cancel should preserve cancellation error");
-  check(!ctx->Done()->raw().is_open(), "concurrent cancel should close the done channel");
+  check(!ctx->Done()->is_open(), "concurrent cancel should close the done channel");
 }
 
 void test_nil_parent_is_rejected() {

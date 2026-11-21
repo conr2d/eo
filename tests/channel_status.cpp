@@ -77,7 +77,7 @@ void test_ready_channel_beats_nil_case() {
   asio::io_context io;
   eo::chan<int> nil;
   eo::chan<int> ready{io.get_executor(), 1};
-  check(ready.raw().try_send(boost::system::error_code{}, 7), "test setup send should succeed");
+  check(ready.try_send(7), "test setup send should succeed");
 
   auto select = eo::Select{*nil, *ready};
   check(select.try_index() == 1, "ready receive should win over disabled nil receive");
@@ -87,7 +87,7 @@ void test_ready_channel_beats_nil_case() {
 void test_recv2_reports_successful_receive() {
   asio::io_context io;
   eo::chan<int> ch{io.get_executor(), 1};
-  check(ch.raw().try_send(boost::system::error_code{}, 11), "test setup send should succeed");
+  check(ch.try_send(11), "test setup send should succeed");
 
   auto select = eo::Select{*ch};
   check(select.try_index() == 0, "ready receive should be selected");
@@ -114,8 +114,8 @@ void test_recv2_reports_closed_receive() {
 void test_select_drains_closed_buffered_channel() {
   asio::io_context io;
   eo::chan<int> ch{io.get_executor(), 2};
-  check(ch.raw().try_send(boost::system::error_code{}, 1), "test setup send should succeed");
-  check(ch.raw().try_send(boost::system::error_code{}, 2), "test setup send should succeed");
+  check(ch.try_send(1), "test setup send should succeed");
+  check(ch.try_send(2), "test setup send should succeed");
   ch.close();
 
   for (auto [want, want_ok] : {std::pair{1, true}, std::pair{2, true}, std::pair{0, false}}) {
@@ -164,21 +164,16 @@ void test_select_loser_keeps_buffered_value() {
   auto chosen = asio::co_spawn(io, select_two(ch, other), asio::use_future);
   auto sent = false;
   asio::post(io, [&] {
-    check(other.raw().try_send(boost::system::error_code{}, 1), "the chosen case should be waiting");
+    check(other.try_send(1), "the chosen case should be waiting");
     asio::post(io, [&] {
-      sent = ch.raw().try_send(boost::system::error_code{}, 5);
+      sent = ch.try_send(5);
       ch.close();
     });
   });
 
   io.run();
   check(chosen.get() == 1 && sent, "the select should choose the case whose channel got a value");
-  auto value = std::optional<int>{};
-  ch.raw().try_receive([&](boost::system::error_code ec, int v) {
-    if (!ec) {
-      value = v;
-    }
-  });
+  auto value = ch.try_receive();
   check(value == 5, "a select that chose another case should leave the buffered value");
 }
 

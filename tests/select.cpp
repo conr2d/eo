@@ -41,7 +41,7 @@ auto select_ready_over_default(eo::chan<int> ready, eo::chan<int> idle) -> eo::f
   auto select = eo::Select{*ready, *idle};
   auto index = select.try_index();
   check(index == 0, "ready communication should win over default");
-  check(!ready.raw().ready(), "selected receive should be committed during readiness probing");
+  check(ready.buffered() == 0, "selected receive should be committed during readiness probing");
 
   auto value = select.recv<0>();
   check(value == 7, "selected receive should preserve its value");
@@ -102,8 +102,8 @@ auto select_commits_only_winning_send(eo::chan<int> first, eo::chan<int> second)
   auto select = eo::Select{first << 11, second << 22};
   auto index = select.try_index();
   check(index == 0 || index == 1, "one ready send should be selected");
-  check(first.raw().ready() == (index == 0), "first send readiness did not match selection");
-  check(second.raw().ready() == (index == 1), "second send readiness did not match selection");
+  check((first.buffered() > 0) == (index == 0), "first send readiness did not match selection");
+  check((second.buffered() > 0) == (index == 1), "second send readiness did not match selection");
 
   if (index == 0) {
     check(co_await *first == 11, "selected first send should preserve its value");

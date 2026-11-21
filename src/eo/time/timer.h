@@ -46,7 +46,7 @@ public:
     const auto was_active = !expired;
     timer.cancel();
     const auto current_generation = ++generation;
-    C.raw().try_receive([](boost::system::error_code, time_point) {});
+    static_cast<void>(C.try_receive());
     timer.expires_after(d);
     expired = false;
     timer.async_wait([self{shared_from_this()}, current_generation](boost::system::error_code ec) {
@@ -54,7 +54,7 @@ public:
       if (ec || current_generation != self->generation)
         return;
       self->expired = true;
-      self->C.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->C.try_send(std::chrono::system_clock::now());
     });
     return was_active;
   }
@@ -63,7 +63,7 @@ public:
     std::lock_guard lock(state_mutex);
     ++generation;
     timer.cancel();
-    const auto pending = C.raw().try_receive([](boost::system::error_code, time_point) {});
+    const auto pending = C.try_receive().has_value();
     if (expired) {
       return pending;
     }
