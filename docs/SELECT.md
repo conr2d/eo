@@ -463,6 +463,8 @@ Eo therefore owns its channel core, in `<eo/chan.h>`, modeled on Go's `hchan` an
 - A blocking select first probes its cases in a random order, as `try_index()` does. If none is ready, it locks the channels of all its cases in address order, so that two selects cannot deadlock, probes them again in a random order, and otherwise queues one waiter per case under its token and unlocks the channels. When it resumes, it removes its other waiters from their queues before it returns the index.
 - A waiting goroutine can resume on another thread as soon as its handler is posted. So an operation that completes another goroutine's token touches its waiter only before it posts the handler, and a select or single operation that finds a case ready while it arms its own wait releases its locks first and completes its token as its last action. A resumed select removes its waiters under each channel's lock, so it cannot pass an operation that still holds a pointer to one of them.
 
+- The code between claiming a token and completing it, and a select's code between locking its channels and unlocking them, is `noexcept`. A throw there could only come from running out of memory, or from a throwing move of a value, which no translated type has. Like Go's runtime, Eo treats running out of memory as fatal, so such a throw terminates the program instead of leaving a goroutine blocked and a channel locked.
+
 So a losing case never receives or sends a value: its waiter can complete only by claiming the token, which the winning case already holds. `tests/select_exactly_one.cpp` checks this on a multi-threaded pool, for losing receives and for losing sends.
 
 The syntax described in this document does not depend on this arbitration mechanism.

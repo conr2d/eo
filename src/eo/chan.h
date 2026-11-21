@@ -58,13 +58,13 @@ namespace detail {
     boost::asio::any_io_executor executor;
     boost::asio::any_completion_handler<void()> handler;
 
-    auto claim() -> bool {
+    auto claim() noexcept -> bool {
       auto expected = false;
       return done.compare_exchange_strong(expected, true, std::memory_order_acq_rel);
     }
 
     // Resumes the goroutine with case `index`. Called once, by the operation that claimed it.
-    void complete(int i) {
+    void complete(int i) noexcept {
       index = i;
       boost::asio::post(std::move(executor), [h = std::move(handler)]() mutable { std::move(h)(); });
     }
@@ -113,6 +113,11 @@ namespace detail {
 
   // The state that the copies of one Go channel share, as Go's hchan: a buffer and the queues of
   // blocked receivers and senders, all guarded by `mu`. The *_locked functions require `mu`.
+  //
+  // They are noexcept. Between claiming a waiter's token and completing it, a throw would leave that
+  // goroutine blocked forever and its select's channels locked. A throw there can only come from
+  // running out of memory, or from a throwing move of T, which no translated type has. Go's runtime
+  // treats running out of memory as a fatal error, and so does Eo: the throw terminates.
   template<typename T>
   class chan_state {
   public:
@@ -122,7 +127,7 @@ namespace detail {
 
     // Hands `value` to a blocked receiver, or buffers it. A queued receiver whose token another
     // operation already claimed belongs to a select that chose another case, and is skipped.
-    auto send_locked(T& value) -> send_status {
+    auto send_locked(T& value) noexcept -> send_status {
       if (closed_) {
         return send_status::closed;
       }
@@ -143,7 +148,7 @@ namespace detail {
 
     // A value and true, the zero value and false once the channel is closed and drained, or nullopt
     // when a receive would block. A value from a full buffer makes room for a blocked sender.
-    auto recv_locked() -> std::optional<std::pair<T, bool>> {
+    auto recv_locked() noexcept -> std::optional<std::pair<T, bool>> {
       if (!buffer_.empty()) {
         auto value = std::move(buffer_.front());
         buffer_.pop_front();
@@ -173,7 +178,7 @@ namespace detail {
 
     // Closes the channel and wakes every blocked receiver, which gets the zero value, and every
     // blocked sender, which panics. Returns false if the channel was already closed.
-    auto close_locked() -> bool {
+    auto close_locked() noexcept -> bool {
       if (closed_) {
         return false;
       }
@@ -194,12 +199,12 @@ namespace detail {
       return true;
     }
 
-    void enqueue_locked(recv_waiter<T>& w) {
+    void enqueue_locked(recv_waiter<T>& w) noexcept {
       w.pos = recvq_.insert(recvq_.end(), &w);
       w.queued = true;
     }
 
-    void enqueue_locked(send_waiter<T>& w) {
+    void enqueue_locked(send_waiter<T>& w) noexcept {
       w.pos = sendq_.insert(sendq_.end(), &w);
       w.queued = true;
     }
@@ -536,7 +541,7 @@ public:
     return c ? &c->mu : nullptr;
   }
 
-  auto try_locked() -> bool {
+  auto try_locked() noexcept -> bool {
     if (!c) {
       return false;
     }
@@ -553,7 +558,7 @@ public:
     return false;
   }
 
-  void enqueue_locked(detail::wait_token* token, int index) {
+  void enqueue_locked(detail::wait_token* token, int index) noexcept {
     if (c) {
       waiter = detail::send_waiter<T>{token, index, &value};
       c->enqueue_locked(waiter);
@@ -620,7 +625,7 @@ public:
     return c ? &c->mu : nullptr;
   }
 
-  auto try_locked() -> bool {
+  auto try_locked() noexcept -> bool {
     if (!c) {
       return false;
     }
@@ -631,7 +636,7 @@ public:
     return false;
   }
 
-  void enqueue_locked(detail::wait_token* token, int index) {
+  void enqueue_locked(detail::wait_token* token, int index) noexcept {
     if (c) {
       waiter = detail::recv_waiter<T>{token, index};
       c->enqueue_locked(waiter);

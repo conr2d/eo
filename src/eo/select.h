@@ -115,6 +115,9 @@ public:
 
     if constexpr ((detail::queued_case<T> && ... && detail::queued_case<Ts>)) {
       co_return co_await wait_queued();
+    } else if constexpr ((detail::queued_case<T> || ... || detail::queued_case<Ts>)) {
+      static_assert(sizeof(T) == 0, "a blocking Select cannot mix channel cases with other case types");
+      co_return -1;
     } else if constexpr (!sizeof...(Ts)) {
       co_await std::get<0>(cases).wait();
       selected_index = 0;
@@ -162,11 +165,13 @@ private:
       // and resume this coroutine on another thread. So the arm unlocks from its own copy of the
       // list, and completes the token itself only as its last action.
       auto locked = mutexes;
+      auto order = randomized_indices();
       for (auto* m : locked) {
         m->lock();
       }
+      // Nothing from here to the unlocks throws: the channel core is noexcept (see chan_state).
       auto ready = std::optional<size_t>{};
-      for (auto index : randomized_indices()) {
+      for (auto index : order) {
         if (try_locked(index)) {
           ready = index;
           break;
