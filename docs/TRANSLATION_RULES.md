@@ -2239,7 +2239,7 @@ func<> eo_init() {
 
 ### Packages
 
-A program of one file, package `main`, translates to one C++ file whose declarations are in the global namespace, as the rest of these rules show. Every other program translates each of its packages, including `main`, to a directory of C++ files in a namespace of its own. These rules apply to every package that the program imports, except the standard packages that Eo maps, such as `fmt`, `errors`, `sync`, and `maps`, whose calls follow their own sections. A test package, a `_test.go` file, and a package that uses `cgo` are not covered.
+A program whose only package is `main`, in one file, translates to one C++ file whose declarations are in the global namespace, as the rest of these rules show. Every other program translates each of its packages, including `main`, to a directory of C++ files in a namespace of its own. These rules apply to every package that the program imports, except the standard packages that Eo maps, such as `fmt`, `errors`, `sync`, and `maps`, whose calls follow their own sections. A test package, a `_test.go` file, and a package that uses `cgo` are not covered.
 
 #### Package files
 
@@ -2253,7 +2253,7 @@ A file includes a package header by its import path, as `#include "P/package.h"`
 The package header has, in order:
 
 1. `#pragma once`;
-2. the Eo and C++ standard headers that any file of the package needs, then the headers of the packages that any file imports, sorted by import path, including a blank import `_`;
+2. the Eo headers, then the C++ standard headers, that any file of the package needs, each group sorted by name, then the headers of the packages that any file imports, sorted by import path, including a blank import `_`;
 3. `using namespace eo;`;
 4. the package namespace (see [Package namespaces](#package-namespaces)), which holds the rest;
 5. the namespace aliases of [Import names](#import-names) that the header declares, sorted by the import path they alias and then by name;
@@ -2293,7 +2293,7 @@ Go code names a package by its import name, the name in the import declaration o
 
 A member hides an import name as it hides a package-level name, so inside a struct definition and the definitions of its methods, the import name of a translated package that is also the name of a member is written `_eo_package::p`, as in `_eo_package::trace::Add(...)` in a method of a struct with a field `trace`. A standard package that Eo maps and a member hides is written with `eo::` and the name of its Eo namespace, not its import name, as `eo::fmt` for `import f "fmt"` too, like any other Eo name that a member hides.
 
-A dot import `.`, and an import name that is a C++ keyword, `eo`, or an Eo name that translations use unqualified, such as `ptr` or `std`, are not covered ([#83](https://github.com/conr2d/eo/issues/83)).
+A dot import `.`, and an import name that is a C++ keyword, `eo`, `boost`, `eo_init`, `eo_main`, or an Eo name that translations use unqualified, such as `ptr` or `std`, are not covered ([#83](https://github.com/conr2d/eo/issues/83)).
 
 #### Initialization of packages
 
