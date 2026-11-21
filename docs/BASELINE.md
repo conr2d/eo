@@ -41,6 +41,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Panic and recover | [Panic and recover](./TRANSLATION_RULES.md#panic-and-recover) | `panic_runs_defers`, `recover_values`, `recover_named_result`, `recover_runtime_error`, `repanic_in_defer` |
 | `sync.WaitGroup`, `sync.Mutex`, `sync.RWMutex` | [Blocking operations](./TRANSLATION_RULES.md#blocking-operations) | `waitgroup_results`, `mutex_counter`, `rwmutex_readers` |
 | Package-level variables and `init` | [Package-level variables](./TRANSLATION_RULES.md#package-level-variables) | `package_vars`, `init_panic` |
+| Packages of several files, and programs of several packages | [Packages](./TRANSLATION_RULES.md#packages) | `package_files`, `package_imports` |
 | Program termination | [Program termination](./TRANSLATION_RULES.md#program-termination) | `main_returns_early`, `exit_from_goroutine`, `goroutine_panic` |
 
 The runtime guarantees behind these rules are covered by the unit tests in [`tests`](../tests), including the ones that need concurrency to observe:
@@ -75,7 +76,7 @@ A translation that needs one of these forms writes it as an explicit, local adap
 
 The known gaps that are tracked as issues, grouped by the kind of work they need:
 
-- **Program structure.** Packages with several files and programs with several packages ([#123](https://github.com/conr2d/eo/issues/123)). A real port needs this before anything else, because a Go package is almost never one file.
+- **Program structure.** Packages with several files and programs with several packages ([#123](https://github.com/conr2d/eo/issues/123)). A real port needs this before anything else, because a Go package is almost never one file. [Packages](./TRANSLATION_RULES.md#packages) covers it since.
 - **Translation forms.** Assignments and declarations of several values that are not one call, such as `a, b = b, a` ([#111](https://github.com/conr2d/eo/issues/111)), range over functions ([#98](https://github.com/conr2d/eo/issues/98)), variadic calls in `go` and `defer` ([#95](https://github.com/conr2d/eo/issues/95)), arrays and keyed literal elements ([#93](https://github.com/conr2d/eo/issues/93)), Eo names that collide with Go identifiers ([#83](https://github.com/conr2d/eo/issues/83)), and the remaining `go` and `defer` launch forms ([#67](https://github.com/conr2d/eo/issues/67)).
 - **Interfaces.** Methods translated as coroutines ([#108](https://github.com/conr2d/eo/issues/108)), and Go `int` and `int64` sharing a dynamic type ([#107](https://github.com/conr2d/eo/issues/107)).
 - **Libraries.** The `slices` package ([#94](https://github.com/conr2d/eo/issues/94)), and `sync.Once` and `sync.Cond` ([#76](https://github.com/conr2d/eo/issues/76)).

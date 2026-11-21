@@ -15,8 +15,15 @@ endif()
 
 if(DEFINED GO)
   set(ENV{GOTOOLCHAIN} local)
+  # A case of several files builds as a package. A case of one file builds
+  # main.go alone, because go build rejects the main.cpp beside it.
+  if(IS_DIRECTORY "${PARITY_DIR}/${CASE_NAME}/cpp")
+    set(go_target "./${CASE_NAME}")
+  else()
+    set(go_target "./${CASE_NAME}/main.go")
+  endif()
   execute_process(
-    COMMAND "${GO}" build -o "${PROGRAM}" "./${CASE_NAME}/main.go"
+    COMMAND "${GO}" build -o "${PROGRAM}" "${go_target}"
     WORKING_DIRECTORY "${PARITY_DIR}"
     RESULT_VARIABLE build_result
     ERROR_VARIABLE build_error

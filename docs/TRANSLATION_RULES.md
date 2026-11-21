@@ -93,7 +93,7 @@ A renamed variable is boxed by the same rules as any other, as in `auto _eo_shad
 
 ### Package-level names hidden by members
 
-Inside a struct definition, and inside the out-of-class definitions of its methods, C++ looks up a name among the struct's members before the package. Go does not: a method sees fields and other methods only through its receiver. C++ also makes a struct definition ill-formed when a name used in it means something else after a member of that name is declared, as in `struct Node { Config Config{}; };`, which GCC rejects. So inside a struct definition and the definitions of its methods, a package-level type, function, variable, or constant whose name is also the name of a member of that struct (a field, an embedded field, or a method) is written with the global qualifier, as `::Config`. This includes the struct's own name when a field has it: `type T struct { T int }` declares `auto operator==(const ::T&) const -> bool = default;`. Names that no member shares stay unqualified:
+Inside a struct definition, and inside the out-of-class definitions of its methods, C++ looks up a name among the struct's members before the package. Go does not: a method sees fields and other methods only through its receiver. C++ also makes a struct definition ill-formed when a name used in it means something else after a member of that name is declared, as in `struct Node { Config Config{}; };`, which GCC rejects. So inside a struct definition and the definitions of its methods, a package-level type, function, variable, or constant whose name is also the name of a member of that struct (a field, an embedded field, or a method) is written with the global qualifier, as `::Config`, or with `_eo_package::`, as `_eo_package::Config`, in a package namespace (see [Package namespaces](#package-namespaces)). An import name that a member hides is qualified in the same way (see [Import names](#import-names)). This includes the struct's own name when a field has it: `type T struct { T int }` declares `auto operator==(const ::T&) const -> bool = default;`. Names that no member shares stay unqualified:
 
 ```go
 type Node struct {
@@ -136,7 +136,7 @@ A member can also hide an Eo name that `using namespace eo;` makes visible, such
 
 `::` reaches only package-level names. A struct type declared inside a function is not one, so a local struct type that a member or a local variable hides where the translation spells it has no translation yet: a field or embedded field named after another local type or after its own struct, and a boxed variable named after its local type.
 
-`::` names the global namespace, where a translated package's declarations are until packages have a mapping of their own.
+`::` names the global namespace, which holds the declarations of a program of one file. A program of several files puts each package in a namespace of its own, which `_eo_package::` names (see [Packages](#packages)).
 
 ### Types named like one of their methods
 
@@ -694,7 +694,7 @@ show(_eo_call_2, Point{.X = _eo_call_4, .Y = _eo_call_3});
 
 #### Declaration order
 
-Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated file therefore has, after its package-level constants (see [Constant declarations](#constant-declarations)):
+Go resolves the package-level types of a file in any order, but C++ needs a struct to be complete before another struct holds it by value. A translated program of one file therefore has, after its package-level constants (see [Constant declarations](#constant-declarations)):
 
 1. a forward declaration `struct T;` of every struct, interface, and [defined type](#defined-types) the file declares, in source order;
 2. the struct, interface, and defined type definitions, in source order, except that a type that a struct holds by value, as a field or an embedded field, is defined first. Apply this recursively: before defining a struct, define each struct, interface, or defined type it holds by value that is not defined yet, in the order of its fields. A pointer or slice field needs only the forward declaration, and so does a type in an interface's method signatures. A defined type holds what a field of its underlying type would hold;
@@ -704,6 +704,8 @@ Go resolves the package-level types of a file in any order, but C++ needs a stru
 6. the package-level variables, in source order (see [Declaring package-level variables](#declaring-package-level-variables));
 7. the remaining declarations in source order, including the out-of-class definitions of methods where Go declares the methods, and the `init` functions;
 8. `eo_init`, if the file defines it (see [Package initialization](#package-initialization)).
+
+A package of a program of several files puts these declarations in its package header and its files, as [Package files](#package-files) says.
 
 A comment on a type declaration moves with its definition. A struct type declared inside a function is a local struct at the place of its declaration. Go allows no methods on it, so its definition holds only the fields and `operator==`.
 
@@ -2181,7 +2183,7 @@ A comment on a variable declaration moves with its declaration.
 
 #### Package initialization
 
-`func<> eo_init()` is defined after every other declaration of the file. Its body has, in order:
+In a program of one file, `func<> eo_init()` is defined after every other declaration of the file. A program of several files gives each package its own `eo_init` with the same body (see [Initialization of packages](#initialization-of-packages)). Its body has, in order:
 
 1. one statement for each entry of `go/types` `Info.InitOrder` whose initializer is a dynamic initializer, in that order. A constant and an empty struct literal `T{}` get no statement. The entry `x = e` is the translation of the assignment `x = e` in a function body, which follows [Evaluation order](#evaluation-order), `co_await`s a coroutine call (see [Blocking operations](#blocking-operations)), and writes a function literal as a lambda. An entry with several variables, as in `var q, r = divmod(17, 5)`, is the assignment `q, r = divmod(17, 5)`, which takes the first form of [Declaring and assigning several results](#declaring-and-assigning-several-results) that applies to an assignment: `std::tie(q, r) = divmod(17, 5);`, and `var _, w = f()` is `w = std::get<1>(f());`. A declaration with one initializer per variable, as in `var u, v = trace("u", 4), trace("v", u+1)`, has one entry for each variable, so it is `u = trace("u"s, 4);` and then `v = trace("v"s, u + 1);`, each at its own place in `Info.InitOrder`. Unlike the assignment `u, v = ...` in a function body, the second initializer sees the first variable's new value, as in Go;
 2. a call of each `init` function, in source order: `_eo_init_0();`, or `co_await _eo_init_0();` for a coroutine;
@@ -2191,7 +2193,7 @@ A comment on a variable declaration moves with its declaration.
 
 A blank variable's dynamic initializer is still evaluated, at its place in `Info.InitOrder`. Where the declaration names a type `T`, the statement is `static_cast<void>(T(e));`, so `var _ fmt.Stringer = (*Box)(nil)`, Go's compile-time check that `*Box` implements `fmt.Stringer`, is `static_cast<void>(fmt::Stringer(ptr<Box>{}));`, which C++ checks too. Otherwise the statement is the expression statement that the initializer is in a function body: a call is the call statement, as `var _ = f()` is `f();`, or `co_await f();` when `f` is a coroutine, and a receive `var _ = <-ch` is `co_await *ch;`. Any other initializer is `static_cast<void>(e);`. In every form, `e` is the translated initializer, so a coroutine call inside it is `co_await`ed, as in `static_cast<void>(int64_t(co_await f()));`. The comment on a blank variable's declaration moves with its statement.
 
-Each `func init()` is a function named `_eo_init_<n>`, where `n` is its position among the file's `init` functions, from 0. It is defined where Go declares it, as `void _eo_init_0()`, or as `func<> _eo_init_0()` when it is a coroutine, by the same rule as any other function. Go code cannot call or refer to an `init` function, so nothing else names it. A Go package-level name `eo_init` or `eo_main` collides with these functions and is not covered yet ([#83](https://github.com/conr2d/eo/issues/83)).
+Each `func init()` is a function named `_eo_init_<n>`, where `n` is its position among the file's `init` functions, from 0, or among the package's in a package of several files. It is defined where Go declares it, as `void _eo_init_0()`, or as `func<> _eo_init_0()` when it is a coroutine, by the same rule as any other function. Go code cannot call or refer to an `init` function, so nothing else names it. A Go package-level name `eo_init` or `eo_main` collides with these functions and is not covered yet ([#83](https://github.com/conr2d/eo/issues/83)).
 
 A file with no `init` function and no dynamic initializer defines no `eo_init`. `eo::main` provides an empty one, as a weak definition, in its place.
 
@@ -2233,9 +2235,96 @@ func<> eo_init() {
 
 #### Package-level variables not covered yet
 
-- a package with several files, and a program with several packages, whose initialization order spans files and packages ([#123](https://github.com/conr2d/eo/issues/123));
 - a dynamic initializer of a struct type that holds a `sync.Mutex`, `sync.RWMutex`, or `sync.WaitGroup`, as in `var c = Cache{items: make(map[string]int)}`. C++ cannot assign such a struct, and a lock as a struct field is not frozen (see [Mutex](#mutex));
 - an initializer or `init` function that blocks forever: Go reports a deadlock and exits with status 2, and Eo hangs, as it does when every goroutine blocks during `main`.
+
+### Packages
+
+A program of one file, package `main`, translates to one C++ file whose declarations are in the global namespace, as the rest of these rules show. Every other program translates each of its packages, including `main`, to a package of C++ files in a namespace of its own. These rules apply to every package that the program imports, except the standard packages that Eo maps, such as `fmt`, `errors`, `sync`, and `maps`, whose calls follow their own sections. A test package, a `_test.go` file, and a package that uses `cgo` are not covered.
+
+#### Package files
+
+A package with the import path `P` translates to a directory with:
+
+- `package.h`, the package header, which declares everything that the package declares at package level;
+- one C++ file `F.cpp` for each Go file `F.go` that the go command builds for the package, which `go list` reports as `GoFiles`. It holds the definitions of the functions and methods that `F.go` declares.
+
+A file includes a package header by its import path, as `#include "P/package.h"`, so the build maps each import path to its directory. The parity harness maps the import path of a case to its `cpp` directory (see [tests/parity](../tests/parity/README.md#several-files)). Go presents the files of a package to the compiler sorted by name, and *file order* below means that order.
+
+The package header has, in order:
+
+1. `#pragma once`;
+2. the Eo and standard headers that any file of the package needs, then the headers of the packages that any file imports, sorted by import path, including a blank import `_`;
+3. `using namespace eo;`;
+4. the package namespace (see [Package namespaces](#package-namespaces)), which holds the rest;
+5. the namespace aliases of [Import names](#import-names) that the header declares;
+6. the declarations of [Declaration order](#declaration-order) steps 1 to 3 and the package-level constants before them, for the declarations of all the package's files, taken in file order and then in source order, so a struct that holds a type of another file by value is defined after that type;
+7. a prototype of every function the package declares, including `init` functions and `eo_main`, in file order and then in source order;
+8. the package-level variables, in file order and then in source order;
+9. the package's `eo_init` (see [Initialization of packages](#initialization-of-packages)).
+
+A namespace-scope variable or constant in a package header is `inline`, so every file shares one object: `var count int` is `inline int64_t count{};`, `var name = "eo"` is `inline auto name = "eo"s;`, and `const KB = 1024` is `inline constexpr int64_t KB = 1024;`. A function, method, and type keeps the form that its section gives. A comment on a declaration moves with the declaration into the header.
+
+A file `F.cpp` has, in order:
+
+1. `#include "P/package.h"`, its only include, because the header includes what every file needs;
+2. the package namespace, which holds the rest;
+3. the namespace aliases of [Import names](#import-names) that this file declares;
+4. the definitions of [Declaration order](#declaration-order) step 4 for the types that `F.go` declares;
+5. the definitions of the functions and methods that `F.go` declares, in source order. A method is defined in the file that declares it, which can differ from the file that declares its type.
+
+A comment before the `package` clause, such as a package comment, comes first in `F.cpp`.
+
+#### Package namespaces
+
+The namespace of a package is its import path with every character that is not an ASCII letter or digit written `_`: the package `github.com/ethereum-optimism/optimism/op-node/rollup/derive` is in `namespace github_com_ethereum_optimism_optimism_op_node_rollup_derive`. The namespace is one identifier and not nested namespaces such as `github_com::ethereum_optimism::...::derive`. C++ looks up an unqualified name in the enclosing namespaces too, so in a nested `...::rollup::derive`, the name `sync` in `sync::Mutex` would find the sibling package `...::rollup::sync` before Eo's `sync`. A flat namespace has only the global namespace around it, which holds the other packages' namespaces and the program's `eo_init` and `eo_main`. Two import paths that give the same identifier, and an import path that gives an identifier that starts with `_` or a digit or holds `__`, are not covered.
+
+Each package namespace starts with `namespace _eo_package = ::N;`, where `N` is its own namespace. A package-level name that a member hides is written `_eo_package::Name` in a package namespace, where a program of one file writes `::Name` (see [Package-level names hidden by members](#package-level-names-hidden-by-members)), so `A` embedded in a struct is `_eo_package::A A{};`.
+
+A type's `_eo_name` keeps Go's name, the package name and the type name, and not the import path: `a.Point`, `util.Box`, and `main.Holder`. Two types of one name in two packages still differ in C++, so an interface tells them apart, although `%T` prints both alike, as Go does.
+
+#### Import names
+
+Go code names a package by its import name, the name in the import declaration or else the package name, in the scope of one file. A qualified identifier `p.Name` is `p::Name`, and `p` is a namespace alias, `namespace p = ::N;`, of the package's namespace `N`:
+
+- When an import name names the same package in every file of the package that imports it, the package header declares its alias. Go forbids a package-level name that is also an import name of any file, so the alias never collides with a name of the package.
+- Otherwise each file declares the alias for its own import, and the package header writes that package's names with its namespace, as `::N::Box`. A definition in `F.cpp` writes them with the file's alias, as `util::Box`.
+- A standard package that Eo maps needs no alias, because `using namespace eo;` makes its namespace visible. An alias of a translated package in the package namespace hides an Eo namespace of the same name, as a package `sync` of the program does.
+- A blank import `_` declares no alias. Its header is still included, and its `eo_init` still runs.
+
+A member hides an import name as it hides a package-level name, so inside a struct definition and the definitions of its methods, an import name that is also the name of a member is written `_eo_package::p`, as in `_eo_package::trace::Add(...)` in a method of a struct with a field `trace`, and `::p` in the package `main` of a program of one file.
+
+A dot import `.`, and an import name that is a C++ keyword or an Eo name that translations use unqualified, such as `ptr` or `std`, are not covered ([#83](https://github.com/conr2d/eo/issues/83)).
+
+#### Initialization of packages
+
+Each package header defines the package's `inline func<> eo_init()`, even when it only `co_return`s. Its body is the body that [Package initialization](#package-initialization) gives, over the whole package: the entries of `go/types` `Info.InitOrder`, which covers every file of the package, then the calls of the `init` functions in file order and then in source order. The `n` of `_eo_init_<n>` counts the `init` functions of the package from 0 in that order.
+
+The program's initialization and its `main` are the global functions `eo_init` and `eo_main`, which `eo::main` runs. They are defined at the end of the file that declares `func main()`, after its package namespace. The global `eo_init` `co_await`s the `eo_init` of every translated package, in Go's order, and the global `eo_main` `co_await`s the `eo_main` of package `main`:
+
+```cpp
+func<> eo_init() {
+  co_await github_com_example_app_trace::eo_init();
+  co_await github_com_example_app_m::eo_init();
+  co_await github_com_example_app_z::eo_init();
+  co_await github_com_example_app_a::eo_init();
+  co_await github_com_example_app::eo_init();
+}
+
+func<> eo_main() {
+  co_await github_com_example_app::eo_main();
+}
+```
+
+Go's order is the one the Go specification gives since Go 1.21. Take the list of every package of the program, the standard packages included, sorted by import path. Repeatedly initialize the first package in the list that is not initialized and whose imports are all initialized. Package `main` imports, directly or not, every other package, so it comes last. The standard packages take part in the order, because they can delay a translated package that sorts before them, but they get no call: Eo initializes its own packages. This is not the order of a depth-first walk of the imports: a `main` that imports `a` and `m`, where `a` imports `z` and both `m` and `z` import `trace`, initializes `trace`, `m`, `z`, and `a`, in this order.
+
+A package's `eo_init` does not call the `eo_init` of its imports, so each package is initialized once, however many packages import it.
+
+#### Packages not covered yet
+
+- the forms named in the sections above: test packages, `cgo`, dot imports, the import paths that give no valid namespace, and the import names of [#83](https://github.com/conr2d/eo/issues/83);
+- the unexported methods of an interface that a type of another package implements: Go tells apart unexported method names of different packages, and `eo::method` names a method by its name alone;
+- a package whose files depend on build constraints for platforms other than the one the translation targets.
 
 ### Program termination
 
@@ -2271,7 +2360,7 @@ Examples currently requiring additional canonical rules include:
 - `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
-- packages with several files, and programs with several packages (see [Package-level variables not covered yet](#package-level-variables-not-covered-yet));
+- the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over arrays and functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
 - zero-value construction for translated types other than basic types, strings, slices, maps, pointers, structs, interfaces, function types, and defined types;
