@@ -61,7 +61,7 @@ These follow from executing translated code as ordinary C++, and are not expecte
 
 - **Data races.** A C++ data race is undefined behavior, so Eo makes no promise for a source program that relies on one (see [Hard compatibility boundaries](./SELECT.md#hard-compatibility-boundaries)).
 - **Runtime implementation details.** Eo matches what the Go specification and memory model guarantee, not exact scheduling, pseudo-random choices, timing, stack growth, or map iteration order.
-- **Garbage collection.** A pointer is reference-counted, so a reference cycle is never freed (see [Pointers](./TRANSLATION_RULES.md#pointers-and-escaping-variables)). How often a real port creates cycles is measured in [#80](https://github.com/conr2d/eo/issues/80).
+- **Garbage collection.** A pointer is reference-counted, so a reference cycle is never freed (see [Pointers](./TRANSLATION_RULES.md#pointers-and-escaping-variables)). How often a real port creates cycles is tracked in [#80](https://github.com/conr2d/eo/issues/80).
 - **Panic output.** A panic that ends the program exits with Go's status, but its message on stderr is not formatted as Go formats it.
 - **Platform.** Eo targets 64-bit platforms with IEEE 754 `float` and `double` (see [Basic types](./TRANSLATION_RULES.md#basic-types)).
 
