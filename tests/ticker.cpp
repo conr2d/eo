@@ -18,7 +18,7 @@ void check(bool condition, const char* message) {
 }
 
 void drain(const std::shared_ptr<eo::time::Ticker>& ticker) {
-  while (ticker->C.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {})) {
+  while (ticker->C.try_receive().has_value()) {
   }
 }
 
@@ -32,8 +32,7 @@ void test_stop_prevents_future_ticks() {
   drain(ticker);
   std::this_thread::sleep_for(5ms);
 
-  check(!ticker->C.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {}),
-    "ticker produced a tick after stop");
+  check(!ticker->C.try_receive().has_value(), "ticker produced a tick after stop");
 
   pool.stop();
   pool.join();
@@ -48,8 +47,7 @@ void test_reset_restarts_stopped_ticker() {
   ticker->Reset(1ms);
   std::this_thread::sleep_for(5ms);
 
-  check(ticker->C.raw().try_receive([](boost::system::error_code, eo::time::Ticker::time_point) {}),
-    "reset did not restart a stopped ticker");
+  check(ticker->C.try_receive().has_value(), "reset did not restart a stopped ticker");
 
   ticker->Stop();
   pool.stop();

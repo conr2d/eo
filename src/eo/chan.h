@@ -4,14 +4,20 @@
 #pragma once
 #include <eo/go.h>
 #include <eo/panic.h>
-#include <boost/asio/experimental/concurrent_channel.hpp>
+#include <boost/asio/any_completion_handler.hpp>
+#include <boost/asio/any_io_executor.hpp>
+#include <boost/asio/async_result.hpp>
+#include <boost/asio/post.hpp>
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/this_coro.hpp>
 
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
+#include <list>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <type_traits>
 #include <utility>
@@ -42,60 +48,231 @@ namespace detail {
     co_await timer.async_wait(use_awaitable);
   }
 
-  // Whether close has been called. close sets the flag before it cancels the blocked senders, so a
-  // sender that wakes up from the cancellation always sees it, while asio's own is_open() can still
-  // be true until close returns.
-  using closed_flag = std::shared_ptr<std::atomic_bool>;
+  // The resumption of one blocked goroutine: a select, or a single send or receive. Every
+  // operation that the goroutine waits on refers to the same token, and an operation completes only
+  // after it claims the token. So exactly one of a select's cases completes, as with Go's
+  // selectDone, and the others stay in their queues until the select removes them.
+  struct wait_token {
+    std::atomic<bool> done{false};
+    int index = -1;
+    boost::asio::any_io_executor executor;
+    boost::asio::any_completion_handler<void()> handler;
 
-  inline auto is_closed(const closed_flag& closed) -> bool {
-    return closed != nullptr && closed->load();
-  }
+    auto claim() -> bool {
+      auto expected = false;
+      return done.compare_exchange_strong(expected, true, std::memory_order_acq_rel);
+    }
 
-  // Whether the running coroutine was cancelled, as the awaitable || of a select cancels the waits of
-  // the cases it did not choose. A close cancels channel operations with the same error code, so the
-  // error alone cannot tell the two apart.
-  inline auto cancelled_by_select() -> boost::asio::awaitable<bool> {
-    auto state = co_await boost::asio::this_coro::cancellation_state;
-    co_return state.cancelled() != boost::asio::cancellation_type::none;
-  }
-
-  // The result of one receive: the value, nullopt once the channel is closed and drained, or
-  // `cancelled` when a select that chose another case cancelled it.
-  template<typename T>
-  struct receive_result {
-    std::optional<T> value;
-    bool cancelled = false;
+    // Resumes the goroutine with case `index`. Called once, by the operation that claimed it.
+    void complete(int i) {
+      index = i;
+      boost::asio::post(std::move(executor), [h = std::move(handler)]() mutable { std::move(h)(); });
+    }
   };
 
-  // Receives one value. Senders treat Eo's closed flag as the close, but a send that completed
-  // before close may still be buffered, which a receiver must deliver, as Go does. So a receiver
-  // trusts only asio's own close, after which no send can land: when close() has cancelled the
-  // receive but not yet closed the asio channel, it receives again, which close completes.
-  template<typename T, typename Channel>
-  auto receive_from(std::shared_ptr<Channel> c, closed_flag closed) -> boost::asio::awaitable<receive_result<T>> {
-    for (;;) {
-      auto [ec, value] = co_await c->async_receive(eoroutine);
-      if (!ec) {
-        co_return receive_result<T>{std::move(value)};
+  // Suspends the running coroutine on `token`. `arm` runs once the handler is stored: it checks the
+  // operations again under their locks and either completes the token or queues the waiters.
+  template<typename Arm>
+  auto suspend(wait_token& token, Arm arm) -> boost::asio::awaitable<void> {
+    token.executor = co_await boost::asio::this_coro::executor;
+    co_await boost::asio::async_initiate<const boost::asio::use_awaitable_t<>&, void()>(
+      [&token, &arm](auto handler) {
+        token.handler = std::move(handler);
+        arm();
+      },
+      boost::asio::use_awaitable);
+  }
+
+  // A blocked receive. A sender or close fills it after claiming its token.
+  template<typename T>
+  struct recv_waiter {
+    wait_token* token = nullptr;
+    int index = 0;
+    std::optional<T> value;
+    bool queued = false;
+    typename std::list<recv_waiter*>::iterator pos;
+  };
+
+  // A blocked send of `*value`. A receiver takes the value, or close sets `closed`, after claiming
+  // its token.
+  template<typename T>
+  struct send_waiter {
+    wait_token* token = nullptr;
+    int index = 0;
+    T* value = nullptr;
+    bool closed = false;
+    bool queued = false;
+    typename std::list<send_waiter*>::iterator pos;
+  };
+
+  enum class send_status {
+    done,
+    closed,
+    blocked
+  };
+
+  // The state that the copies of one Go channel share, as Go's hchan: a buffer and the queues of
+  // blocked receivers and senders, all guarded by `mu`. The *_locked functions require `mu`.
+  template<typename T>
+  class chan_state {
+  public:
+    explicit chan_state(std::size_t capacity): capacity_(capacity) {}
+
+    std::mutex mu;
+
+    // Hands `value` to a blocked receiver, or buffers it. A queued receiver whose token another
+    // operation already claimed belongs to a select that chose another case, and is skipped.
+    auto send_locked(T& value) -> send_status {
+      if (closed_) {
+        return send_status::closed;
       }
-      // A case that the select did not choose must not consume a value.
-      if (co_await cancelled_by_select()) {
-        co_return receive_result<T>{std::nullopt, true};
+      while (!recvq_.empty()) {
+        auto* w = pop(recvq_);
+        if (w->token->claim()) {
+          w->value.emplace(std::move(value));
+          w->token->complete(w->index);
+          return send_status::done;
+        }
       }
-      if (!c->is_open()) {
-        // asio keeps buffered values after close, so take one that a send left before it.
-        auto out = std::optional<T>{};
-        c->try_receive([&](boost::system::error_code e, T v) {
-          if (!e) {
-            out.emplace(std::move(v));
+      if (buffer_.size() < capacity_) {
+        buffer_.push_back(std::move(value));
+        return send_status::done;
+      }
+      return send_status::blocked;
+    }
+
+    // A value and true, the zero value and false once the channel is closed and drained, or nullopt
+    // when a receive would block. A value from a full buffer makes room for a blocked sender.
+    auto recv_locked() -> std::optional<std::pair<T, bool>> {
+      if (!buffer_.empty()) {
+        auto value = std::move(buffer_.front());
+        buffer_.pop_front();
+        while (!sendq_.empty()) {
+          auto* w = pop(sendq_);
+          if (w->token->claim()) {
+            buffer_.push_back(std::move(*w->value));
+            w->token->complete(w->index);
+            break;
           }
-        });
-        co_return receive_result<T>{std::move(out)};
+        }
+        return std::pair<T, bool>{std::move(value), true};
       }
-      if (!is_closed(closed)) {
-        co_return receive_result<T>{std::nullopt, true};
+      while (!sendq_.empty()) {
+        auto* w = pop(sendq_);
+        if (w->token->claim()) {
+          auto value = std::move(*w->value);
+          w->token->complete(w->index);
+          return std::pair<T, bool>{std::move(value), true};
+        }
+      }
+      if (closed_) {
+        return std::pair<T, bool>{T{}, false};
+      }
+      return std::nullopt;
+    }
+
+    // Closes the channel and wakes every blocked receiver, which gets the zero value, and every
+    // blocked sender, which panics. Returns false if the channel was already closed.
+    auto close_locked() -> bool {
+      if (closed_) {
+        return false;
+      }
+      closed_ = true;
+      while (!recvq_.empty()) {
+        auto* w = pop(recvq_);
+        if (w->token->claim()) {
+          w->token->complete(w->index);
+        }
+      }
+      while (!sendq_.empty()) {
+        auto* w = pop(sendq_);
+        if (w->token->claim()) {
+          w->closed = true;
+          w->token->complete(w->index);
+        }
+      }
+      return true;
+    }
+
+    void enqueue_locked(recv_waiter<T>& w) {
+      w.pos = recvq_.insert(recvq_.end(), &w);
+      w.queued = true;
+    }
+
+    void enqueue_locked(send_waiter<T>& w) {
+      w.pos = sendq_.insert(sendq_.end(), &w);
+      w.queued = true;
+    }
+
+    // Removes a waiter that is still queued, as a select does for the cases it did not choose.
+    template<typename W>
+    void dequeue(W& w) {
+      std::lock_guard lock(mu);
+      if (w.queued) {
+        if constexpr (std::is_same_v<W, recv_waiter<T>>) {
+          recvq_.erase(w.pos);
+        } else {
+          sendq_.erase(w.pos);
+        }
+        w.queued = false;
       }
     }
+
+    auto closed_locked() const -> bool {
+      return closed_;
+    }
+
+    auto buffered_locked() const -> std::size_t {
+      return buffer_.size();
+    }
+
+  private:
+    template<typename W>
+    static auto pop(std::list<W*>& queue) -> W* {
+      auto* w = queue.front();
+      queue.pop_front();
+      w->queued = false;
+      return w;
+    }
+
+    std::size_t capacity_;
+    bool closed_ = false;
+    std::deque<T> buffer_;
+    std::list<recv_waiter<T>*> recvq_;
+    std::list<send_waiter<T>*> sendq_;
+  };
+
+  // v, ok := <-c on a channel that is not nil.
+  template<typename T>
+  auto receive_from(std::shared_ptr<chan_state<T>> c) -> boost::asio::awaitable<std::pair<T, bool>> {
+    {
+      std::unique_lock lock(c->mu);
+      if (auto result = c->recv_locked()) {
+        lock.unlock();
+        co_return std::move(*result);
+      }
+    }
+    auto token = wait_token{};
+    auto waiter = recv_waiter<T>{&token, 0};
+    co_await suspend(token, [&] {
+      // The token is completed only after the lock is released: the coroutine can then resume at
+      // once on another thread and end the channel's lifetime.
+      std::unique_lock lock(c->mu);
+      if (auto result = c->recv_locked()) {
+        if (result->second) {
+          waiter.value.emplace(std::move(result->first));
+        }
+        lock.unlock();
+        token.claim();
+        token.complete(0);
+      } else {
+        c->enqueue_locked(waiter);
+      }
+    });
+    if (waiter.value) {
+      co_return std::pair<T, bool>{std::move(*waiter.value), true};
+    }
+    co_return std::pair<T, bool>{T{}, false};
   }
 
 } // namespace detail
@@ -109,19 +286,19 @@ struct recv_t;
 template<typename T = std::monostate>
 class chan {
 public:
-  using channel_type = boost::asio::experimental::concurrent_channel<void(boost::system::error_code, T)>;
+  using state_type = detail::chan_state<T>;
 
   // chan<T>{} and nullptr are the nil channel.
   chan() = default;
   chan(std::nullptr_t) noexcept {}
 
+  // A channel with `capacity` buffered values. The executor is not needed by the channel, whose
+  // blocked goroutines resume on their own executors; it is kept for the callers that pass one.
   template<typename Executor>
     requires(!std::is_same_v<std::remove_cvref_t<Executor>, chan> &&
               !std::is_same_v<std::remove_cvref_t<Executor>, std::nullptr_t>)
-  chan(Executor&& ex, size_t capacity = 0)
-    : impl(new channel_type(ex, capacity)),
-      closed(std::make_shared<std::atomic_bool>(false)),
-      capacity_(static_cast<int64_t>(capacity)) {}
+  chan(Executor&&, size_t capacity = 0)
+    : impl(std::make_shared<state_type>(capacity)), capacity_(static_cast<int64_t>(capacity)) {}
 
   chan(const chan&) = default;
   chan(chan&&) = default;
@@ -134,9 +311,8 @@ public:
   auto operator<<(U&& message) const -> send_t<T> {
     send_t<T> op{};
     op.c = impl;
-    op.closed = closed;
     op.value = T{std::forward<U>(message)};
-    op = send_t<T>::send(impl, closed, op.value);
+    op = send_t<T>::send(impl, op.value);
     return op;
   }
 
@@ -144,8 +320,7 @@ public:
   auto operator*() const -> recv_t<T> {
     recv_t<T> op{};
     op.c = impl;
-    op.closed = closed;
-    op = recv_t<T>::receive(impl, closed);
+    op = recv_t<T>::receive(impl);
     return op;
   }
 
@@ -158,25 +333,60 @@ public:
     if (!impl) {
       detail::panic_close_of_nil_channel();
     }
-    bool expected = false;
-    if (!closed->compare_exchange_strong(expected, true)) {
+    auto closed = false;
+    {
+      std::lock_guard lock(impl->mu);
+      closed = impl->close_locked();
+    }
+    if (!closed) {
       detail::panic_close_of_closed_channel();
     }
-    impl->cancel();
-    impl->close();
   }
 
-  auto& raw() {
-    return *impl;
+  // These members are not translation forms: they serve Eo's timers and tests.
+
+  // Sends v if that does not block: to a waiting receiver, or into the buffer. False on a nil or
+  // closed channel.
+  auto try_send(T v) const -> bool {
+    if (!impl) {
+      return false;
+    }
+    std::lock_guard lock(impl->mu);
+    return impl->send_locked(v) == detail::send_status::done;
   }
 
-  // The shared state, for the receive functions below. Not translation forms.
-  auto shared_impl() const noexcept -> const std::shared_ptr<channel_type>& {
+  // Receives a value if that does not block. nullopt on a nil channel, or a closed and drained one.
+  auto try_receive() const -> std::optional<T> {
+    if (!impl) {
+      return std::nullopt;
+    }
+    std::lock_guard lock(impl->mu);
+    if (auto result = impl->recv_locked(); result && result->second) {
+      return std::move(result->first);
+    }
+    return std::nullopt;
+  }
+
+  // Whether close has not been called.
+  auto is_open() const -> bool {
+    if (!impl) {
+      return true;
+    }
+    std::lock_guard lock(impl->mu);
+    return !impl->closed_locked();
+  }
+
+  // The number of buffered values.
+  auto buffered() const -> int64_t {
+    if (!impl) {
+      return 0;
+    }
+    std::lock_guard lock(impl->mu);
+    return static_cast<int64_t>(impl->buffered_locked());
+  }
+
+  auto shared_impl() const noexcept -> const std::shared_ptr<state_type>& {
     return impl;
-  }
-
-  auto closed_state() const noexcept -> const detail::closed_flag& {
-    return closed;
   }
 
   friend auto operator==(const chan<T>& lhs, const chan<T>& rhs) {
@@ -189,8 +399,7 @@ public:
   }
 
 private:
-  std::shared_ptr<channel_type> impl;
-  detail::closed_flag closed;
+  std::shared_ptr<state_type> impl;
   int64_t capacity_ = 0;
 };
 
@@ -219,11 +428,7 @@ namespace detail {
       co_await wait_forever();
       co_return std::pair<T, bool>{T{}, false};
     }
-    auto result = co_await receive_from<T>(ch.shared_impl(), ch.closed_state());
-    if (result.value) {
-      co_return std::pair<T, bool>{std::move(*result.value), true};
-    }
-    co_return std::pair<T, bool>{T{}, false};
+    co_return co_await receive_from<T>(ch.shared_impl());
   }
 
   struct recv_ok_fn {
@@ -231,6 +436,17 @@ namespace detail {
     auto operator()(const chan<T>& ch) const -> boost::asio::awaitable<std::pair<T, bool>> {
       return receive_ok(ch);
     }
+  };
+
+  // A case of a select whose operation can wait in a channel's queue under a shared token: a send
+  // or a receive. The select locks the channels of all its cases, in a fixed order, while it checks
+  // them and queues them, as Go's selectgo does.
+  template<typename C>
+  concept queued_case = requires(C& c, wait_token* token, int index) {
+    c.state_mutex();
+    { c.try_locked() } -> std::same_as<bool>;
+    c.enqueue_locked(token, index);
+    c.dequeue();
   };
 
 } // namespace detail
@@ -245,14 +461,6 @@ struct send_t : public boost::asio::awaitable<bool> {
 private:
   using super = boost::asio::awaitable<bool>;
 
-  static auto wait_nil() -> boost::asio::awaitable<void> {
-    return detail::wait_forever();
-  }
-
-  auto closed_now() const -> bool {
-    return detail::is_closed(closed);
-  }
-
 public:
   using super::super;
 
@@ -261,68 +469,110 @@ public:
     return *this;
   }
 
-  std::shared_ptr<typename chan<T>::channel_type> c;
-  detail::closed_flag closed;
+  std::shared_ptr<detail::chan_state<T>> c;
   T value;
-  bool sent{false}; // TODO: need atomic?
+  // The send completed, or found the channel closed, which commit() reports as a panic.
+  bool sent = false;
+  bool closed = false;
+  detail::send_waiter<T> waiter;
 
   // The awaitable of a send statement: it owns copies of the channel and the value.
-  static auto send(std::shared_ptr<typename chan<T>::channel_type> c,
-    detail::closed_flag closed,
-    T value) -> boost::asio::awaitable<bool> {
+  static auto send(std::shared_ptr<detail::chan_state<T>> c, T value) -> boost::asio::awaitable<bool> {
     if (!c) {
       co_await detail::wait_forever();
       co_return false;
     }
-    if (detail::is_closed(closed)) {
-      detail::panic_send_on_closed_channel();
-    }
-    auto res = co_await c->async_send(boost::system::error_code{}, std::move(value), eoroutine);
-    if (std::get<0>(res)) {
-      if (detail::is_closed(closed)) {
+    {
+      std::unique_lock lock(c->mu);
+      auto status = c->send_locked(value);
+      lock.unlock();
+      if (status == detail::send_status::done) {
+        co_return true;
+      }
+      if (status == detail::send_status::closed) {
         detail::panic_send_on_closed_channel();
       }
-      co_return false;
+    }
+    auto token = detail::wait_token{};
+    auto waiter = detail::send_waiter<T>{&token, 0, &value};
+    co_await detail::suspend(token, [&] {
+      std::unique_lock lock(c->mu);
+      auto status = c->send_locked(value);
+      if (status == detail::send_status::blocked) {
+        c->enqueue_locked(waiter);
+        return;
+      }
+      waiter.closed = status == detail::send_status::closed;
+      lock.unlock();
+      token.claim();
+      token.complete(0);
+    });
+    if (waiter.closed) {
+      detail::panic_send_on_closed_channel();
     }
     co_return true;
   }
 
+  // Sends without waiting, for a select that polls its cases. A closed channel makes the case
+  // ready: choosing it panics.
   auto ready() -> bool {
     if (!c) {
       return false;
     }
-    if (!sent && closed_now()) {
+    if (sent || closed) {
       return true;
     }
-    return sent ? sent : (sent = c->try_send(boost::system::error_code{}, value));
+    std::lock_guard lock(c->mu);
+    return try_locked();
   }
 
   void commit() {
-    if (!c) {
-      return;
-    }
-    if (!sent && closed_now()) {
+    if (closed) {
       detail::panic_send_on_closed_channel();
     }
   }
 
-  auto wait() -> boost::asio::awaitable<bool> {
+  auto state_mutex() -> std::mutex* {
+    return c ? &c->mu : nullptr;
+  }
+
+  auto try_locked() -> bool {
     if (!c) {
-      co_await wait_nil();
-      co_return false;
+      return false;
     }
-    if (closed_now()) {
-      detail::panic_send_on_closed_channel();
+    switch (c->send_locked(value)) {
+    case detail::send_status::done:
+      sent = true;
+      return true;
+    case detail::send_status::closed:
+      closed = true;
+      return true;
+    case detail::send_status::blocked:
+      return false;
     }
-    auto res = co_await c->async_send(boost::system::error_code{}, value, eoroutine);
-    if (std::get<0>(res)) {
-      // A case that the select did not choose does not panic, even when the channel has closed.
-      if (!co_await detail::cancelled_by_select() && closed_now()) {
-        detail::panic_send_on_closed_channel();
-      }
-      co_return false;
+    return false;
+  }
+
+  void enqueue_locked(detail::wait_token* token, int index) {
+    if (c) {
+      waiter = detail::send_waiter<T>{token, index, &value};
+      c->enqueue_locked(waiter);
     }
-    co_return (sent = true);
+  }
+
+  // Removes the queued send, and records the outcome when this case was chosen.
+  void dequeue() {
+    if (c) {
+      c->dequeue(waiter);
+    }
+  }
+
+  void finish() {
+    if (waiter.closed) {
+      closed = true;
+    } else {
+      sent = true;
+    }
   }
 };
 
@@ -331,10 +581,6 @@ struct recv_t : public boost::asio::awaitable<T> {
 private:
   using super = boost::asio::awaitable<T>;
 
-  static auto wait_nil() -> boost::asio::awaitable<void> {
-    return detail::wait_forever();
-  }
-
 public:
   using super::super;
 
@@ -343,31 +589,22 @@ public:
     return *this;
   }
 
-  std::shared_ptr<typename chan<T>::channel_type> c;
-  detail::closed_flag closed;
+  std::shared_ptr<detail::chan_state<T>> c;
   std::optional<std::pair<T, bool>> processed;
+  detail::recv_waiter<T> waiter;
 
   // The awaitable of a receive expression: the value, or the zero value once the channel is closed
   // and drained. It owns a copy of the channel.
-  static auto receive(std::shared_ptr<typename chan<T>::channel_type> c,
-    detail::closed_flag closed) -> boost::asio::awaitable<T> {
+  static auto receive(std::shared_ptr<detail::chan_state<T>> c) -> boost::asio::awaitable<T> {
     if (!c) {
       co_await detail::wait_forever();
       co_return T{};
     }
-    auto result = co_await detail::receive_from<T>(std::move(c), std::move(closed));
-    co_return result.value ? std::move(*result.value) : T{};
+    auto result = co_await detail::receive_from<T>(std::move(c));
+    co_return std::move(result.first);
   }
 
-  // Takes a value without waiting, into `processed`.
-  auto try_take() -> bool {
-    return c->try_receive([this](boost::system::error_code ec, T value) {
-      if (!ec) {
-        processed.emplace(std::move(value), true);
-      }
-    });
-  }
-
+  // Receives without waiting, into `processed`, for a select that polls its cases.
   auto ready() -> bool {
     if (processed) {
       return true;
@@ -375,37 +612,45 @@ public:
     if (!c) {
       return false;
     }
-    if (try_take()) {
-      return true;
+    std::lock_guard lock(c->mu);
+    return try_locked();
+  }
+
+  auto state_mutex() -> std::mutex* {
+    return c ? &c->mu : nullptr;
+  }
+
+  auto try_locked() -> bool {
+    if (!c) {
+      return false;
     }
-    // Only asio's own close ends the sends. A value that a send left before it is taken first.
-    if (!c->is_open()) {
-      if (!try_take()) {
-        processed.emplace(T{}, false);
-      }
+    if (auto result = c->recv_locked()) {
+      processed = std::move(result);
       return true;
     }
     return false;
   }
 
-  auto wait() -> boost::asio::awaitable<bool> {
-    if (processed) {
-      co_return true;
+  void enqueue_locked(detail::wait_token* token, int index) {
+    if (c) {
+      waiter = detail::recv_waiter<T>{token, index};
+      c->enqueue_locked(waiter);
     }
-    if (!c) {
-      co_await wait_nil();
-      co_return false;
+  }
+
+  void dequeue() {
+    if (c) {
+      c->dequeue(waiter);
     }
-    auto result = co_await detail::receive_from<T>(c, closed);
-    if (result.cancelled) {
-      co_return false;
-    }
-    if (result.value) {
-      processed.emplace(std::move(*result.value), true);
+  }
+
+  // Records the outcome when this case was chosen: a value, or the close.
+  void finish() {
+    if (waiter.value) {
+      processed.emplace(std::move(*waiter.value), true);
     } else {
       processed.emplace(T{}, false);
     }
-    co_return true;
   }
 
   auto get2() -> std::pair<T, bool> {

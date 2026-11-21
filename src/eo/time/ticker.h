@@ -21,7 +21,7 @@ private:
       if (ec || self->stopped || current_generation != self->generation)
         return;
 
-      self->C.raw().try_send(boost::system::error_code{}, std::chrono::system_clock::now());
+      self->C.try_send(std::chrono::system_clock::now());
       self->schedule_locked(d, current_generation);
     });
   }

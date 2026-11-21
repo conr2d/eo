@@ -61,6 +61,11 @@ target_link_libraries(eo_select_canonical PRIVATE eo::eo)
 
 add_test(NAME eo.select_canonical COMMAND eo_select_canonical)
 
+add_executable(eo_select_exactly_one select_exactly_one.cpp)
+target_link_libraries(eo_select_exactly_one PRIVATE eo::eo)
+
+add_test(NAME eo.select_exactly_one COMMAND eo_select_exactly_one)
+
 add_executable(eo_defer defer.cpp)
 target_link_libraries(eo_defer PRIVATE eo::eo)
 
