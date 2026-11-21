@@ -6,7 +6,7 @@ It is intentionally not an idiomatic C++ framework. The primary goal is to make 
 
 If there is enough time to rewrite a Go codebase properly in C++, that is usually the better choice. Eo exists for cases where a close, fast port is more useful than a clean rewrite.
 
-Eo is under active development and its APIs are not stable.
+Eo is under active development and its APIs are not stable. The [translation-ready baseline](./docs/BASELINE.md) says which translation forms a port can rely on and where the known boundaries are.
 
 [Eo](https://en.wiktionary.org/wiki/eo#Latin) means "I **go**" in Latin and its pronunciation is ["Ay-Oh"](https://youtu.be/lkbP5OPQhdQ), like what Freddie Mercury shouted at Live Aid.
 
