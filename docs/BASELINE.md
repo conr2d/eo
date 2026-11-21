@@ -13,7 +13,7 @@ A translation may rely on the forms that the translation rules freeze, and on th
 - [Goroutine Translation Design](./GOROUTINE.md) freezes the `go` statement shape and the launch evaluation contract.
 - [Translation Principles](./TRANSLATION.md) sets the identifier-preservation and structural-fidelity policy that every rule follows.
 
-Each area below has a canonical rule and at least one [parity case](../tests/parity/README.md), which runs a Go program and its literal translation against the same golden output. Cases whose result could depend on scheduling also run with one worker thread, as `EOMAXPROCS=1` for C++ and `GOMAXPROCS=1` for Go.
+Each area below has a canonical rule and at least one [parity case](../tests/parity/README.md), which runs a Go program and its canonical translation against the same golden output. Cases whose result could depend on scheduling also run with one worker thread, as `EOMAXPROCS=1` for C++ and `GOMAXPROCS=1` for Go.
 
 | Area | Rules | Parity cases include |
 |---|---|---|
@@ -45,7 +45,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 
 The runtime guarantees behind these rules are covered by the unit tests in [`tests`](../tests), including the ones that need concurrency to observe:
 
-- a blocking `select` commits exactly one communication, and a losing case never sends, receives, or otherwise changes a channel (see [Exactly-one arbitration](./SELECT.md#exactly-one-arbitration));
+- a blocking `select` commits exactly one communication, and a losing case never sends or receives a value (see [Exactly-one arbitration](./SELECT.md#exactly-one-arbitration));
 - nil channels, closed channels, closed-send panics, and two-value receives behave as Go specifies (see [Nil channels](./SELECT.md#nil-channels) and [Closed channels](./SELECT.md#closed-channels));
 - `defer` is function-scoped, evaluates its arguments when the `defer` statement executes, runs in LIFO order on every return path, including coroutine return, and interacts with named results as Go does (see [Defer](./TRANSLATION_RULES.md#defer)).
 
@@ -67,7 +67,7 @@ These follow from executing translated code as ordinary C++, and are not expecte
 
 ### Constructs without a canonical rule
 
-[Unsupported constructs](./TRANSLATION_RULES.md#unsupported-constructs) lists what cannot be translated under the current contract, such as `sync.Once`, `sync.Cond`, and `defer` of a blocking call. [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs) lists what has no frozen rule yet, such as arrays, complex numbers, `a, b = b, a`, and iterator functions. Each rule section also ends with the forms it does not cover yet.
+[Unsupported constructs](./TRANSLATION_RULES.md#unsupported-constructs) lists what cannot be translated under the current contract, such as `sync.Once`, `sync.Cond`, and `defer` of a blocking call. [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs) lists what has no frozen rule yet, such as arrays, complex numbers, `a, b = b, a`, and iterator functions. Most rule sections also end with the forms they do not cover yet.
 
 A translation that needs one of these forms writes it as an explicit, local adaptation and marks it as provisional, as [Unfrozen constructs](./TRANSLATION_RULES.md#unfrozen-constructs) requires. It does not approximate the Go behavior silently.
 
@@ -76,7 +76,7 @@ A translation that needs one of these forms writes it as an explicit, local adap
 The known gaps that are tracked as issues, grouped by the kind of work they need:
 
 - **Program structure.** Packages with several files and programs with several packages ([#123](https://github.com/conr2d/eo/issues/123)). A real port needs this before anything else, because a Go package is almost never one file.
-- **Translation forms.** Map assignments of several values ([#111](https://github.com/conr2d/eo/issues/111)), range over functions ([#98](https://github.com/conr2d/eo/issues/98)), variadic calls in `go` and `defer` ([#95](https://github.com/conr2d/eo/issues/95)), arrays and keyed literal elements ([#93](https://github.com/conr2d/eo/issues/93)), Eo names that collide with Go identifiers ([#83](https://github.com/conr2d/eo/issues/83)), and the remaining `go` and `defer` launch forms ([#67](https://github.com/conr2d/eo/issues/67)).
+- **Translation forms.** Assignments and declarations of several values that are not one call, such as `a, b = b, a` ([#111](https://github.com/conr2d/eo/issues/111)), range over functions ([#98](https://github.com/conr2d/eo/issues/98)), variadic calls in `go` and `defer` ([#95](https://github.com/conr2d/eo/issues/95)), arrays and keyed literal elements ([#93](https://github.com/conr2d/eo/issues/93)), Eo names that collide with Go identifiers ([#83](https://github.com/conr2d/eo/issues/83)), and the remaining `go` and `defer` launch forms ([#67](https://github.com/conr2d/eo/issues/67)).
 - **Interfaces.** Methods translated as coroutines ([#108](https://github.com/conr2d/eo/issues/108)), and Go `int` and `int64` sharing a dynamic type ([#107](https://github.com/conr2d/eo/issues/107)).
 - **Libraries.** The `slices` package ([#94](https://github.com/conr2d/eo/issues/94)), and `sync.Once` and `sync.Cond` ([#76](https://github.com/conr2d/eo/issues/76)).
 - **Runtime.** A goroutine blocked in a system call occupies its worker thread ([#71](https://github.com/conr2d/eo/issues/71)), and a goroutine started by `WithCancel` can outlive a borrowed custom parent ([#57](https://github.com/conr2d/eo/issues/57)).
