@@ -5,7 +5,7 @@ Each directory here is one behavioral parity case:
 | File | Purpose |
 | --- | --- |
 | `main.go` | Go reference program. |
-| `main.cpp` | C++ translation, written by following [the deterministic translation rules](../../docs/TRANSLATION_RULES.md). |
+| `main.cpp` | C++ translation, written by following [the deterministic translation rules](../../docs/TRANSLATION_RULES.md). A case of several files has a `cpp` directory instead (see [Several files](#several-files)). |
 | `expected.stdout` | Golden stdout, generated from `main.go`. |
 | `expected.exitcode` | Golden exit status, present only when it is not 0. |
 | `KNOWN_GAP` | Optional. Marks the C++ translation as a known gap. The first line names the one expected mismatch (`exitcode`, `stdout`, or `timeout`). The rest says why. |
@@ -13,7 +13,7 @@ Each directory here is one behavioral parity case:
 | `KNOWN_GAP.stdout`, `KNOWN_GAP.<variant>.stdout` | The exact stdout the C++ side writes, before it is killed for a `timeout` gap. Required for `stdout` and `timeout` gaps, and compared whenever present. |
 | `KNOWN_GAP.exitcode`, `KNOWN_GAP.<variant>.exitcode` | The exact exit status the C++ side returns. Required for an `exitcode` gap, and allowed only for one. |
 
-Only the Select, Defer, panic and recover, program termination, WaitGroup, Mutex, basic type, constant, package-level variable, pointer, boxed variable, function literal capture, function value, string, slice, map, channel, range loop, struct, defined type, interface, multiple result, error, formatted printing, evaluation order, switch statement, and labeled statement forms used here are frozen in the translation rules, and the goroutine launch shape where a case uses the canonical `[=]() mutable` thunk. Everything else in these translations is provisional. Do not copy those forms as canonical. A case that uses a provisional form says so in the first line of `main.cpp`.
+Only the Select, Defer, panic and recover, program termination, WaitGroup, Mutex, basic type, constant, package-level variable, pointer, boxed variable, function literal capture, function value, string, slice, map, channel, range loop, struct, defined type, interface, multiple result, error, formatted printing, evaluation order, switch statement, labeled statement, and package forms used here are frozen in the translation rules, and the goroutine launch shape where a case uses the canonical `[=]() mutable` thunk. Everything else in these translations is provisional. Do not copy those forms as canonical. A case that uses a provisional form says so in the first line of `main.cpp`.
 
 ## Tests
 
@@ -39,11 +39,17 @@ CTest only registers a Go test when `go env GOVERSION` runs at configure time an
 
 1. Write `<name>/main.go`. Its output must be guaranteed by the Go specification and memory model: no scheduler-dependent ordering, no map iteration order, and no pseudo-random sequences.
 2. Run `tests/parity/update-golden.sh <name>` to generate the golden files.
-3. Write `<name>/main.cpp` by following the canonical mappings literally. For a construct that is not frozen yet, use the closest documented shape and say so in the first line of `main.cpp`.
+3. Write `<name>/main.cpp`, or the `cpp` directory of a case of several files, by following the canonical mappings literally. For a construct that is not frozen yet, use the closest documented shape and say so in the first line of `main.cpp`.
 4. Add `eo_add_parity_case(<name>)` to `CMakeLists.txt`. A directory with a `main.go` that is not registered gets a configure warning and a failing `parity.<name>.unregistered` test.
 5. If the translation cannot match Go yet, add `<name>/KNOWN_GAP` with the mismatch kind on the first line and the reason below, and list it under [Known gaps](#known-gaps). Add `KNOWN_GAP.stdout` for a `stdout` or `timeout` gap and `KNOWN_GAP.exitcode` for an `exitcode` gap, and give a `timeout` case `TIMEOUT 10`.
 
 The Go module in this directory pins the language version (`go 1.22`), so semantics such as per-iteration loop variables do not depend on the installed toolchain.
+
+## Several files
+
+A case can hold a Go program of several files or several packages, as `package_files` and `package_imports` do. Its packages are directories of `<name>` with import paths under this module, `github.com/conr2d/eo/tests/parity/<name>/...`, and both the golden files and the Go test build `go build ./<name>`, where a case of one file builds `./<name>/main.go`.
+
+`go build` rejects a package directory that holds `.cpp` files, so the translation goes in `<name>/cpp`, which mirrors the Go package tree: the translation of `<name>/a/a.go` is `<name>/cpp/a/a.cpp`, with the package header `<name>/cpp/a/package.h` (see [Packages](../../docs/TRANSLATION_RULES.md#packages)). CMake builds every `.cpp` file under `<name>/cpp` into the case's program, and links the import path of `<name>` in its build directory to `<name>/cpp`, so `#include "github.com/conr2d/eo/tests/parity/<name>/a/package.h"` finds the header.
 
 ## Known gaps
 

@@ -1,0 +1,7 @@
+var base = 10
+var derived = 20
+init a.go #1, derived = 20
+init a.go #2, twice = 40
+init b.go, base = 10
+init main.go, o = {{20} xyz}
+main, o.Sum() = 23

@@ -32,7 +32,14 @@ if [[ $# -eq 0 ]]; then
 fi
 
 for name in "$@"; do
-  "$go" build -o "$out/$name" "./$name/main.go"
+  # A case of several files builds as a package. A case of one file builds
+  # main.go alone, because go build rejects the main.cpp beside it.
+  if [[ -d $name/cpp ]]; then
+    target=./$name
+  else
+    target=./$name/main.go
+  fi
+  "$go" build -o "$out/$name" "$target"
   set +e
   run_limited "$out/$name" >"$out/$name.stdout"
   rc=$?

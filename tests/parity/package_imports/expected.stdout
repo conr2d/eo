@@ -1,0 +1,12 @@
+trace.init
+m.init
+z.Z
+z.init
+a.A after z.Z
+a.init
+a.A after z.Z
+u1/util u2/util
+9 {3 6} b
+a.Point main.Holder
+16 42
+record x

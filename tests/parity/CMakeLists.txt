@@ -30,6 +30,12 @@ endif()
 
 set(EO_PARITY_COMPARE ${CMAKE_CURRENT_SOURCE_DIR}/compare.cmake)
 
+# The module path of go.mod, under which eo_add_parity_case() links the
+# translation of each case of several files.
+set(EO_PARITY_MODULE github.com/conr2d/eo/tests/parity)
+set(EO_PARITY_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
+file(MAKE_DIRECTORY ${EO_PARITY_INCLUDE_DIR}/${EO_PARITY_MODULE})
+
 # eo_add_parity_test(<test> <case> <marker> <timeout> <environment> [GO])
 function(eo_add_parity_test test name known_gap timeout environment)
   set(case_dir ${CMAKE_CURRENT_SOURCE_DIR}/${name})
@@ -58,7 +64,19 @@ function(eo_add_parity_case name)
   endif()
 
   set_property(GLOBAL APPEND PROPERTY EO_PARITY_CASES ${name})
-  add_executable(eo_parity_${name} ${CMAKE_CURRENT_SOURCE_DIR}/${name}/main.cpp)
+  # A case of several files keeps its translation in <name>/cpp, which mirrors
+  # the Go package tree, because go build rejects a package directory that
+  # holds .cpp files. A translation includes a package header by its Go import
+  # path, so the include directory maps the case's import path to <name>/cpp.
+  set(case_dir ${CMAKE_CURRENT_SOURCE_DIR}/${name})
+  if(IS_DIRECTORY ${case_dir}/cpp)
+    file(GLOB_RECURSE case_sources CONFIGURE_DEPENDS ${case_dir}/cpp/*.cpp)
+    file(CREATE_LINK ${case_dir}/cpp ${EO_PARITY_INCLUDE_DIR}/${EO_PARITY_MODULE}/${name} SYMBOLIC)
+  else()
+    set(case_sources ${case_dir}/main.cpp)
+  endif()
+  add_executable(eo_parity_${name} ${case_sources})
+  target_include_directories(eo_parity_${name} PRIVATE ${EO_PARITY_INCLUDE_DIR})
   target_link_libraries(eo_parity_${name} PRIVATE eo::main)
 
   eo_add_parity_test(parity.${name}.cpp ${name} KNOWN_GAP ${arg_TIMEOUT} "${arg_ENVIRONMENT}")
@@ -92,6 +110,8 @@ eo_add_parity_case(channel_range_boxed)
 eo_add_parity_case(channel_recv_ok)
 eo_add_parity_case(closure_capture_by_ref)
 eo_add_parity_case(constants)
+eo_add_parity_case(package_files)
+eo_add_parity_case(package_imports)
 eo_add_parity_case(package_vars)
 eo_add_parity_case(init_panic)
 eo_add_parity_case(defined_types)
