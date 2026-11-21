@@ -2240,7 +2240,7 @@ func<> eo_init() {
 
 ### Packages
 
-A program of one file, package `main`, translates to one C++ file whose declarations are in the global namespace, as the rest of these rules show. Every other program translates each of its packages, including `main`, to a package of C++ files in a namespace of its own. These rules apply to every package that the program imports, except the standard packages that Eo maps, such as `fmt`, `errors`, `sync`, and `maps`, whose calls follow their own sections. A test package, a `_test.go` file, and a package that uses `cgo` are not covered.
+A program of one file, package `main`, translates to one C++ file whose declarations are in the global namespace, as the rest of these rules show. Every other program translates each of its packages, including `main`, to a directory of C++ files in a namespace of its own. These rules apply to every package that the program imports, except the standard packages that Eo maps, such as `fmt`, `errors`, `sync`, and `maps`, whose calls follow their own sections. A test package, a `_test.go` file, and a package that uses `cgo` are not covered.
 
 #### Package files
 
@@ -2257,19 +2257,19 @@ The package header has, in order:
 2. the Eo and standard headers that any file of the package needs, then the headers of the packages that any file imports, sorted by import path, including a blank import `_`;
 3. `using namespace eo;`;
 4. the package namespace (see [Package namespaces](#package-namespaces)), which holds the rest;
-5. the namespace aliases of [Import names](#import-names) that the header declares;
-6. the declarations of [Declaration order](#declaration-order) steps 1 to 3 and the package-level constants before them, for the declarations of all the package's files, taken in file order and then in source order, so a struct that holds a type of another file by value is defined after that type;
-7. a prototype of every function the package declares, including `init` functions and `eo_main`, in file order and then in source order;
+5. the namespace aliases of [Import names](#import-names) that the header declares, sorted by the import path they alias;
+6. the package-level constants, then the declarations of [Declaration order](#declaration-order) steps 1 to 3, over all the package's files, each group taken in file order and then in source order, so a struct that holds a type of another file by value is defined after that type;
+7. a prototype of every function the package declares, including `init` functions and `eo_main`, in file order and then in source order. `eo_main` is always `func<> eo_main()`, because the global `eo_main` `co_await`s it;
 8. the package-level variables, in file order and then in source order;
 9. the package's `eo_init` (see [Initialization of packages](#initialization-of-packages)).
 
-A namespace-scope variable or constant in a package header is `inline`, so every file shares one object: `var count int` is `inline int64_t count{};`, `var name = "eo"` is `inline auto name = "eo"s;`, and `const KB = 1024` is `inline constexpr int64_t KB = 1024;`. A function, method, and type keeps the form that its section gives. A comment on a declaration moves with the declaration into the header.
+A namespace-scope variable or constant in a package header is `inline`, so every file shares one object: `var count int` is `inline int64_t count{};`, `var name = "eo"` is `inline auto name = "eo"s;`, and `const KB = 1024` is `inline constexpr int64_t KB = 1024;`. Functions, methods, and types keep the forms that their sections give. A comment on a declaration moves with the declaration into the header.
 
 A file `F.cpp` has, in order:
 
 1. `#include "P/package.h"`, its only include, because the header includes what every file needs;
 2. the package namespace, which holds the rest;
-3. the namespace aliases of [Import names](#import-names) that this file declares;
+3. the namespace aliases of [Import names](#import-names) that this file declares, sorted by the import path they alias;
 4. the definitions of [Declaration order](#declaration-order) step 4 for the types that `F.go` declares;
 5. the definitions of the functions and methods that `F.go` declares, in source order. A method is defined in the file that declares it, which can differ from the file that declares its type.
 
@@ -2287,12 +2287,12 @@ A type's `_eo_name` keeps Go's name, the package name and the type name, and not
 
 Go code names a package by its import name, the name in the import declaration or else the package name, in the scope of one file. A qualified identifier `p.Name` is `p::Name`, and `p` is a namespace alias, `namespace p = ::N;`, of the package's namespace `N`:
 
-- When an import name names the same package in every file of the package that imports it, the package header declares its alias. Go forbids a package-level name that is also an import name of any file, so the alias never collides with a name of the package.
+- When an import name names the same package in every file of the package that imports anything by that name, the package header declares its alias. A standard package that Eo maps counts as a package here, so a translated package `sync` in one file and the standard `sync` in another give file aliases. Go forbids a package-level name that is also an import name of any file, so the alias never collides with a name of the package.
 - Otherwise each file declares the alias for its own import, and the package header writes that package's names with its namespace, as `::N::Box`. A definition in `F.cpp` writes them with the file's alias, as `util::Box`.
 - A standard package that Eo maps needs no alias, because `using namespace eo;` makes its namespace visible. An alias of a translated package in the package namespace hides an Eo namespace of the same name, as a package `sync` of the program does.
 - A blank import `_` declares no alias. Its header is still included, and its `eo_init` still runs.
 
-A member hides an import name as it hides a package-level name, so inside a struct definition and the definitions of its methods, an import name that is also the name of a member is written `_eo_package::p`, as in `_eo_package::trace::Add(...)` in a method of a struct with a field `trace`, and `::p` in the package `main` of a program of one file.
+A member hides an import name as it hides a package-level name, so inside a struct definition and the definitions of its methods, the import name of a translated package that is also the name of a member is written `_eo_package::p`, as in `_eo_package::trace::Add(...)` in a method of a struct with a field `trace`. A standard package that Eo maps and a member hides is written `eo::p`, as `eo::fmt`, like any other Eo name that a member hides.
 
 A dot import `.`, and an import name that is a C++ keyword or an Eo name that translations use unqualified, such as `ptr` or `std`, are not covered ([#83](https://github.com/conr2d/eo/issues/83)).
 
