@@ -52,13 +52,13 @@ Build a translation model that can be applied consistently by humans and tooling
 
 The goal is not source compatibility. The goal is a small, stable set of rules that makes structural translation fast and reviewable.
 
-See [Translation Principles](./TRANSLATION.md) for compatibility and structural-fidelity policy, [Deterministic Translation Rules](./TRANSLATION_RULES.md) for the mechanical translation contract, and [Select Translation Design](./SELECT.md) for the canonical `select` mapping.
+See [Translation Principles](./TRANSLATION.md) for compatibility and structural-fidelity policy, [Translation-ready Baseline](./BASELINE.md) for what a port can rely on, [Deterministic Translation Rules](./TRANSLATION_RULES.md) for the mechanical translation contract, and [Select Translation Design](./SELECT.md) for the canonical `select` mapping.
 
 ## Translation-ready baseline
 
 Before beginning a large real-world port, translation-facing syntax and the most disruptive semantic mappings should be stable enough that the port does not need repeated repository-wide rewrites.
 
-The current path to that baseline is:
+The baseline is declared. [Translation-ready Baseline](./BASELINE.md) records the supported semantic surface, the known boundaries, and how Eo evolves from here. The path to it was:
 
 1. **Freeze Select translation syntax.** Adopt one-shot `Select`, `index()` for blocking selects, `try_index()` for selects with `default`, synchronous receive accessors, and switch-scoped lifetime.
 2. **Close channel/select edge-semantic gaps.** Cover nil channels, closed receive status, closed-send panic timing, two-value receive plumbing, and explicit zero-value behavior.

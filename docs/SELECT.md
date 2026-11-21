@@ -530,7 +530,7 @@ The compatibility contract should distinguish Eo-modeled Go behavior from failur
 
 ## Nearby semantics to audit before large-scale porting
 
-Freezing Select syntax is necessary before a large port, but several nearby rules also need explicit conformance checks.
+Freezing Select syntax is necessary before a large port, but several nearby rules also need explicit conformance checks. Each of these is now covered by a rule and a parity case (see [Translation-ready Baseline](./BASELINE.md)).
 
 ### Goroutine launch evaluation
 
