@@ -22,6 +22,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Identifiers | [Identifier mapping](./TRANSLATION_RULES.md#identifier-mapping) | `redeclared_names`, `struct_names` |
 | Strings | [Strings](./TRANSLATION_RULES.md#strings) | `string_bytes`, `string_index_panic`, `string_index_recover` |
 | Slices | [Slices](./TRANSLATION_RULES.md#slices) | `slice_alias`, `slice_element_address`, `slice_index_recover` |
+| Arrays | [Arrays](./TRANSLATION_RULES.md#arrays) | `array_values`, `array_slicing`, `array_defined` |
 | The `slices` package, in part | [The slices package](./TRANSLATION_RULES.md#the-slices-package) | `slices_package` |
 | Maps and the `maps` package | [Maps](./TRANSLATION_RULES.md#maps) | `map_values`, `map_nil_panic`, `map_range_mutation`, `maps_package` |
 | Structs and embedding | [Structs](./TRANSLATION_RULES.md#structs) | `struct_copy`, `struct_literal`, `struct_embedding` |
@@ -78,7 +79,7 @@ A translation that needs one of these forms writes it as an explicit, local adap
 The known gaps that are tracked as issues, grouped by the kind of work they need:
 
 - **Program structure.** Packages with several files and programs with several packages ([#123](https://github.com/conr2d/eo/issues/123)). A real port needed this before anything else, because a Go package is almost never one file. [Packages](./TRANSLATION_RULES.md#packages) now covers it, except for the forms in [Packages not covered yet](./TRANSLATION_RULES.md#packages-not-covered-yet).
-- **Translation forms.** Assignments and declarations of several values that are not one call, such as `a, b = b, a` ([#111](https://github.com/conr2d/eo/issues/111)), range over functions ([#98](https://github.com/conr2d/eo/issues/98)), variadic calls in `go` and `defer` ([#95](https://github.com/conr2d/eo/issues/95)), arrays and keyed literal elements ([#93](https://github.com/conr2d/eo/issues/93)), Eo names that collide with Go identifiers ([#83](https://github.com/conr2d/eo/issues/83)), and the remaining `go` and `defer` launch forms ([#67](https://github.com/conr2d/eo/issues/67)).
+- **Translation forms.** Assignments and declarations of several values that are not one call, such as `a, b = b, a` ([#111](https://github.com/conr2d/eo/issues/111)), range over functions ([#98](https://github.com/conr2d/eo/issues/98)), variadic calls in `go` and `defer` ([#95](https://github.com/conr2d/eo/issues/95)), converting a slice to a pointer to an array ([#131](https://github.com/conr2d/eo/issues/131)), Eo names that collide with Go identifiers ([#83](https://github.com/conr2d/eo/issues/83)), and the remaining `go` and `defer` launch forms ([#67](https://github.com/conr2d/eo/issues/67)).
 - **Interfaces.** Methods translated as coroutines ([#108](https://github.com/conr2d/eo/issues/108)), and Go `int` and `int64` sharing a dynamic type ([#107](https://github.com/conr2d/eo/issues/107)).
 - **Libraries.** The rest of the `slices` package ([#94](https://github.com/conr2d/eo/issues/94)), and `sync.Once` and `sync.Cond` ([#76](https://github.com/conr2d/eo/issues/76)).
 - **Runtime.** A goroutine blocked in a system call occupies its worker thread ([#71](https://github.com/conr2d/eo/issues/71)), and a goroutine started by `WithCancel` can outlive a borrowed custom parent ([#57](https://github.com/conr2d/eo/issues/57)).

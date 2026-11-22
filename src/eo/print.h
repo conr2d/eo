@@ -54,12 +54,6 @@ struct formatter<std::chrono::time_point<Clock>> {
 
 namespace eo::detail {
 
-template<typename T>
-inline constexpr bool is_std_array = false;
-
-template<typename T, std::size_t N>
-inline constexpr bool is_std_array<std::array<T, N>> = true;
-
 // A translated Go struct: a class aggregate, which Boost.PFR can visit field by field. This also
 // matches other aggregates, so it is ambiguous with fmt's own formatters for aggregate types, such as
 // std::tm in <fmt/chrono.h>, std::monostate in <fmt/std.h>, and fmt::streamed. Eo uses none of them
@@ -70,20 +64,21 @@ concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_arra
 template<typename T>
 consteval auto is_composite_type() -> bool {
   if constexpr (defined_type<T>) {
-    return is_slice<typename T::_eo_underlying> || is_map<typename T::_eo_underlying>;
+    using U = typename T::_eo_underlying;
+    return is_slice<U> || is_map<U> || is_std_array<U>;
   } else {
-    return go_struct<T> || is_slice<T> || is_map<T>;
+    return go_struct<T> || is_slice<T> || is_map<T> || is_std_array<T>;
   }
 }
 
-// Whether a pointer to T prints as & followed by its target: a struct, a slice, or a map, or a defined
-// type whose underlying type is a slice or a map.
+// Whether a pointer to T prints as & followed by its target: a struct, an array, a slice, or a map,
+// or a defined type whose underlying type is an array, a slice, or a map.
 template<typename T>
 inline constexpr bool is_composite = is_composite_type<T>();
 
 // Go's internal/fmtsort order of map keys, which fmt prints a map in: numbers by value, with NaN
-// before every other float, strings by bytes, false before true, pointers by address, and structs
-// field by field. Returns a negative number, zero, or a positive number.
+// before every other float, strings by bytes, false before true, pointers by address, arrays element
+// by element, and structs field by field. Returns a negative number, zero, or a positive number.
 template<typename K>
 auto compare_keys(const K& a, const K& b) -> int {
   if constexpr (defined_type<K>) {
@@ -101,6 +96,13 @@ auto compare_keys(const K& a, const K& b) -> int {
   } else if constexpr (is_ptr<K>) {
     return std::less<const void*>{}(a.get(), b.get()) ? -1 : (a.get() == b.get() ? 0 : 1);
   } else if constexpr (std::is_same_v<K, empty_struct>) {
+    return 0;
+  } else if constexpr (is_std_array<K>) {
+    for (std::size_t i = 0; i < a.size(); ++i) {
+      if (auto c = compare_keys(a[i], b[i]); c != 0) {
+        return c;
+      }
+    }
     return 0;
   } else {
     auto c = 0;
@@ -457,7 +459,7 @@ void print_pointer(printer& p, const T& value, int32_t verb) {
 // Go's printValue, after the methods: the operand's kind decides how it prints.
 template<typename T>
 void print_value(printer& p, const T& value, int32_t verb, int depth) {
-  if constexpr (is_slice<T>) {
+  if constexpr (is_slice<T> || is_std_array<T>) {
     if constexpr (std::is_same_v<typename T::value_type, uint8_t>) {
       if (verb == 's' || verb == 'q' || verb == 'x' || verb == 'X') {
         print_string(p, std::string(value.begin(), value.end()), verb);

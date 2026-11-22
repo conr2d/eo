@@ -29,8 +29,8 @@ void check_index(I i, N length) {
   }
 }
 
-// s[low:high] of a value whose upper limit is `limit`: the length of a string, or the capacity of a
-// slice, named by `limit_name`. Go checks the high bound first.
+// s[low:high] of a value whose upper limit is `limit`: the length of a string or an array, or the
+// capacity of a slice, named by `limit_name`. Go checks the high bound first.
 template<go_integer L, go_integer H, go_integer N>
 void check_slice(L low, H high, N limit, const char* limit_name = "length") {
   if (std::cmp_less(high, 0)) {
@@ -47,14 +47,15 @@ void check_slice(L low, H high, N limit, const char* limit_name = "length") {
   }
 }
 
-// s[low:high:max] of a slice whose capacity is `cap`. Go checks max first, then high, then low.
+// s[low:high:max] of a value whose upper limit is `limit`: the capacity of a slice, or the length of
+// an array, named by `limit_name`. Go checks max first, then high, then low.
 template<go_integer L, go_integer H, go_integer M, go_integer N>
-void check_slice3(L low, H high, M max, N cap) {
+void check_slice3(L low, H high, M max, N limit, const char* limit_name = "capacity") {
   if (std::cmp_less(max, 0)) {
     panic_bounds_error(fmt::format("slice bounds out of range [::{}]", max));
   }
-  if (std::cmp_greater(max, cap)) {
-    panic_bounds_error(fmt::format("slice bounds out of range [::{}] with capacity {}", max, cap));
+  if (std::cmp_greater(max, limit)) {
+    panic_bounds_error(fmt::format("slice bounds out of range [::{}] with {} {}", max, limit_name, limit));
   }
   if (std::cmp_less(high, 0)) {
     panic_bounds_error(fmt::format("slice bounds out of range [:{}:]", high));

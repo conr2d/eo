@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/array.h>
 #include <eo/bounds.h>
 #include <eo/map.h>
 #include <eo/slice.h>
 #include <eo/string.h>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
@@ -84,6 +86,8 @@ namespace detail {
 
     private:
       friend class slice_range;
+      template<typename U, std::size_t N>
+      friend class array_range;
 
       iterator(const T* data, int64_t n) noexcept: data_(data), n_(n) {}
 
@@ -104,6 +108,73 @@ namespace detail {
 
   private:
     slice<T> s_;
+  };
+
+  // range a, for an array a: the index and a copy of each element. Go evaluates a once, so the range
+  // holds a copy of the array and the body's writes to a do not change the values.
+  template<typename T, std::size_t N>
+  class array_range {
+  public:
+    using iterator = typename slice_range<T>::iterator;
+
+    explicit array_range(const std::array<T, N>& a): a_(a) {}
+
+    auto begin() const noexcept -> iterator {
+      return iterator{a_.data(), static_cast<int64_t>(N)};
+    }
+
+    auto end() const noexcept -> std::default_sentinel_t {
+      return {};
+    }
+
+  private:
+    std::array<T, N> a_;
+  };
+
+  // range p, for a pointer p to an array: the index and a copy of each element, read through p when
+  // its iteration starts, so the body sees writes to later elements. A nil p panics when the first
+  // element is read, and an empty array reads none, as in Go.
+  template<typename A>
+  class array_ptr_range {
+  public:
+    using T = typename array_base_t<A>::value_type;
+
+    class iterator {
+    public:
+      auto operator*() const -> std::pair<int64_t, T> {
+        return {i_, (**p_)[static_cast<std::size_t>(i_)]};
+      }
+
+      auto operator++() noexcept -> iterator& {
+        ++i_;
+        return *this;
+      }
+
+      auto operator==(std::default_sentinel_t) const noexcept -> bool {
+        return i_ >= array_length<A>;
+      }
+
+    private:
+      friend class array_ptr_range;
+
+      explicit iterator(const ptr<A>* p) noexcept: p_(p) {}
+
+      const ptr<A>* p_;
+      int64_t i_ = 0;
+    };
+
+    explicit array_ptr_range(ptr<A> p) noexcept: p_(std::move(p)) {}
+
+    auto begin() const noexcept -> iterator {
+      return iterator{&p_};
+    }
+
+    auto end() const noexcept -> std::default_sentinel_t {
+      return {};
+    }
+
+  private:
+    ptr<A> p_;
   };
 
   // range str: the byte index and the code point of each UTF-8 sequence, with U+FFFD for a byte that
@@ -237,6 +308,18 @@ namespace detail {
     template<typename T>
     auto operator()(slice<T> s) const noexcept -> slice_range<T> {
       return slice_range<T>{std::move(s)};
+    }
+
+    // range a, for an array a
+    template<typename T, std::size_t N>
+    auto operator()(const std::array<T, N>& a) const -> array_range<T, N> {
+      return array_range<T, N>{a};
+    }
+
+    // range p, for a pointer p to an array
+    template<go_array A>
+    auto operator()(ptr<A> p) const noexcept -> array_ptr_range<A> {
+      return array_ptr_range<A>{std::move(p)};
     }
 
     // range m, for a map m

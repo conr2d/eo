@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/array.h>
 #include <eo/bounds.h>
 #include <eo/utf8.h>
 
@@ -27,10 +28,13 @@ static_assert(sizeof("é") == 3 && static_cast<unsigned char>("é"[0]) == 0xc3 &
 
 namespace eo {
 
-// Defined in <eo/slice.h> and <eo/map.h>. len and indexing take both strings and slices, and len
-// also takes maps.
+// Defined in <eo/slice.h>, <eo/map.h>, and <eo/ptr.h>. len and indexing take strings, slices, and
+// arrays, and len also takes maps and pointers to arrays.
 template<typename T>
 class slice;
+
+template<typename T>
+class ptr;
 
 template<typename K, typename V>
 class map;
@@ -58,6 +62,18 @@ namespace detail {
     auto operator()(const map<K, V>& m) const -> int64_t {
       return m.size();
     }
+
+    // len(a) of an array, and len(p) of a pointer to an array, which is the array's length even when
+    // p is nil, as Go's constant len is.
+    template<go_array A>
+    auto operator()(const A&) const -> int64_t {
+      return array_length<A>;
+    }
+
+    template<go_array A>
+    auto operator()(const ptr<A>&) const -> int64_t {
+      return array_length<A>;
+    }
   };
 
   struct at_fn {
@@ -73,6 +89,27 @@ namespace detail {
     auto operator()(const slice<T>& s, I i) const -> T& {
       check_index(i, s.size());
       return s.data()[i];
+    }
+
+    // a[i] of an array: the element itself, which can be assigned when a can, or a copy of it when a
+    // is a value that is not a variable, such as a call's result. p[i] of a pointer to an array is
+    // eo::at(*p, i), which checks p for nil before it checks i, as Go does.
+    template<typename T, std::size_t N, go_integer I>
+    auto operator()(std::array<T, N>& a, I i) const -> T& {
+      check_index(i, N);
+      return a[static_cast<std::size_t>(i)];
+    }
+
+    template<typename T, std::size_t N, go_integer I>
+    auto operator()(const std::array<T, N>& a, I i) const -> const T& {
+      check_index(i, N);
+      return a[static_cast<std::size_t>(i)];
+    }
+
+    template<typename T, std::size_t N, go_integer I>
+    auto operator()(std::array<T, N>&& a, I i) const -> T {
+      check_index(i, N);
+      return std::move(a[static_cast<std::size_t>(i)]);
     }
   };
 

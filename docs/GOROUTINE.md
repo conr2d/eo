@@ -119,7 +119,7 @@ void T::Start(ptr<T> s) {
 
 The saved `s` keeps the target alive whatever the caller passed. A caller that writes `var t T; t.Start()` boxes `t`, because `Start` keeps its receiver.
 
-Every address and every held pointer at a `go` statement is therefore frozen, whatever its source: an argument, a receiver, a capture, or a parameter of the launching function. A slice is frozen in the same way, because it owns a share of its backing array (see [Slices](./TRANSLATION_RULES.md#slices)), and so is an interface value, because it owns its dynamic value, which may be a pointer that owns its target (see [Interfaces](./TRANSLATION_RULES.md#interfaces)). The boundary still applies to values that refer to storage through a type whose mapping is not frozen, such as a slice of a local array or a string view. Those launches are provisional until the mapping of that type defines how it keeps its storage alive.
+Every address and every held pointer at a `go` statement is therefore frozen, whatever its source: an argument, a receiver, a capture, or a parameter of the launching function. A slice is frozen in the same way, because it owns a share of its backing array (see [Slices](./TRANSLATION_RULES.md#slices)), and so is an interface value, because it owns its dynamic value, which may be a pointer that owns its target (see [Interfaces](./TRANSLATION_RULES.md#interfaces)). The boundary still applies to values that refer to storage through a type whose mapping is not frozen, such as a string view. Those launches are provisional until the mapping of that type defines how it keeps its storage alive.
 
 ## Function literals
 
