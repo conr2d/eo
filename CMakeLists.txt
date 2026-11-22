@@ -20,11 +20,14 @@ if(EO_SANITIZE)
   add_link_options(-fsanitize=${EO_SANITIZE})
 endif()
 
-include(CTest)
-
 add_subdirectory(src)
-add_subdirectory(examples)
 
-if(BUILD_TESTING)
-  add_subdirectory(tests)
+# A project that adds Eo with add_subdirectory(), such as a port that links eo::eo, gets the library
+# alone, without Eo's examples and tests.
+if(PROJECT_IS_TOP_LEVEL)
+  include(CTest)
+  add_subdirectory(examples)
+  if(BUILD_TESTING)
+    add_subdirectory(tests)
+  endif()
 endif()

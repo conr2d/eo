@@ -571,9 +571,17 @@ Pass, return, and store slices by value, as `slice<T>`, never as `const slice<T>
 
 The slice helpers are function objects with the same collision rule as the string helpers (see [Strings](#strings)).
 
-`for range` over a slice is in [Range loops](#range-loops). Not covered yet: keyed elements in a composite literal, such as `[]T{2: x}`, slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays ([#93](https://github.com/conr2d/eo/issues/93)); the `slices` package ([#94](https://github.com/conr2d/eo/issues/94)); and variadic calls in `go` and `defer` statements ([#95](https://github.com/conr2d/eo/issues/95)).
+`for range` over a slice is in [Range loops](#range-loops). Not covered yet: keyed elements in a composite literal, such as `[]T{2: x}`, slicing an array or a pointer to an array, and converting a slice to an array or to a pointer to an array, which wait on a mapping of Go arrays ([#93](https://github.com/conr2d/eo/issues/93)); the functions of the `slices` package that [The slices package](#the-slices-package) does not list ([#94](https://github.com/conr2d/eo/issues/94)); and variadic calls in `go` and `defer` statements ([#95](https://github.com/conr2d/eo/issues/95)).
 
 `ptr(s, &eo::at(s, i))` names `s` twice, so `s` must be a variable, or a field or element path of one without calls; a slice operand with a call is saved first, by [Evaluation order](#evaluation-order), so that the pointer's owner and target are the same array.
+
+#### The slices package
+
+Go's `slices` package maps, in part, to the namespace `slices` from `<eo/slices.h>`, whose functions are called as Go calls them, like those of `maps` (see [Maps](#maps)): `slices.Clone(s)`, `slices.Delete(s, i, j)`, `slices.DeleteFunc(s, del)`, `slices.Index(s, v)`, `slices.IndexFunc(s, f)`, `slices.Contains(s, v)`, `slices.ContainsFunc(s, f)`, `slices.SortFunc(s, cmp)`, and `slices.SortStableFunc(s, cmp)` are `slices::Clone(s)`, `slices::Delete(s, i, j)`, and so on. A function literal argument is the lambda of [Function literals](#function-literals), passed directly, and a comparison function returns `int64_t`, as Go's returns `int`. Each function takes its slice as a `slice<E>`, and `slices::Clone`, `slices::Delete`, and `slices::DeleteFunc` return one, so a slice of a [defined type](#defined-types) `T` passes as it is, and a result that Go gives the type `T` is converted, as the result of `eo::append` is: `names = slices.Delete(names, 0, 1)` is `names = Names(slices::Delete(names, 0, 1));`.
+
+The functions keep Go's aliasing and nil behavior. `slices::Clone` of nil is nil, and of an empty slice is an empty slice that is not nil. `slices::Delete` and `slices::DeleteFunc` move the kept elements within `s`, set the elements between the new length and the old one to the zero value, as Go does since Go 1.22, and return `s` shortened, so another slice of the same array sees both changes. `slices::Delete` panics as `s[i:j:len(s)]` does when its bounds are out of range, with the same runtime error. `slices::DeleteFunc` calls `del` once for each element, in order, and `slices::IndexFunc` and `slices::ContainsFunc` call `f` on the elements in order until it returns true.
+
+`slices::SortFunc` sorts with `std::sort`, so equal elements can end in another order than Go's, which Go leaves unspecified too, and a program whose output depends on the order of equal elements is outside this mapping. `slices::SortStableFunc` keeps equal elements in their order, as Go does. `cmp` must be a strict weak order, as Go requires for a sorted result: Go sorts some order for any other `cmp`, and C++ gives no such promise.
 
 ### Maps
 
