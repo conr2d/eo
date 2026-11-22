@@ -26,6 +26,18 @@ func get(a [4]int, i int) (v int) {
 	return a[i]
 }
 
+func sum(p *[2]int) (n int) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("recovered:", r)
+		}
+	}()
+	for _, v := range p {
+		n += v
+	}
+	return n
+}
+
 func main() {
 	// Assignment, arguments, and results copy an array.
 	a := [3]int{1, 2, 3}
@@ -85,7 +97,10 @@ func main() {
 	for i := range nilArr {
 		fmt.Printf("%d ", i)
 	}
-	fmt.Println(len(nilArr))
+	for i := range *nilArr {
+		fmt.Printf("%d ", i)
+	}
+	fmt.Println(len(nilArr), len(*nilArr), cap(*nilArr), sum(nilArr), sum(&[2]int{3, 4}))
 
 	// Printing.
 	bs := [4]byte{0xde, 0xad, 'h', 'i'}
@@ -98,6 +113,8 @@ func main() {
 	seen[[2]int{1, 2}] = "c"
 	fk := map[[2]float64]int{{0, 1}: 1}
 	fk[[2]float64{-0.0, 1}]++
+	zero := 0.0
+	fk[[2]float64{-zero, 1}]++
 	fmt.Println(seen, len(seen), seen[[2]int{0, 5}], fk)
 	var x, y any = [2]int{1, 2}, [2]int{1, 2}
 	fmt.Println(x == y, x == any([2]int{2, 1}), x)

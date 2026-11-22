@@ -48,6 +48,26 @@ auto get(std::array<int64_t, 4> a, int64_t i) -> int64_t {
   return v;
 }
 
+auto sum(ptr<std::array<int64_t, 2>> p) -> int64_t {
+  int64_t n{};
+  eo_defer_scope;
+  try {
+    eo_defer([&] {
+      if (auto r = recover(); r != nullptr) {
+        fmt::Println("recovered:"s, r);
+      }
+    });
+    for (auto [_eo_range_key, v] : eo::range(p)) {
+      n += v;
+    }
+    eo_defer_run;
+    return n;
+  } catch (...) {
+    eo_defer_panic;
+  }
+  return n;
+}
+
 func<> eo_main() {
   // Assignment, arguments, and results copy an array.
   auto a = std::array<int64_t, 3>{1, 2, 3};
@@ -110,7 +130,12 @@ func<> eo_main() {
   for (auto i : eo::range(eo::len(nilArr))) {
     fmt::Printf("%d "s, i);
   }
-  fmt::Println(eo::len(nilArr));
+  for (auto i : eo::range(eo::len(nilArr))) {
+    fmt::Printf("%d "s, i);
+  }
+  auto _eo_call_3 = sum(nilArr);
+  auto _eo_call_4 = sum(New<std::array<int64_t, 2>>(std::array<int64_t, 2>{3, 4}));
+  fmt::Println(eo::len(nilArr), eo::len(nilArr), eo::cap(nilArr), _eo_call_3, _eo_call_4);
 
   // Printing.
   auto bs = New<std::array<uint8_t, 4>>(std::array<uint8_t, 4>{0xde, 0xad, 104, 105});
@@ -124,6 +149,8 @@ func<> eo_main() {
   eo::map_entry(seen, std::array<int64_t, 2>{1, 2}) = "c"s;
   auto fk = map<std::array<double, 2>, int64_t>::of({{std::array<double, 2>{0, 1}, 1}});
   eo::map_entry(fk, std::array<double, 2>{0, 1})++;
+  auto zero = 0.0;
+  eo::map_entry(fk, std::array<double, 2>{-zero, 1})++;
   fmt::Println(seen, eo::len(seen), eo::map_get(seen, std::array<int64_t, 2>{0, 5}), fk);
   any x = std::array<int64_t, 2>{1, 2};
   any y = std::array<int64_t, 2>{1, 2};
