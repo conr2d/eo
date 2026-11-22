@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/array.h>
 #include <eo/bounds.h>
 #include <eo/ptr.h>
 #include <eo/string.h>
@@ -139,6 +140,27 @@ public:
     return slice{ptr<T>{data_, data() + low}, high - low, max - low};
   }
 
+  // A slice of n elements starting at first, the first element of an array that first's owner keeps
+  // alive, as a slice expression on an array gives in Go.
+  static auto of_array(ptr<T> first, int64_t n) -> slice {
+    if (n == 0) {
+      // A slice of an empty array is empty but not nil, as in Go.
+      return allocate(0, 0);
+    }
+    return slice{std::move(first), n, n};
+  }
+
+  // []T{k1: v1, k2: v2}, with every element keyed by its index: a new backing array of n zero values,
+  // n being one more than the largest index, with each value at its index. The braced list evaluates
+  // the elements in source order, as Go does.
+  static auto keyed(int64_t n, std::initializer_list<std::pair<int64_t, T>> elements) -> slice {
+    auto s = allocate(n, n);
+    for (const auto& [i, v] : elements) {
+      s.data()[i] = v;
+    }
+    return s;
+  }
+
 private:
   template<typename U>
   friend class ptr;
@@ -186,6 +208,17 @@ namespace detail {
     auto operator()(const chan<T>& ch) const -> int64_t {
       return ch.capacity();
     }
+
+    // cap(a) of an array, and cap(p) of a pointer to an array, even a nil one: the array's length.
+    template<go_array A>
+    auto operator()(const A&) const -> int64_t {
+      return array_length<A>;
+    }
+
+    template<go_array A>
+    auto operator()(const ptr<A>&) const -> int64_t {
+      return array_length<A>;
+    }
   };
 
   struct subslice_fn {
@@ -207,6 +240,39 @@ namespace detail {
     auto operator()(const slice<T>& s, L low, H high, M max) const -> slice<T> {
       check_slice3(low, high, max, s.capacity());
       return s.view(static_cast<int64_t>(low), static_cast<int64_t>(high), static_cast<int64_t>(max));
+    }
+
+    // p[low:high] of a pointer to an array, and a[low:high] of an addressable array a, which Go
+    // defines as (&a)[low:high]. The result shares the array's elements and keeps the array alive for
+    // as long as p does. A nil p panics before the bounds are checked, as in Go.
+    template<go_array A, go_integer L, go_integer H>
+    auto operator()(const ptr<A>& p, L low, H high) const -> slice<typename array_base_t<A>::value_type> {
+      auto& a = *p;
+      check_slice(low, high, array_length<A>);
+      return array_view(p, a, low, high, array_length<A>);
+    }
+
+    // p[low:]
+    template<go_array A, go_integer L>
+    auto operator()(const ptr<A>& p, L low) const -> slice<typename array_base_t<A>::value_type> {
+      return (*this)(p, low, array_length<A>);
+    }
+
+    // p[low:high:max]
+    template<go_array A, go_integer L, go_integer H, go_integer M>
+    auto operator()(const ptr<A>& p, L low, H high, M max) const -> slice<typename array_base_t<A>::value_type> {
+      auto& a = *p;
+      check_slice3(low, high, max, array_length<A>, "length");
+      return array_view(p, a, low, high, max);
+    }
+
+  private:
+    // (*p)[low:high:max], with the bounds already checked.
+    template<go_array A, typename L, typename H, typename M>
+    static auto array_view(const ptr<A>& p, A& a, L low, H high, M max) -> slice<typename array_base_t<A>::value_type> {
+      using T = typename array_base_t<A>::value_type;
+      auto all = slice<T>::of_array(ptr<T>{p, a.data()}, array_length<A>);
+      return all.view(static_cast<int64_t>(low), static_cast<int64_t>(high), static_cast<int64_t>(max));
     }
   };
 
@@ -292,6 +358,24 @@ namespace detail {
     }
   };
 
+  template<go_array A>
+  struct array_from_slice_fn {
+    using T = typename array_base_t<A>::value_type;
+
+    // A(s), for an array type A: a copy of the first len(A) elements of s. Go panics when s is
+    // shorter, with the lengths in the message.
+    auto operator()(const slice<T>& s) const -> A {
+      constexpr auto n = array_length<A>;
+      if (s.size() < n) {
+        panic_bounds_error(
+          fmt::format("cannot convert slice with length {} to array or pointer to array with length {}", s.size(), n));
+      }
+      auto a = A{};
+      std::copy(s.begin(), s.begin() + n, a.data());
+      return a;
+    }
+  };
+
   struct bytes_from_string_fn {
     // []byte(s)
     auto operator()(const std::string& s) const -> slice<uint8_t> {
@@ -348,6 +432,8 @@ inline constexpr detail::append_fn append{};
 inline constexpr detail::append_slice_fn append_slice{};
 inline constexpr detail::copy_fn copy{};
 inline constexpr detail::clear_fn clear{};
+template<typename A>
+inline constexpr detail::array_from_slice_fn<A> array_from_slice{};
 inline constexpr detail::bytes_from_string_fn bytes_from_string{};
 inline constexpr detail::string_from_bytes_fn string_from_bytes{};
 inline constexpr detail::runes_from_string_fn runes_from_string{};

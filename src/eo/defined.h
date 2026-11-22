@@ -219,11 +219,11 @@ struct defined<D, U> {
   }
 };
 
-// A defined type whose underlying type is a string, a slice, a map, or a function type derives from
-// it, so the helpers of U take it as they take U. A value of an unnamed slice, map, or function type
-// U converts to D implicitly, as Go assigns it to a defined type with the same underlying type. A
-// string, which is a defined type in Go, converts only explicitly, and so does another defined type
-// with the same underlying type, which this constructor does not take.
+// A defined type whose underlying type is a string, an array, a slice, a map, or a function type
+// derives from it, so the helpers of U take it as they take U. A value of an unnamed array, slice,
+// map, or function type U converts to D implicitly, as Go assigns it to a defined type with the same
+// underlying type. A string, which is a defined type in Go, converts only explicitly, and so does
+// another defined type with the same underlying type, which this constructor does not take.
 template<typename D, typename U>
   requires std::is_class_v<U>
 struct defined<D, U> : U {

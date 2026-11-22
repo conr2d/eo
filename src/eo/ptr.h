@@ -20,6 +20,8 @@ class slice;
 
 namespace detail {
 
+  struct ref_fn;
+
   // The targets that a release has yet to destroy. The first few are held in inline slots that are
   // constructed only when used, so a release that queues only a handful, as freeing a small struct
   // does, neither allocates nor initializes the whole buffer.
@@ -175,8 +177,7 @@ private:
   friend class slice;
   template<typename U, typename... Args>
   friend auto New(Args&&... args) -> ptr<U>;
-  template<typename U>
-  friend auto ref(U& target) noexcept -> ptr<U>;
+  friend struct detail::ref_fn;
 
   explicit ptr(std::shared_ptr<T> p) noexcept: p_(std::move(p)) {}
 
@@ -204,13 +205,22 @@ auto New(Args&&... args) -> ptr<T> {
   return ptr<T>{std::make_shared<T>(std::forward<Args>(args)...)};
 }
 
+namespace detail {
+
+  struct ref_fn {
+    template<typename T>
+    auto operator()(T& target) const noexcept -> ptr<T> {
+      return ptr<T>{std::shared_ptr<T>{std::shared_ptr<void>{}, std::addressof(target)}};
+    }
+  };
+
+} // namespace detail
+
 // &x for storage that is not moved to heap: a borrowed pointer that does not own x. It is valid only
 // while x is alive, which the translation rules guarantee by boxing every variable whose address
-// could outlive it.
-template<typename T>
-auto ref(T& target) noexcept -> ptr<T> {
-  return ptr<T>{std::shared_ptr<T>{std::shared_ptr<void>{}, std::addressof(target)}};
-}
+// could outlive it. A function object, like the string helpers (see <eo/string.h>), so that ref(x) of
+// a std::string or a std::array does not also find std::ref by argument-dependent lookup.
+inline constexpr detail::ref_fn ref{};
 
 namespace runtime {
 

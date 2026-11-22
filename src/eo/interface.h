@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/array.h>
 #include <eo/defined.h>
 #include <eo/struct.h>
 
@@ -116,7 +117,7 @@ namespace detail {
 
   // Whether T is a translated Go type, which has a Go type name and so can be held in an interface:
   // a basic type, a string, struct{}, a type that declares _eo_name, such as a translated struct or
-  // defined type, or a pointer, slice, or map of such types.
+  // defined type, or a pointer, array, slice, or map of such types.
   template<typename T>
   consteval auto is_go_type() -> bool {
     if constexpr (requires { T::_eo_name; }) {
@@ -129,7 +130,7 @@ namespace detail {
       return true;
     } else if constexpr (is_ptr<T>) {
       return is_go_type<typename pointee<T>::type>();
-    } else if constexpr (is_slice<T>) {
+    } else if constexpr (is_slice<T> || is_std_array<T>) {
       return is_go_type<typename T::value_type>();
     } else if constexpr (is_map<T>) {
       return is_go_type<typename T::key_type>() && is_go_type<typename T::mapped_type>();
@@ -296,9 +297,21 @@ namespace detail {
     std::span<const entry_base* const> methods;
   };
 
-  // Go's comparable types.
+  // Go's comparable types. std::array declares == for every element type, so an array is comparable
+  // when its elements are.
   template<typename T>
-  inline constexpr bool go_comparable = std::equality_comparable<T>;
+  consteval auto is_go_comparable() -> bool {
+    if constexpr (is_std_array<T>) {
+      return is_go_comparable<typename T::value_type>();
+    } else if constexpr (defined_type<T>) {
+      return is_go_comparable<typename T::_eo_underlying>() && std::equality_comparable<T>;
+    } else {
+      return std::equality_comparable<T>;
+    }
+  }
+
+  template<typename T>
+  inline constexpr bool go_comparable = is_go_comparable<T>();
 
   template<typename D>
   auto equal_values(const void* a, const void* b) -> bool {
@@ -650,6 +663,8 @@ namespace detail {
       return "struct {}";
     } else if constexpr (is_ptr<U>) {
       return "*" + type_name<typename pointee<U>::type>();
+    } else if constexpr (is_std_array<U>) {
+      return "[" + std::to_string(std::tuple_size_v<U>) + "]" + type_name<typename U::value_type>();
     } else if constexpr (is_slice<U>) {
       return "[]" + type_name<typename U::value_type>();
     } else if constexpr (is_map<U>) {

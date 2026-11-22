@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/array.h>
 #include <eo/ptr.h>
 
 #include <boost/pfr.hpp>
@@ -29,6 +30,8 @@ namespace detail {
       return has_float_key<typename K::_eo_underlying>();
     } else if constexpr (std::is_floating_point_v<K>) {
       return true;
+    } else if constexpr (is_std_array<K>) {
+      return has_float_key<typename K::value_type>();
     } else if constexpr (go_struct<K> && !std::is_same_v<K, empty_struct>) {
       return []<std::size_t... I>(std::index_sequence<I...>) {
         return (has_float_key<boost::pfr::tuple_element_t<I, K>>() || ...);
@@ -52,6 +55,12 @@ namespace detail {
       return std::hash<const void*>{}(static_cast<const void*>(k.get()));
     } else if constexpr (std::is_same_v<K, empty_struct>) {
       return 0;
+    } else if constexpr (is_std_array<K>) {
+      auto h = std::size_t{0};
+      for (const auto& element : k) {
+        h ^= hash_key(element) + 0x9e3779b97f4a7c15 + (h << 6) + (h >> 2);
+      }
+      return h;
     } else if constexpr (go_struct<K>) {
       auto h = std::size_t{0};
       boost::pfr::for_each_field(k,
@@ -59,8 +68,8 @@ namespace detail {
       return h;
     } else {
       static_assert(sizeof(K) == 0,
-        "a map key must be a bool, number, string, pointer, or struct of such types; other key types are not "
-        "covered yet");
+        "a map key must be a bool, number, string, pointer, or an array or struct of such types; other key "
+        "types are not covered yet");
     }
   }
 
@@ -79,6 +88,13 @@ namespace detail {
       return key_bits_differ(underlying(a), underlying(b));
     } else if constexpr (std::is_floating_point_v<K>) {
       return std::signbit(a) != std::signbit(b);
+    } else if constexpr (is_std_array<K> && has_float_key<K>()) {
+      for (std::size_t i = 0; i < a.size(); ++i) {
+        if (key_bits_differ(a[i], b[i])) {
+          return true;
+        }
+      }
+      return false;
     } else if constexpr (go_struct<K> && has_float_key<K>()) {
       return [&]<std::size_t... I>(std::index_sequence<I...>) {
         return (key_bits_differ(boost::pfr::get<I>(a), boost::pfr::get<I>(b)) || ...);

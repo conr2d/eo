@@ -1,0 +1,20 @@
+[0 10 20 3 4] [10 20] 2 4
+[0 10 20 3 40] [20 3] 2 2
+[0 10 20 30 40] [10 20 30]
+[0 10 20 30 40] [0 30 50]
+2 [0 10 20 7 8]
+[20 3] 2 3
+[a B c] [B c]
+[104 101 121 33] hey
+high recovered: runtime error: slice bounds out of range [:6] with length 5
+low recovered: runtime error: slice bounds out of range [4:3]
+max recovered: runtime error: slice bounds out of range [::7] with length 5
+high3 recovered: runtime error: slice bounds out of range [:4:3]
+nil recovered: runtime error: invalid memory address or nil pointer dereference
+3 3
+nil len recovered: <nil>
+index recovered: runtime error: invalid memory address or nil pointer dereference
+[1 2 3] [100 2 3 4]
+[] []
+convert recovered: runtime error: cannot convert slice with length 4 to array or pointer to array with length 5
+convert nil recovered: runtime error: cannot convert slice with length 0 to array or pointer to array with length 1
