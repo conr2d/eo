@@ -6,11 +6,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <utility>
 
-// Go's slices package, in part: the functions that ported code has needed so far. Each takes and
-// returns a slice<E>. A slice of a defined type converts to it, and the result is converted back, as
-// for eo::append.
+// Go's slices package, in part: the functions that ported code has needed so far. Each takes its
+// slice as a slice<E>, which a slice of a defined type converts to. A slice<E> result is converted
+// back to the defined type, as for eo::append.
 namespace eo::slices {
 
 // slices.IndexFunc(s, f): the index of the first element for which f is true, or -1.
@@ -71,7 +72,8 @@ auto Delete(slice<E> s, int64_t i, int64_t j) -> slice<E> {
 // shortened. del is called once per element, in order.
 template<typename E, typename F>
 auto DeleteFunc(slice<E> s, F del) -> slice<E> {
-  auto i = IndexFunc(s, del);
+  // One function value serves the search and the loop, as in Go.
+  auto i = IndexFunc(s, std::ref(del));
   if (i == -1) {
     return s;
   }
