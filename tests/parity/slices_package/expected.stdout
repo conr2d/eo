@@ -1,0 +1,15 @@
+true false 0
+[1 2 3] [10 2 3]
+[0 3 4 5] 4 [0 3 4 5 0 0]
+[0 3 4 5 0 0] 6
+recovered: runtime error: slice bounds out of range [2:1:]
+recovered: runtime error: slice bounds out of range [:4:3]
+recovered: runtime error: slice bounds out of range [-1::]
+a bb c dd e 
+["a" "c" "e"] ["a" "c" "e" "" ""]
+true
+1 -1 true false
+1 false
+[9 8 5 2 1]
+[al:1 di:1 ed:2 bob:3 cy:3]
+main.Names [y z]
