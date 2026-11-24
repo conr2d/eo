@@ -711,6 +711,8 @@ private:
 // Go's strings.Replacer, from NewReplacer. Replace performs the replacements in the order they
 // appear in s, without overlapping matches. At each position the pair that comes first in the
 // arguments wins, and an empty old string matches between every two bytes, but not twice in a row.
+// It tries the pairs in order at each position, where Go walks a trie: the same result, in time
+// proportional to the length of s times the number of pairs.
 class Replacer {
 public:
   static constexpr std::string_view _eo_name = "strings.Replacer";

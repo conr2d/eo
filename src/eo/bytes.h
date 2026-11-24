@@ -19,6 +19,9 @@ namespace eo::bytes {
 namespace detail {
 
   inline auto view(const slice<uint8_t>& s) -> std::string_view {
+    if (s.data() == nullptr) {
+      return {};
+    }
     return {reinterpret_cast<const char*>(s.data()), static_cast<std::size_t>(eo::len(s))};
   }
 

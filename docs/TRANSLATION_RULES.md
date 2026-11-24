@@ -2052,7 +2052,7 @@ Go's `math/bits` maps to the namespace `bits` from `<eo/math/bits.h>`. It covers
 - `Add`, `Sub`, `Mul`, `Div`, and `Rem` with their 32-bit and 64-bit forms;
 - the constant `UintSize`, which is 64.
 
-Go's `uint` is `uint64_t`, and its `int` results are `int64_t`. Two results are a `std::tuple`, so `sum, carry := bits.Add64(x, y, 0)` is `auto [sum, carry] = bits::Add64(x, y, 0);`. A negative `RotateLeft` count rotates right. `Div64` and `Div32` panic with Go's runtime errors: `runtime error: integer divide by zero` for a zero divisor, and `runtime error: integer overflow` when the quotient does not fit.
+Go's `uint` is `uint64_t`, and its `int` results are `int64_t`. Two results are a `std::tuple`, so `sum, carry := bits.Add64(x, y, 0)` is `auto [sum, carry] = bits::Add64(x, y, 0);`. A negative `RotateLeft` count rotates right. `Div` and `Rem` panic with `runtime error: integer divide by zero` for a zero divisor, as Go's do. `Div` also panics with `runtime error: integer overflow` when the quotient does not fit, and `Rem` does not.
 
 ### Goroutine
 
