@@ -398,8 +398,8 @@ void print_method(printer& p, const T& value, const entry<std::string()>* method
   print_string(p, s, verb);
 }
 
-// Go's handleMethods: %w of an error in Errorf, and Error or String, which Go prefers in that order,
-// for %v, %s, %x, %X, and %q. Returns whether it printed the operand.
+// Go's handleMethods: %w of an error in Errorf, a Formatter, and Error or String, which Go prefers in
+// that order, for %v, %s, %x, %X, and %q. Returns whether it printed the operand.
 template<typename T>
 auto handle_methods(printer& p, const T& value, int32_t verb) -> bool {
   if (p.erroring) {
@@ -413,6 +413,14 @@ auto handle_methods(printer& p, const T& value, int32_t verb) -> bool {
       return true;
     }
     verb = 'v';
+  }
+  // A Go Formatter prints itself for every verb. Eo library types that Go formats this way, such as
+  // a *big.Int, declare _eo_format, found by argument-dependent lookup.
+  if constexpr (requires {
+                  { _eo_format(value, verb) } -> std::convertible_to<std::string>;
+                }) {
+    p.buf += _eo_format(value, verb);
+    return true;
   }
   if constexpr (error != no_method || string != no_method) {
     switch (verb) {
