@@ -2071,7 +2071,7 @@ The interfaces are [interface types](#interface-types). A method of an interface
 
 The functions are ported from Go 1.26's `io.go` and `multi.go`:
 
-- `Copy` and `CopyN` use the source's `WriteTo` or the destination's `ReadFrom` when it has one, and otherwise copy through a buffer of 32 KiB, or of the remaining count of a `*LimitedReader`. A short write gives `ErrShortWrite`, and a write that reports more bytes than it got gives `invalid write result`.
+- `Copy` and `CopyN` use the source's `WriteTo` or the destination's `ReadFrom` when it has one, and otherwise copy through a buffer of 32 KiB, or of the remaining count of a `*LimitedReader` when that is smaller, and of one byte when that count is below 1. A short write gives `ErrShortWrite`, and a write that reports more bytes than it got gives `invalid write result`.
 - `CopyBuffer` panics with `empty buffer in CopyBuffer` for a buffer that is empty and not nil.
 - `ReadAll` grows its buffer as Go's does. Go rounds each capacity up to an allocation size class, and Eo does not, so the capacity of the result is outside this mapping.
 - `MultiReader` flattens nested `MultiReader`s when it reads and when it writes to a `WriterTo`, and `MultiWriter` flattens nested `MultiWriter`s, as Go's do.
