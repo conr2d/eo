@@ -40,6 +40,12 @@ func (c code) GoString() string { return "code(" + strconv.Itoa(int(c)) + ")" }
 
 type boom struct{}
 
+type codeErr struct {
+	n int
+}
+
+func (e codeErr) Error() string { return "code " + strconv.Itoa(e.n) }
+
 func (boom) String() string { panic("boom") }
 
 func main() {
@@ -116,6 +122,10 @@ func main() {
 	wrapped := fmt.Errorf("op %[2]s: %[1]w", err, "read")
 	fmt.Println(wrapped, errors.Is(wrapped, err))
 	fmt.Println(fmt.Sprintf("%08.3f|%-8.3f|%+.2e", -1.5, 2.25, 12345.678))
+	var first codeErr
+	reordered := fmt.Errorf("%[2]w %[1]w %[2]w", codeErr{1}, codeErr{2})
+	fmt.Println(reordered, errors.As(reordered, &first), first.n)
+	fmt.Printf("%.60e\n%.40g\n%#.30x\n", 1.5, 0.1, 0.1)
 
 	// strconv's float formatting and ASCII quoting.
 	for _, f := range []byte{'b', 'e', 'E', 'f', 'g', 'G', 'x', 'X', 'z'} {
@@ -123,6 +133,7 @@ func main() {
 	}
 	fmt.Println(strconv.FormatFloat(1e23, 'g', -1, 64), strconv.FormatFloat(5e-324, 'e', -1, 64), strconv.FormatFloat(0.1, 'f', 30, 32), strconv.FormatFloat(123, 'g', 2, 64))
 	fmt.Println(strconv.FormatFloat(1.7976931348623157e308, 'f', 0, 64))
+	fmt.Println(strconv.FormatFloat(2.0/3, 'e', 70, 64), strconv.FormatFloat(2.0/3, 'g', 80, 32))
 	fmt.Println(string(strconv.AppendFloat([]byte("x="), 2.5, 'f', 1, 64)), strconv.FormatFloat(0, 'g', 3, 64), strconv.FormatFloat(100, 'g', 1, 64), strconv.FormatFloat(1e-5, 'g', 1, 64))
 	fmt.Println(strconv.QuoteToASCII("héllo\x01☺"), strconv.QuoteRuneToASCII('☺'), strconv.QuoteRuneToASCII('a'), strconv.QuoteRune('☺'))
 	fmt.Println(strconv.CanBackquote("plain text"), strconv.CanBackquote("tab\there"), strconv.CanBackquote("new\nline"), strconv.CanBackquote("`"), strconv.CanBackquote("\ufeff"), strconv.CanBackquote("\xff"))

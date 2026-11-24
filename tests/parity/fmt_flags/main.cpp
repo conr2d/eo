@@ -18,6 +18,7 @@ struct item;
 struct label;
 struct code;
 struct boom;
+struct codeErr;
 
 double zero;
 
@@ -100,6 +101,22 @@ struct boom {
 
 auto boom::String(boom) -> std::string {
   panic("boom"s);
+}
+
+struct codeErr {
+  static constexpr std::string_view _eo_name = "main.codeErr";
+
+  int64_t n{};
+
+  auto operator==(const codeErr&) const -> bool = default;
+
+  static auto Error(codeErr e) -> std::string;
+
+  using _eo_methods = eo::methods<eo::method<&codeErr::Error, "Error">>;
+};
+
+auto codeErr::Error(codeErr e) -> std::string {
+  return "code "s + strconv::Itoa(e.n);
 }
 
 func<> eo_main() {
@@ -358,37 +375,45 @@ func<> eo_main() {
     auto wrapped = fmt::Errorf("op %[2]s: %[1]w"s, err, "read"s);
     fmt::Println(wrapped, errors::Is(wrapped, err));
     fmt::Println(fmt::Sprintf("%08.3f|%-8.3f|%+.2e"s, double{-1.5}, double{2.25}, double{0x1.81cd6c8b43958p+13}));
+    auto first = New<codeErr>();
+    auto reordered = fmt::Errorf("%[2]w %[1]w %[2]w"s, codeErr{1}, codeErr{2});
+    auto _eo_call_0 = errors::As(reordered, first);
+    fmt::Println(reordered, _eo_call_0, first->n);
+    fmt::Printf("%.60e\n%.40g\n%#.30x\n"s, double{1.5}, double{0x1.999999999999ap-04}, double{0x1.999999999999ap-04});
 
     // strconv's float formatting and ASCII quoting.
     for (auto [_eo_range_key, f] : eo::range(slice<uint8_t>::of({98, 101, 69, 102, 103, 71, 120, 88, 122}))) {
-      auto _eo_call_0 = strconv::FormatFloat(1234.5678, f, -1, 64);
-      auto _eo_call_1 = strconv::FormatFloat(1234.5678, f, 2, 64);
-      auto _eo_call_2 = strconv::FormatFloat(-0.000123, f, 3, 32);
-      fmt::Println(eo::string_from_rune(f), _eo_call_0, _eo_call_1, _eo_call_2);
+      auto _eo_call_1 = strconv::FormatFloat(1234.5678, f, -1, 64);
+      auto _eo_call_2 = strconv::FormatFloat(1234.5678, f, 2, 64);
+      auto _eo_call_3 = strconv::FormatFloat(-0.000123, f, 3, 32);
+      fmt::Println(eo::string_from_rune(f), _eo_call_1, _eo_call_2, _eo_call_3);
     }
-    auto _eo_call_3 = strconv::FormatFloat(1e23, 'g', -1, 64);
-    auto _eo_call_4 = strconv::FormatFloat(5e-324, 'e', -1, 64);
-    auto _eo_call_5 = strconv::FormatFloat(0.1, 'f', 30, 32);
-    auto _eo_call_6 = strconv::FormatFloat(123, 'g', 2, 64);
-    fmt::Println(_eo_call_3, _eo_call_4, _eo_call_5, _eo_call_6);
+    auto _eo_call_4 = strconv::FormatFloat(1e23, 'g', -1, 64);
+    auto _eo_call_5 = strconv::FormatFloat(5e-324, 'e', -1, 64);
+    auto _eo_call_6 = strconv::FormatFloat(0.1, 'f', 30, 32);
+    auto _eo_call_7 = strconv::FormatFloat(123, 'g', 2, 64);
+    fmt::Println(_eo_call_4, _eo_call_5, _eo_call_6, _eo_call_7);
     fmt::Println(strconv::FormatFloat(1.7976931348623157e308, 'f', 0, 64));
-    auto _eo_call_7 = strconv::AppendFloat(eo::bytes_from_string("x="s), 2.5, 'f', 1, 64);
-    auto _eo_call_8 = strconv::FormatFloat(0, 'g', 3, 64);
-    auto _eo_call_9 = strconv::FormatFloat(100, 'g', 1, 64);
-    auto _eo_call_10 = strconv::FormatFloat(1e-5, 'g', 1, 64);
-    fmt::Println(eo::string_from_bytes(_eo_call_7), _eo_call_8, _eo_call_9, _eo_call_10);
-    auto _eo_call_11 = strconv::QuoteToASCII("héllo\x{01}☺"s);
-    auto _eo_call_12 = strconv::QuoteRuneToASCII(9786);
-    auto _eo_call_13 = strconv::QuoteRuneToASCII(97);
-    auto _eo_call_14 = strconv::QuoteRune(9786);
-    fmt::Println(_eo_call_11, _eo_call_12, _eo_call_13, _eo_call_14);
-    auto _eo_call_15 = strconv::CanBackquote("plain text"s);
-    auto _eo_call_16 = strconv::CanBackquote("tab\there"s);
-    auto _eo_call_17 = strconv::CanBackquote("new\nline"s);
-    auto _eo_call_18 = strconv::CanBackquote("`"s);
-    auto _eo_call_19 = strconv::CanBackquote("\ufeff"s);
-    auto _eo_call_20 = strconv::CanBackquote("\x{ff}"s);
-    fmt::Println(_eo_call_15, _eo_call_16, _eo_call_17, _eo_call_18, _eo_call_19, _eo_call_20);
+    auto _eo_call_8 = strconv::FormatFloat(double{0x1.5555555555555p-01}, 'e', 70, 64);
+    auto _eo_call_9 = strconv::FormatFloat(double{0x1.5555555555555p-01}, 'g', 80, 32);
+    fmt::Println(_eo_call_8, _eo_call_9);
+    auto _eo_call_10 = strconv::AppendFloat(eo::bytes_from_string("x="s), 2.5, 'f', 1, 64);
+    auto _eo_call_11 = strconv::FormatFloat(0, 'g', 3, 64);
+    auto _eo_call_12 = strconv::FormatFloat(100, 'g', 1, 64);
+    auto _eo_call_13 = strconv::FormatFloat(1e-5, 'g', 1, 64);
+    fmt::Println(eo::string_from_bytes(_eo_call_10), _eo_call_11, _eo_call_12, _eo_call_13);
+    auto _eo_call_14 = strconv::QuoteToASCII("héllo\x{01}☺"s);
+    auto _eo_call_15 = strconv::QuoteRuneToASCII(9786);
+    auto _eo_call_16 = strconv::QuoteRuneToASCII(97);
+    auto _eo_call_17 = strconv::QuoteRune(9786);
+    fmt::Println(_eo_call_14, _eo_call_15, _eo_call_16, _eo_call_17);
+    auto _eo_call_18 = strconv::CanBackquote("plain text"s);
+    auto _eo_call_19 = strconv::CanBackquote("tab\there"s);
+    auto _eo_call_20 = strconv::CanBackquote("new\nline"s);
+    auto _eo_call_21 = strconv::CanBackquote("`"s);
+    auto _eo_call_22 = strconv::CanBackquote("\ufeff"s);
+    auto _eo_call_23 = strconv::CanBackquote("\x{ff}"s);
+    fmt::Println(_eo_call_18, _eo_call_19, _eo_call_20, _eo_call_21, _eo_call_22, _eo_call_23);
     eo_defer([&] { fmt::Println("recovered:"s, recover()); });
     strconv::FormatFloat(1, 'g', -1, 16);
     eo_defer_run;

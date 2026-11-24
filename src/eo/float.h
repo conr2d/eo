@@ -53,16 +53,19 @@ inline auto float_digits(double v, int bit_size, int digits) -> float_decimal {
   if (v == 0) {
     return r;
   }
-  char buf[64];
+  // The digits, the point, and an exponent of a sign and at most 3 digits.
+  auto buf = std::vector<char>(static_cast<std::size_t>(std::max(digits, 0)) + 32);
+  auto first = buf.data();
+  auto last = buf.data() + buf.size();
   auto result = std::to_chars_result{};
   if (digits < 0) {
     result = bit_size == 32
-      ? std::to_chars(buf, buf + sizeof(buf), std::fabs(static_cast<float>(v)), std::chars_format::scientific)
-      : std::to_chars(buf, buf + sizeof(buf), std::fabs(v), std::chars_format::scientific);
+      ? std::to_chars(first, last, std::fabs(static_cast<float>(v)), std::chars_format::scientific)
+      : std::to_chars(first, last, std::fabs(v), std::chars_format::scientific);
   } else {
-    result = std::to_chars(buf, buf + sizeof(buf), std::fabs(v), std::chars_format::scientific, digits - 1);
+    result = std::to_chars(first, last, std::fabs(v), std::chars_format::scientific, digits - 1);
   }
-  auto text = std::string_view(buf, result.ptr);
+  auto text = std::string_view(first, result.ptr);
   auto e = text.find('e');
   for (auto c : text.substr(0, e)) {
     if (c != '.') {

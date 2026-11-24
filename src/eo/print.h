@@ -659,8 +659,8 @@ inline void fmt_float(printer& p, double v, int size, int32_t verb, int64_t prec
     p.flags.zero = zero;
     return;
   }
-  // The sharp flag forces a decimal point and keeps the trailing zeros of %g and %G, and of %x and
-  // %X without a precision.
+  // The sharp flag forces a decimal point, and fills %v, %g, %G, and %x, though not %X, with
+  // trailing zeros to the precision, or to 6 digits without one, as Go does.
   if (p.flags.sharp && verb != 'b') {
     auto digits = int64_t{0};
     switch (verb) {
@@ -1389,9 +1389,10 @@ inline auto arg_number(printf_state& st,
   return {arg_num, i + wid, ok};
 }
 
-// Go's doPrintf. The positions of the operands of %w are added to `wrapped`.
-inline void print_format(
-  printer& p, std::string_view format, std::span<const operand> operands, std::vector<std::size_t>* wrapped) {
+// Go's doPrintf. The positions of the operands of %w are added to `wrapped`. Returns whether an
+// operand index reordered the operands.
+inline auto print_format(
+  printer& p, std::string_view format, std::span<const operand> operands, std::vector<std::size_t>* wrapped) -> bool {
   auto end = format.size();
   auto arg_num = std::size_t{0};
   // Whether the previous item in the format was an index like [3].
@@ -1547,6 +1548,7 @@ inline void print_format(
     }
     p.buf += ')';
   }
+  return st.reordered;
 }
 
 template<typename... T>
