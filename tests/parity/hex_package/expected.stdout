@@ -1,0 +1,17 @@
+0001abff6869 12 6 true
+12 0001abff6869 [0 0]
+00ab [0 171] 2 <nil> false false 0
+DEADbeef [222 173 190 239] 4 <nil> false false 0
+ [] 0 <nil> false false 0
+abc [171] 1 encoding/hex: odd length hex string true false 0
+zz [] 0 encoding/hex: invalid byte: U+007A 'z' false true 122
+a [] 0 encoding/hex: odd length hex string true false 0
+0g [] 0 encoding/hex: invalid byte: U+0067 'g' false true 103
+g0 [] 0 encoding/hex: invalid byte: U+0067 'g' false true 103
+0x12 [] 0 encoding/hex: invalid byte: U+0078 'x' false true 120
+abz [171] 1 encoding/hex: invalid byte: U+007A 'z' false true 122
+abÿ [171] 1 encoding/hex: invalid byte: U+00FF 'Ã¿' false true 255
+2 [1 2 0 0] encoding/hex: invalid byte: U+007A 'z'
+encoding/hex: invalid byte: U+000A hex.InvalidByteError 97
+short encode recovered: runtime error: index out of range [3] with length 3
+short decode recovered: runtime error: index out of range [1] with length 1
