@@ -37,6 +37,8 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Errors | [Errors](./TRANSLATION_RULES.md#errors) | `error_values` |
 | Printing and `fmt` verbs | [Formatted printing](./TRANSLATION_RULES.md#formatted-printing) | `println_operands`, `format_verbs`, `map_println` |
 | The `math/big` package, in part | [The math/big package](./TRANSLATION_RULES.md#the-mathbig-package) | `big_int`, `big_int_random` |
+| The `strconv` package, in part | [The strconv package](./TRANSLATION_RULES.md#the-strconv-package) | `strconv_package` |
+| The `encoding/hex` and `encoding/binary` packages, in part | [The encoding/hex package](./TRANSLATION_RULES.md#the-encodinghex-package), [The encoding/binary package](./TRANSLATION_RULES.md#the-encodingbinary-package) | `hex_package`, `binary_package` |
 | Goroutines | [Goroutine](./TRANSLATION_RULES.md#goroutine) | `shared_variable`, `method_goroutine`, `loop_variable_goroutine` |
 | Channels | [Channels](./TRANSLATION_RULES.md#channels) | `channel_buffered`, `channel_panics`, `channel_recv_ok` |
 | `select` | [Select](./TRANSLATION_RULES.md#select) | `select_default`, `labels` |

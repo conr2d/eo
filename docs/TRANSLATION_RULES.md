@@ -1916,6 +1916,64 @@ A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` 
 - `Format` with flags, width, or precision, and `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
 - `QuoRem` and `DivMod` whose two results are the same `Int`, or whose modulus `m` is also `y`, where Go's result depends on the order of its own writes.
 
+### The strconv package
+
+Go's `strconv` maps, in part, to the namespace `strconv` from `<eo/strconv.h>`. Its functions are called as Go calls them, and its results follow [Multiple results](#multiple-results): `n, err := strconv.Atoi(s)` is `auto [n, err] = strconv::Atoi(s);`, and `strconv.FormatInt(x, 16)` is `strconv::FormatInt(x, 16)`. It covers these names:
+
+- `ParseInt`, `ParseUint`, `Atoi`, and `ParseBool`;
+- `Itoa`, `FormatInt`, `FormatUint`, and `FormatBool`;
+- `AppendInt`, `AppendUint`, `AppendBool`, and `AppendQuote`;
+- `Quote`, `QuoteRune`, `Unquote`, `UnquoteChar`, and `IsPrint`;
+- the error type `NumError` and the variables `ErrRange` and `ErrSyntax`;
+- the constant `IntSize`, which is 64.
+
+The functions are ported from Go 1.26:
+
+- The parse functions take base prefixes and `_` separators only for base 0. A value out of range gives the largest value of its sign, with an error.
+- A failed parse returns a `*strconv.NumError` as its `error`. Its `Error` is Go's, as in `strconv.ParseInt: parsing "999": value out of range`, and it unwraps to `strconv::ErrRange`, `strconv::ErrSyntax`, or an error for an invalid base or bit size. So `errors::Is(err, strconv::ErrRange)` and `errors::As(err, p)` with a `ptr<strconv::NumError>` target work as in Go.
+- `Unquote` and `UnquoteChar` return `strconv::ErrSyntax` itself.
+- `FormatInt`, `FormatUint`, `AppendInt`, and `AppendUint` panic with `strconv: illegal AppendInt/FormatInt base` for a base other than 2 through 36.
+- `Quote` and `IsPrint` decide which code points are printable as `%q` does (see [Formatted printing](#formatted-printing)), so an unassigned code point counts as printable.
+
+#### The strconv package not covered yet
+
+- `ParseFloat`, `FormatFloat`, `AppendFloat`, the complex functions, `QuoteToASCII`, `QuoteToGraphic`, `AppendQuoteRune`, the rune and `Append` forms of the ASCII and graphic quoting functions, `QuotedPrefix`, `CanBackquote`, and `IsGraphic`.
+
+### The encoding/hex package
+
+Go's `encoding/hex` maps, in part, to the namespace `hex` from `<eo/encoding/hex.h>`. It covers `Encode`, `Decode`, `EncodeToString`, `DecodeString`, `EncodedLen`, `DecodedLen`, the variable `ErrLength`, and the defined type `InvalidByteError`. `hex.InvalidByteError(c)` is `hex::InvalidByteError(c)`, and a constant one is `hex::InvalidByteError{97}`, as for any [defined type](#defined-types).
+
+The functions are ported from Go 1.26:
+
+- `Decode` and `DecodeString` stop at the first invalid byte, and return the bytes decoded before it with a `hex::InvalidByteError`. Its message is Go's, as in `encoding/hex: invalid byte: U+0067 'g'`.
+- An odd length gives `hex::ErrLength`, unless the last byte is invalid too, in which case it gives the invalid byte.
+- `Encode` and `Decode` write to `dst` through Go's index checks, so a `dst` that is too short panics with Go's runtime error after the bytes before it are written.
+
+#### The encoding/hex package not covered yet
+
+- `AppendEncode`, `AppendDecode`, `Dump`, `Dumper`, `NewEncoder`, and `NewDecoder`.
+
+### The encoding/binary package
+
+Go's `encoding/binary` maps, in part, to the namespace `binary` from `<eo/encoding/binary.h>`. It covers:
+
+- the byte orders `BigEndian` and `LittleEndian`;
+- the interfaces `ByteOrder` and `AppendByteOrder`;
+- `PutUvarint`, `Uvarint`, `AppendUvarint`, `PutVarint`, `Varint`, and `AppendVarint`;
+- the constants `MaxVarintLen16`, `MaxVarintLen32`, and `MaxVarintLen64`.
+
+`binary.BigEndian` and `binary.LittleEndian` are constants of the types `binary::bigEndian` and `binary::littleEndian`, which keep Go's unexported names. Their methods have value receivers, and they are written as for a translated type in [Methods](#methods): `binary.BigEndian.PutUint64(b, v)` is `binary::bigEndian::PutUint64(binary::BigEndian, b, v)`. The methods are `Uint16`, `Uint32`, `Uint64`, `PutUint16`, `PutUint32`, `PutUint64`, `AppendUint16`, `AppendUint32`, `AppendUint64`, `String`, and `GoString`. A byte order passed as a `binary.ByteOrder` or a `binary.AppendByteOrder` is an [interface value](#interface-values), whose methods are called as members: `order.Uint64(b)`.
+
+The functions are ported from Go 1.26:
+
+- `Uint64` and the other methods check the last index first, as Go's do, so a slice that is too short panics with Go's runtime error, such as `runtime error: index out of range [7] with length 7`, before anything is read or written.
+- `PutUvarint` and `PutVarint` panic the same way at the first byte that does not fit.
+- `Uvarint` and `Varint` return 0 bytes for a buffer that ends inside the value, and `-n` for a value that overflows 64 bits at byte `n`.
+
+#### The encoding/binary package not covered yet
+
+- `Read`, `Write`, `Size`, `Append`, `Encode`, `Decode`, `ReadUvarint`, `ReadVarint`, and `NativeEndian`.
+
 ### Goroutine
 
 Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
@@ -2466,6 +2524,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - the forms in [The math/big package not covered yet](#the-mathbig-package-not-covered-yet);
+- the forms in [The strconv package not covered yet](#the-strconv-package-not-covered-yet), [The encoding/hex package not covered yet](#the-encodinghex-package-not-covered-yet), and [The encoding/binary package not covered yet](#the-encodingbinary-package-not-covered-yet);
 - the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;

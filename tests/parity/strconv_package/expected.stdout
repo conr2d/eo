@@ -1,0 +1,75 @@
+42 10 64 42 <nil> 42 <nil>
+-42 10 64 -42 <nil> 0 strconv.ParseUint: parsing "-42": invalid syntax
++7 10 0 7 <nil> 0 strconv.ParseUint: parsing "+7": invalid syntax
+0x_1F 0 64 31 <nil> 31 <nil>
+0b101 0 8 5 <nil> 5 <nil>
+0o17 0 64 15 <nil> 15 <nil>
+017 0 64 15 <nil> 15 <nil>
+0 0 64 0 <nil> 0 <nil>
+1_000 0 64 1000 <nil> 1000 <nil>
+1__0 0 64 0 strconv.ParseInt: parsing "1__0": invalid syntax 0 strconv.ParseUint: parsing "1__0": invalid syntax
+_1 0 64 0 strconv.ParseInt: parsing "_1": invalid syntax 0 strconv.ParseUint: parsing "_1": invalid syntax
+1_000 10 64 0 strconv.ParseInt: parsing "1_000": invalid syntax 0 strconv.ParseUint: parsing "1_000": invalid syntax
+ff 16 64 255 <nil> 255 <nil>
+FF 16 8 127 strconv.ParseInt: parsing "FF": value out of range 255 <nil>
+zz 36 64 1295 <nil> 1295 <nil>
+z 37 64 0 strconv.ParseInt: parsing "z": invalid base 37 0 strconv.ParseUint: parsing "z": invalid base 37
+1 1 64 0 strconv.ParseInt: parsing "1": invalid base 1 0 strconv.ParseUint: parsing "1": invalid base 1
+1 10 65 0 strconv.ParseInt: parsing "1": invalid bit size 65 0 strconv.ParseUint: parsing "1": invalid bit size 65
+1 10 -1 0 strconv.ParseInt: parsing "1": invalid bit size -1 0 strconv.ParseUint: parsing "1": invalid bit size -1
+ 10 64 0 strconv.ParseInt: parsing "": invalid syntax 0 strconv.ParseUint: parsing "": invalid syntax
+- 10 64 0 strconv.ParseInt: parsing "-": invalid syntax 0 strconv.ParseUint: parsing "-": invalid syntax
+12a 10 64 0 strconv.ParseInt: parsing "12a": invalid syntax 0 strconv.ParseUint: parsing "12a": invalid syntax
+128 10 8 127 strconv.ParseInt: parsing "128": value out of range 128 <nil>
+-128 10 8 -128 <nil> 0 strconv.ParseUint: parsing "-128": invalid syntax
+-129 10 8 -128 strconv.ParseInt: parsing "-129": value out of range 0 strconv.ParseUint: parsing "-129": invalid syntax
+255 10 8 127 strconv.ParseInt: parsing "255": value out of range 255 <nil>
+256 10 8 127 strconv.ParseInt: parsing "256": value out of range 255 strconv.ParseUint: parsing "256": value out of range
+9223372036854775807 10 64 9223372036854775807 <nil> 9223372036854775807 <nil>
+9223372036854775808 10 64 9223372036854775807 strconv.ParseInt: parsing "9223372036854775808": value out of range 9223372036854775808 <nil>
+-9223372036854775808 10 64 -9223372036854775808 <nil> 0 strconv.ParseUint: parsing "-9223372036854775808": invalid syntax
+-9223372036854775809 10 64 -9223372036854775808 strconv.ParseInt: parsing "-9223372036854775809": value out of range 0 strconv.ParseUint: parsing "-9223372036854775809": invalid syntax
+18446744073709551615 10 64 9223372036854775807 strconv.ParseInt: parsing "18446744073709551615": value out of range 18446744073709551615 <nil>
+18446744073709551616 10 64 9223372036854775807 strconv.ParseInt: parsing "18446744073709551616": value out of range 18446744073709551615 strconv.ParseUint: parsing "18446744073709551616": value out of range
+99999999999999999999999 10 64 9223372036854775807 strconv.ParseInt: parsing "99999999999999999999999": value out of range 18446744073709551615 strconv.ParseUint: parsing "99999999999999999999999": value out of range
+0x 0 64 0 strconv.ParseInt: parsing "0x": invalid syntax 0 strconv.ParseUint: parsing "0x": invalid syntax
+0x8000000000000000 0 64 9223372036854775807 strconv.ParseInt: parsing "0x8000000000000000": value out of range 9223372036854775808 <nil>
+123 123 <nil> false false
+-123 -123 <nil> false false
++0 0 <nil> false false
+ 0 strconv.Atoi: parsing "": invalid syntax false true
++ 0 strconv.Atoi: parsing "+": invalid syntax false true
+- 0 strconv.Atoi: parsing "-": invalid syntax false true
+1x 0 strconv.Atoi: parsing "1x": invalid syntax false true
+12345678901234567890 9223372036854775807 strconv.Atoi: parsing "12345678901234567890": value out of range true false
+-9223372036854775808 -9223372036854775808 <nil> false false
+1_0 0 strconv.Atoi: parsing "1_0": invalid syntax false true
+true <nil>; true <nil>; true <nil>; true <nil>; true <nil>; true <nil>; false <nil>; false <nil>; false <nil>; false <nil>; false strconv.ParseBool: parsing "yes": invalid syntax; false strconv.ParseBool: parsing "": invalid syntax; 
+-45 -ff -1000000000000000000000000000000000000000000000000000000000000000 3w5e11264sgsf 0 true
+x=-12fffalse"a\"b" 64
+"hi\n\t\"\\\x00\x7f\xff é ☺ \u2028" '☺' '\'' '\n' '�'
+true false true false false false
+"abc" "abc" <nil>
+"a\nb" "a\nb" <nil>
+"\x41\u00e9\U0001F600\101" "Aé😀A" <nil>
+'a' "a" <nil>
+'\'' "'" <nil>
+'ab' "" invalid syntax
+`raw\n` "raw\\n" <nil>
+"unterminated "" invalid syntax
+"bad\q" "" invalid syntax
+"a"b "" invalid syntax
+'\"' "" invalid syntax
+"\'" "" invalid syntax
+"" "" <nil>
+'' "" <nil>
+"\400" "" invalid syntax
+"\uD800" "" invalid syntax
+x "" invalid syntax
+"é" "é" <nil>
+"�" "�" <nil>
+9786 true  rest <nil>
+ParseInt 999 value out of range true
+strconv.ParseInt: parsing "999": value out of range *strconv.NumError
+base recovered: strconv: illegal AppendInt/FormatInt base
+append base recovered: strconv: illegal AppendInt/FormatInt base
