@@ -357,16 +357,20 @@ namespace detail {
       method_set<D>::entries[method_position<D, signature_of<M>>(M::name)]...};
   };
 
+  // A distinct type for each value F, so that two member function pointers compare by type identity.
+  // GCC with -fsanitize=undefined does not evaluate == of two pointers to members in a constant
+  // expression, which two methods of one signature, such as Read and Write, need.
+  template<auto F>
+  struct value_tag {};
+
   // The position of member function M in an interface's method list.
   template<auto M, typename... Ms>
   consteval auto method_index(methods<Ms...>) -> std::size_t {
     auto i = std::size_t{0};
     auto found = sizeof...(Ms);
     [[maybe_unused]] auto check = [&]<typename Method>() {
-      if constexpr (std::is_same_v<decltype(M), std::remove_cv_t<decltype(Method::fn)>>) {
-        if (Method::fn == M) {
-          found = i;
-        }
+      if constexpr (std::is_same_v<value_tag<M>, value_tag<Method::fn>>) {
+        found = i;
       }
       ++i;
     };

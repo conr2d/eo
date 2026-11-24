@@ -1,0 +1,62 @@
+4 <nil> abcd
+2 unexpected EOF true
+0 EOF true
+4 <nil> wxyz
+4 <nil> abcd
+0 short buffer true
+3 <nil>
+0 <nil>
+0 false <nil>
+3000 <nil> 012345678901 56789
+tail <nil>
+limited <nil>
+12 <nil> via WriterTo
+14 <nil> via ReaderFrom
+12 <nil> generic loop
+4 short write true shor
+2 broken 2
+6 <nil> copy n
+3 EOF abc
+13 <nil> with a buffer
+9 <nil>
+4 <nil>
+5 <nil> plain
+13 <nil> string writer
+3 <nil> 012 1
+1 <nil> 3 0
+0 EOF  0
+0 EOF
+3:"one":<nil> 1:" ":<nil> 2:"tw":<nil> 2:"o ":<nil> 3:"thr":<nil> 2:"ee":<nil> 0:"":EOF
+0 EOF
+4 <nil> abcd
+0 <nil>
+4 <nil>
+3 <nil> fan out fan out fan out
+2 short write fan outxyz fan out
+0 broken
+teed data <nil> teed data
+0 broken
+6
+4 <nil> 4567
+2 <nil> 89
+0 EOF
+1 <nil>
+3 <nil>
+5 <nil>
+0 Seek: invalid offset
+0 Seek: invalid whence
+3 EOF 789
+4 <nil> 5678
+0 EOF
+0 EOF
+true 4 6
+23456789abcdef <nil> 9223372036854775805
+<nil> true
+6 <nil> closer
+plain <nil> false <nil>
+EOF unexpected EOF short write short buffer
+multiple Read calls return no data or error io: read/write on closed pipe
+0 1 2
+reading: EOF true false
+empty buffer recovered: empty buffer in CopyBuffer
+nil reader recovered: runtime error: invalid memory address or nil pointer dereference
