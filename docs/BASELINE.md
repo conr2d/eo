@@ -36,6 +36,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Multiple results | [Multiple results](./TRANSLATION_RULES.md#multiple-results) | `multi_value_results`, `multi_value_defer` |
 | Errors | [Errors](./TRANSLATION_RULES.md#errors) | `error_values` |
 | Printing and `fmt` verbs | [Formatted printing](./TRANSLATION_RULES.md#formatted-printing) | `println_operands`, `format_verbs`, `map_println` |
+| The `math/big` package, in part | [The math/big package](./TRANSLATION_RULES.md#the-mathbig-package) | `big_int`, `big_int_random` |
 | Goroutines | [Goroutine](./TRANSLATION_RULES.md#goroutine) | `shared_variable`, `method_goroutine`, `loop_variable_goroutine` |
 | Channels | [Channels](./TRANSLATION_RULES.md#channels) | `channel_buffered`, `channel_panics`, `channel_recv_ok` |
 | `select` | [Select](./TRANSLATION_RULES.md#select) | `select_default`, `labels` |

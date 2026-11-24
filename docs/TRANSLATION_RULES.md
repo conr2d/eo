@@ -1847,10 +1847,74 @@ A verb that the list above does not give for the operand's kind prints the bad-v
 - flags, width, precision, and argument indexes, such as `%-10v`, `%08x`, `%.2f`, `%+v`, `%#v`, and `%[1]d`;
 - `%p` of any operand, and `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, and complex numbers. A slice, struct, or map applies `%p` to its elements, where Go prints the address of a slice or map;
 - the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
-- the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter`, `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
+- the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter` other than that of `*big.Int` (see [The math/big package](#the-mathbig-package)), `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;
 - `%q` of an unassigned code point or a format character not listed above, which Go escapes and Eo prints as it is;
 - `%T` of an `int64` value, which prints `int` ([#107](https://github.com/conr2d/eo/issues/107)).
+
+### The math/big package
+
+Go's `math/big` maps, in part, to the namespace `big` from `<eo/math/big.h>`. It covers the type `big.Int` with the methods below, `big.NewInt`, and `big.Word`. An `Int` holds its value in a Boost.Multiprecision `cpp_int`.
+
+| Go | C++ |
+| --- | --- |
+| `big.Int`, `*big.Int` | `big::Int`, `ptr<big::Int>` |
+| `new(big.Int)`, `var x big.Int`, `big.Int{}` | `New<big::Int>()`, `big::Int x{};`, `big::Int{}` |
+| `big.NewInt(v)` | `big::NewInt(v)` |
+| `z.Add(x, y)`, `x.Cmp(y)`, where `z` and `x` are pointers | `big::Int::Add(z, x, y)`, `big::Int::Cmp(x, y)` |
+| `x, ok := z.SetString(s, base)` | `auto [x, ok] = big::Int::SetString(z, s, base);` |
+| `big.Word`, `[]big.Word` | `big::Word`, `slice<big::Word>` |
+
+The methods are static members whose first parameter is the receiver, as for a translated type in [Methods](#methods), and unlike the member functions of `sync::Mutex`. Go's methods return their receiver, as in `new(big.Int).Add(x, y)`, and only a `ptr<big::Int>` keeps the new `Int` alive. Every method has a pointer receiver, so a call follows the pointer-receiver column of the call table in [Methods](#methods): `z.Add(&z, &z)` of a boxed `z` is `big::Int::Add(z, z, z)`, and of an unboxed one is `big::Int::Add(ref(z), ref(z), ref(z))`. A chain is a nested call, and [Evaluation order](#evaluation-order) applies to it as to any other call, so `c.Sub(c, a).Mul(c, big.NewInt(3))` saves both of its nested calls:
+
+```cpp
+auto _eo_call_0 = big::Int::Sub(c, c, a);
+auto _eo_call_1 = big::NewInt(3);
+big::Int::Mul(_eo_call_0, c, _eo_call_1);
+```
+
+The covered methods are `Set`, `SetInt64`, `SetUint64`, `SetBytes`, `SetBits`, `SetString`, `SetBit`, `Neg`, `Abs`, `Add`, `Sub`, `Mul`, `Quo`, `Rem`, `QuoRem`, `Div`, `Mod`, `DivMod`, `Exp`, `ModInverse`, `Lsh`, `Rsh`, `And`, `AndNot`, `Or`, `Xor`, `Not`, `Cmp`, `CmpAbs`, `Sign`, `BitLen`, `TrailingZeroBits`, `Bit`, `Int64`, `Uint64`, `IsInt64`, `IsUint64`, `Bytes`, `FillBytes`, `Bits`, `Text`, and `String`. Their parameters and results are translated as any others are: Go's `int` is `int64_t`, its `uint` is `uint64_t`, and two results are a `std::tuple`, as in [Multiple results](#multiple-results). A `nil` modulus of `Exp` is `nullptr`. `big.Word` is a [defined type](#defined-types) whose underlying type is `uint64_t`, so its constants and conversions are written as those of any defined type, such as `big::Word{255}` and `big::Word(nib)`.
+
+The methods give Go's results:
+
+- `Quo` and `Rem` truncate toward zero. `Div` and `Mod` are Euclidean, so the modulus is never negative.
+- `And`, `Or`, `Xor`, `AndNot`, `Not`, `Bit`, and `SetBit` act on the two's complement of a negative value, and `Rsh` of a negative value rounds toward negative infinity.
+- `Exp` with a `nil` or zero modulus gives `x**y`, which is 1 when `y` is 0 or negative. A negative `y` with another modulus uses the inverse of `x`. `Exp` and `ModInverse` return `nil` and leave `z` unchanged when there is no inverse.
+- `SetString` takes the base prefixes `0b`, `0o`, `0x`, and `0` when the base is 0, and `_` separators only then. It reads letters as digits in either case up to base 36, and as two separate ranges of digits above it. It returns `nil, false` for a string that is not a whole number.
+- `Bytes` of 0 is an empty slice that is not nil, and `Bits` of 0 is nil.
+
+The methods panic as Go's do, with a Go string value:
+
+- `division by zero` from `Quo`, `Rem`, `QuoRem`, `Div`, `Mod`, `DivMod`, and `ModInverse`;
+- `math/big: buffer too small to fit value` from `FillBytes`;
+- `negative bit index` and `set bit is not 0 or 1` from `Bit` and `SetBit`;
+- `invalid base` from `Text`, for a base other than 2 through 62;
+- `invalid number base N` from `SetString`, for a base other than 0 and 2 through 62.
+
+A nil receiver or operand panics with Go's nil dereference error. `String` and `Text` of a nil `*big.Int` give `<nil>`, as in Go.
+
+Three operations copy where Go shares storage:
+
+- `Bits` returns a copy of the words, so a write to them does not change the `Int`, as it does in Go.
+- `SetBits` copies the words, where Go makes them the storage of `z`.
+- Copying a `big.Int` value copies the number. Go copies the header of the slice that holds the magnitude, and `go vet` does not report it. A program that changes one copy and reads the other is outside this mapping.
+
+`fmt` prints a `*big.Int` as Go's `Int.Format` does, for operands and inside slices, maps, struct fields, and interfaces:
+
+- `%d`, `%s`, and `%v` print in decimal, and `%b`, `%o`, `%O`, `%x`, and `%X` print in their bases, as in `-deadbeef`;
+- a nil pointer prints `<nil>`;
+- another verb prints `%!q(big.Int=10)`.
+
+Flags and widths are not covered, as for other operands. `%T` prints `*big.Int`. A `big.Int` that is not a pointer has neither `Format` nor `String`, so it prints as its struct, `{false [10]}`, as in Go.
+
+A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` is in its method table, so `x.(fmt.Stringer)` succeeds. A `big.Int` value is not comparable, because Go's holds a slice.
+
+#### The math/big package not covered yet
+
+- `big.Float`, `big.Rat`, and the functions and methods not listed above, such as `GCD`, `Sqrt`, `ProbablyPrime`, `Float64`, `Append`, `Scan`, and the `encoding` and `json` marshaling methods;
+- method values and method expressions of `big.Int` methods, and methods other than `String` in an interface;
+- `Format` with flags, width, or precision, and `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
+- `QuoRem` and `DivMod` whose two results are the same `Int`, or whose modulus `m` is also `y`, where Go's result depends on the order of its own writes.
 
 ### Goroutine
 
@@ -2401,6 +2465,7 @@ Examples currently requiring additional canonical rules include:
 - `runtime.Goexit` (see [Panic and recover](#panic-and-recover));
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
+- the forms in [The math/big package not covered yet](#the-mathbig-package-not-covered-yet);
 - the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;

@@ -1,0 +1,70 @@
+4611686018427387904 21267647932558653966460912964485513216 63802943797675961885547680838174375921 1 126 -63802943797675961885547680838174375921 9
+18446744073709551630 1 -1 0 0 false false
+15
+7 3 2 1 2 1 2 1 2 1
+-7 3 -3 2 -3 2 -2 -1 -2 -1
+7 -3 -2 1 -2 1 -2 1 -2 1
+-7 -3 3 2 3 2 2 -1 2 -1
+6 3 2 0 2 0 2 0 2 0
+-6 3 -2 0 -2 0 -2 0 -2 0
+12 12 0 0 | 4 -4 -8 8 | 4 13 9 8 | 8 -1 -9 4 | -13 14167099448608935641088 3 0 0 1 0 2
+4 -4 -8 -16 | -12 -12 0 0 | 4 -11 -15 -16 | -16 -1 15 4 | 11 -14167099448608935641088 -3 -1 0 1 1 2
+4 13 9 1 | 4 -11 -15 1 | 5 5 0 0 | 1 -1 -2 4 | -6 5902958103587056517120 1 0 1 1 0 0
+8 -1 -9 -13 | -16 -1 15 11 | 1 -1 -2 -6 | -5 -5 0 0 | 4 -5902958103587056517120 -2 -1 1 0 1 0
+0 12 12 0 | 0 -12 -12 0 | 0 5 5 0 | 0 -5 -5 0 | -1 0 0 0 0 0 0 0
+-16 1361129467683753853853498429727072845829 -9 5
+1 1 -2
+18446744073709551618 [1 0 0 0 0 0 0 0 2] 2 2 [2 1] 0 false true
+-9223372036854775808 true false 1 false
+[0 0 0 1 0 0 0 0 0 0 0 2] [0 0 0 1 0 0 0 0 0 0 0 2]
+340282366920938463463374607431768211459 [3 0 1] 3 0 -8
+340282366920938388016191345959702106105 [4089 18446744073709547526]
+1267650600228229401496703205376 698635 -27 1 1
+1 5 5 true
+0 1 0
+5 3 2 5 <nil> 0 <nil> 1 <nil> 0 142857144 
+123 10 123 true
+-0x_ff 0 -255 true
+0b101 0 5 true
+0o17 0 15 true
+017 0 15 true
+0 0 0 true
+08 0 <nil> false
+1_000 0 1000 true
+1__0 0 <nil> false
+_1 0 <nil> false
+1_ 0 <nil> false
+1_000 10 <nil> false
+ff 16 255 true
+FF 16 255 true
+zZ 62 2231 true
+Zz 36 1295 true
+ 10 <nil> false
+- 10 <nil> false
++5 10 5 true
+12a 10 <nil> false
+0x 0 <nil> false
+0_7 0 7 true
+99999999999999999999999999 10 99999999999999999999999999 true
+deadbeef -11011110101011011011111011101111 44PzGf 3735928559 -3735928559
+-3735928559 -3735928559 -3735928559 -deadbeef -DEADBEEF 101 33653337357 0o33653337357 %!q(big.Int=3735928559) %!c(big.Int=3735928559)
+<nil> <nil> <nil>
+<nil> <nil> <nil> %!q(big.Int=<nil>) *big.Int *big.Int
+[3735928559 <nil> -1] map[k:3735928559]
+[deadbeef -deadbeef] {3735928559 3}
+{false [10]} {false []} {true [3735928559]}
+3735928559 true 3735928559 true false
+3735928559
+div recovered: division by zero
+quo recovered: division by zero
+modinverse recovered: division by zero
+fill recovered: math/big: buffer too small to fit value
+fill low recovered: math/big: buffer too small to fit value
+[2]
+bit recovered: negative bit index
+setbit recovered: set bit is not 0 or 1
+setbit neg recovered: set bit is not 0 or 1
+text recovered: invalid base
+base recovered: invalid number base 1
+nil recovered: runtime error: invalid memory address or nil pointer dereference
+nil receiver recovered: runtime error: invalid memory address or nil pointer dereference
