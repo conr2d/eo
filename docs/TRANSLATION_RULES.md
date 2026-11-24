@@ -1974,6 +1974,86 @@ The functions are ported from Go 1.26:
 
 - `Read`, `Write`, `Size`, `Append`, `Encode`, `Decode`, `ReadUvarint`, `ReadVarint`, and `NativeEndian`.
 
+### The strings and bytes packages
+
+Go's `strings` and `bytes` map, in part, to the namespaces `strings` from `<eo/strings.h>` and `bytes` from `<eo/bytes.h>`. Their functions are called as Go calls them, and their results follow [Multiple results](#multiple-results): `before, after, found := strings.Cut(s, sep)` is `auto [before, after, found] = strings::Cut(s, sep);`.
+
+A function argument, such as the `f` of `strings.FieldsFunc`, `strings.TrimFunc`, or `strings.Map`, is a function used as a value or a function literal, passed as it is. `strings.NewReplacer` is variadic, so its parameter is a `slice<std::string>`: `strings.NewReplacer("a", "b").Replace(s)` is `strings::NewReplacer(slice<std::string>::of({"a"s, "b"s}))->Replace(s)`.
+
+`strings` covers these names:
+
+- search: `Compare`, `Contains`, `ContainsAny`, `ContainsRune`, `Count`, `HasPrefix`, `HasSuffix`, `Index`, `IndexAny`, `IndexByte`, `IndexFunc`, `IndexRune`, `LastIndex`, `LastIndexByte`, and `LastIndexFunc`;
+- splitting and joining: `Cut`, `CutPrefix`, `CutSuffix`, `Fields`, `FieldsFunc`, `Join`, `Split`, and `SplitN`;
+- trimming: `Trim`, `TrimFunc`, `TrimLeft`, `TrimLeftFunc`, `TrimPrefix`, `TrimRight`, `TrimRightFunc`, `TrimSpace`, and `TrimSuffix`;
+- transforming: `EqualFold`, `Map`, `Repeat`, `Replace`, `ReplaceAll`, `ToLower`, and `ToUpper`;
+- `NewReplacer` with the method `Replace`;
+- `Builder`.
+
+`bytes` covers these names:
+
+- search: `Compare`, `Contains`, `Count`, `Equal`, `EqualFold`, `HasPrefix`, `HasSuffix`, `Index`, `IndexAny`, `IndexByte`, and `LastIndex`;
+- splitting and joining: `Cut`, `Join`, `Split`, and `SplitN`;
+- copying and transforming: `Clone`, `Map`, `Repeat`, `Replace`, `ReplaceAll`, `ToLower`, and `ToUpper`;
+- trimming: `Trim`, `TrimFunc`, `TrimLeft`, `TrimLeftFunc`, `TrimPrefix`, `TrimRight`, `TrimRightFunc`, `TrimSpace`, and `TrimSuffix`.
+
+The functions are ported from Go 1.26. The code points of a string or a `[]byte` are decoded as `range` decodes them, so a byte that does not start a valid UTF-8 sequence is U+FFFD. This applies wherever a function looks at code points:
+
+- `Map`, `ToUpper`, and `ToLower` write such a byte as the encoding of U+FFFD, as Go does.
+- An empty separator splits after each UTF-8 sequence.
+- An empty `old` in `Replace` matches at the start and after each UTF-8 sequence.
+
+`strings.Replacer` keeps Go's rules. Replacements happen in the order of the target string, without overlapping. At one position, the pair that comes first in the arguments wins. An empty old string matches at every byte, but never twice in a row.
+
+The functions panic with Go's messages, such as `strings: negative Repeat count`, `strings: Repeat output length overflow`, and `strings.NewReplacer: odd argument count`.
+
+A `bytes` function that Go defines as returning part of its argument returns a slice of the same backing array, so a write through the result changes the argument. These are `Cut`, `Split`, `SplitN`, `TrimPrefix`, `TrimSuffix`, and the `Trim` functions. The part of `Split` before each separator has its capacity cut at its end, as in Go.
+
+The other functions return new slices. The `bytes` functions also return nil and empty slices where Go's do:
+
+- `Trim`, `TrimLeft`, `TrimLeftFunc`, `TrimFunc`, and `TrimSpace` return nil when they cut everything, and so do `Trim` and `TrimLeft` for an empty argument. `TrimRight` returns an empty slice of the argument.
+- `Clone` of nil is nil. `Cut` gives a nil `after` when it does not find the separator. `Join` of one empty element is nil, and `Replace` returns nil when it replaces nothing in an empty argument.
+- `Repeat` and `Join` of no elements give an empty slice that is not nil. So do `ToUpper`, `ToLower`, and `Map` of an empty or nil argument.
+
+The capacity of a new slice follows [Slices](#slices) and is outside this mapping.
+
+`strings.Builder` is `strings::Builder`. Its methods are member functions, as for the other Eo library types (see [Methods](#methods)): `var b strings.Builder` is `strings::Builder b;`, `b.WriteString(s)` is `b.WriteString(s)`, and `n, err := b.WriteString(s)` is `auto [n, err] = b.WriteString(s);`.
+
+- The methods are `Write`, `WriteByte`, `WriteRune`, `WriteString`, `String`, `Len`, `Cap`, `Grow`, and `Reset`.
+- `WriteRune` writes an invalid code point as U+FFFD.
+- A `Builder` that is written to and then copied panics on the next write through the copy, with `strings: illegal use of non-zero Builder copied by value`, as Go's does.
+- `Grow` panics on a negative count with `strings.Builder.Grow: negative count`.
+- The value of `Cap` depends on allocation sizes, which Go rounds and Eo does not, so a program that prints it is outside this mapping.
+
+#### The strings and bytes packages not covered yet
+
+- `strings.Reader`, `bytes.Buffer`, and `bytes.Reader`, the `io` methods of `Builder` and `Replacer`, and `Replacer.WriteString`, which need `io`;
+- the iterator functions, such as `SplitSeq`, `FieldsSeq`, and `Lines`;
+- `Title`, `ToTitle`, `ToValidUTF8`, `SplitAfter`, `SplitAfterN`, the `Special` case functions, `ContainsFunc`, `IndexFunc` and `LastIndexFunc` of `bytes`, `bytes.Runes`, and the other functions not listed above.
+
+### The unicode package
+
+Go's `unicode` maps, in part, to the namespace `unicode` from `<eo/unicode.h>`. It covers:
+
+- `ToUpper`, `ToLower`, `ToTitle`, `SimpleFold`, and `IsSpace`;
+- the constants `MaxRune`, `ReplacementChar`, `MaxASCII`, and `MaxLatin1`.
+
+They compute their results as Go's `letter.go` and `graphic.go` do, from tables that `tools/unicode` generates from Go's own: `go run tools/unicode/main.go > src/eo/unicode/tables.h`. The tables are those of Unicode 15.0.0, which Go 1.26 uses. A parity case compares every code point's results with Go's.
+
+#### The unicode package not covered yet
+
+- the category and script tables and the functions that use them, such as `IsLetter`, `IsDigit`, `IsUpper`, `IsPrint`, and `In`, and `SpecialCase`.
+
+### The math/bits package
+
+Go's `math/bits` maps to the namespace `bits` from `<eo/math/bits.h>`. It covers:
+
+- `LeadingZeros`, `TrailingZeros`, `OnesCount`, `Len`, `RotateLeft`, and `Reverse`, in each width;
+- `ReverseBytes` in its widths;
+- `Add`, `Sub`, `Mul`, `Div`, and `Rem` with their 32-bit and 64-bit forms;
+- the constant `UintSize`, which is 64.
+
+Go's `uint` is `uint64_t`, and its `int` results are `int64_t`. Two results are a `std::tuple`, so `sum, carry := bits.Add64(x, y, 0)` is `auto [sum, carry] = bits::Add64(x, y, 0);`. A negative `RotateLeft` count rotates right. `Div64` and `Div32` panic with Go's runtime errors: `runtime error: integer divide by zero` for a zero divisor, and `runtime error: integer overflow` when the quotient does not fit.
+
 ### Goroutine
 
 Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
@@ -2524,6 +2604,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Maps not covered yet](#maps-not-covered-yet);
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - the forms in [The math/big package not covered yet](#the-mathbig-package-not-covered-yet);
+- the forms in [The strings and bytes packages not covered yet](#the-strings-and-bytes-packages-not-covered-yet) and [The unicode package not covered yet](#the-unicode-package-not-covered-yet);
 - the forms in [The strconv package not covered yet](#the-strconv-package-not-covered-yet), [The encoding/hex package not covered yet](#the-encodinghex-package-not-covered-yet), and [The encoding/binary package not covered yet](#the-encodingbinary-package-not-covered-yet);
 - the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);

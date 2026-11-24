@@ -1,0 +1,19 @@
+0 true
+0 true
+6 <nil> 6
+3 <nil>
+2 <nil> 15
+15 true
+0 true
+"héllo ☺�!? again"
+copy recovered: strings: illegal use of non-zero Builder copied by value
+x 1
+fine
+grow recovered: strings.Builder.Grow: negative count
+repeat recovered: strings: negative Repeat count
+repeat overflow recovered: strings: Repeat output length overflow
+replacer recovered: strings.NewReplacer: odd argument count
+"" "" "---"
+2 3
+body true
+body.go false 64

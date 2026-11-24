@@ -5,6 +5,7 @@
 #include <concepts>
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
@@ -49,7 +50,7 @@ void append_rune(std::string& out, I r) {
 // Decodes the code point that starts at byte i of s, as Go's utf8.DecodeRune does: it returns the
 // code point and its length in bytes, or U+FFFD and 1 when the bytes there are not a valid UTF-8
 // encoding, which rejects overlong forms, surrogates, and values above U+10FFFF.
-inline auto decode_rune(const std::string& s, std::size_t i) -> std::pair<char32_t, std::size_t> {
+inline auto decode_rune(std::string_view s, std::size_t i) -> std::pair<char32_t, std::size_t> {
   constexpr auto invalid = std::pair<char32_t, std::size_t>{0xfffd, 1};
   auto byte = [&](std::size_t k) { return static_cast<char32_t>(static_cast<unsigned char>(s[i + k])); };
   auto n = s.size() - i;

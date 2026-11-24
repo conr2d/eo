@@ -37,6 +37,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Errors | [Errors](./TRANSLATION_RULES.md#errors) | `error_values` |
 | Printing and `fmt` verbs | [Formatted printing](./TRANSLATION_RULES.md#formatted-printing) | `println_operands`, `format_verbs`, `map_println` |
 | The `math/big` package, in part | [The math/big package](./TRANSLATION_RULES.md#the-mathbig-package) | `big_int`, `big_int_random` |
+| The `strings`, `bytes`, `unicode`, and `math/bits` packages, in part | [The strings and bytes packages](./TRANSLATION_RULES.md#the-strings-and-bytes-packages), [The unicode package](./TRANSLATION_RULES.md#the-unicode-package), [The math/bits package](./TRANSLATION_RULES.md#the-mathbits-package) | `strings_package`, `strings_bytes_random`, `unicode_case`, `bits_package` |
 | The `strconv` package, in part | [The strconv package](./TRANSLATION_RULES.md#the-strconv-package) | `strconv_package` |
 | The `encoding/hex` and `encoding/binary` packages, in part | [The encoding/hex package](./TRANSLATION_RULES.md#the-encodinghex-package), [The encoding/binary package](./TRANSLATION_RULES.md#the-encodingbinary-package) | `hex_package`, `binary_package` |
 | Goroutines | [Goroutine](./TRANSLATION_RULES.md#goroutine) | `shared_variable`, `method_goroutine`, `loop_variable_goroutine` |
