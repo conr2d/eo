@@ -1,0 +1,784 @@
+0 true true
+7 <nil>
+5 <nil>
+<nil> 13
+3 <nil> hello, world!☺
+5 <nil> hello 11
+<nil> 12
+bytes.Buffer: UnreadByte: previous operation was not a successful read
+111 <nil>
+, w 8
+or <nil>
+8 EOF
+orld <nil>
+33 1 <nil>
+9786 3 <nil>
+<nil> 3
+bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune
+9786 3 <nil> 0
+0 0 EOF
+0 EOF
+0 EOF
+0 <nil>
+bytes.Buffer: UnreadByte: previous operation was not a successful read
+"one\n" <nil>
+"two\n" <nil>
+"three" EOF
+truncate
+0 true
+truncate recovered: bytes.Buffer: truncation out of range
+grow recovered: bytes.Buffer.Grow: negative count
+from string 11
+10 <nil> from bytes 0
+9 <nil> from bytes and more
+<nil>
+from bytes and more
+Abcdef 16 10
+Abcdef Abcdefgh 0
+16 8
+0 16
+14 14
+4 <nil> "hél" 10
+108 1 <nil>
+<nil> 10
+bytes.Reader.UnreadRune: previous operation was not ReadRune
+108 <nil>
+<nil> 10
+11 <nil>
+114 1 <nil>
+14 <nil> 0
+0 EOF
+0 bytes.Reader.Seek: negative position
+0 bytes.Reader.Seek: invalid whence
+4 <nil> "örl"
+4 <nil> "\xa9llo"
+0 EOF
+0 bytes.Reader.ReadAt: negative offset
+7 <nil>  wörld 0
+0 <nil>
+reset <nil>
+bytes.Reader.UnreadByte: at beginning of slice
+bytes.Reader.UnreadRune: at beginning of slice
+EOF
+65533 1
+65533 1
+65533 1
+122 1
+0
+0 EOF
+14 14
+4 <nil> "hél" 10
+108 1 <nil>
+<nil> 10
+strings.Reader.UnreadRune: previous operation was not ReadRune
+108 <nil>
+<nil> 10
+11 <nil>
+4 <nil> "örl"
+0 strings.Reader.ReadAt: negative offset
+10 <nil>
+0 strings.Reader.Seek: invalid whence
+4 <nil> �rld
+5 <nil> again
+strings.Reader.UnreadByte: at beginning of string
+strings.Reader.UnreadRune: at beginning of string
+Truncate | 0 ""
+WriteRune 3 <nil> | 3 "�"
+Write 10 <nil> | 13 "�0123456789"
+Peek "\xef" <nil> | 13 "�0123456789"
+Peek "�" <nil> | 13 "�0123456789"
+ReadString "�0123456789" EOF | 0 ""
+Grow | 0 ""
+WriteByte <nil> | 1 "\xc1"
+Next "\xc1" | 0 ""
+UnreadByte <nil> | 1 "\xc1"
+WriteRune 3 <nil> | 4 "\xc1�"
+ReadRune 65533 1 <nil> | 3 "�"
+ReadString "�" EOF | 0 ""
+WriteRune 3 <nil> | 3 "�"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 3 "�"
+ReadRune 65533 3 <nil> | 0 ""
+ReadByte 0 EOF | 0 ""
+Next "" | 0 ""
+Grow | 0 ""
+ReadString "" EOF | 0 ""
+Truncate | 0 ""
+WriteString 1 <nil> | 1 "\xff"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 1 "\xff"
+Peek "\xff" EOF | 1 "\xff"
+ReadRune 65533 1 <nil> | 0 ""
+Next "" | 0 ""
+Grow | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Read 0 EOF "" | 0 ""
+Grow | 0 ""
+ReadRune 0 0 EOF | 0 ""
+WriteString 1 <nil> | 1 "a"
+ReadString "a" EOF | 0 ""
+UnreadByte <nil> | 1 "a"
+Grow | 1 "a"
+ReadString "a" EOF | 0 ""
+ReadString "" EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Read 0 <nil> "" | 0 ""
+WriteRune 3 <nil> | 3 "☺"
+Grow | 3 "☺"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 3 "☺"
+Next "☺" | 0 ""
+Truncate | 0 ""
+Peek "" <nil> | 0 ""
+WriteRune 4 <nil> | 4 "😀"
+Grow | 4 "😀"
+Peek "" <nil> | 4 "😀"
+Peek "\xf0" <nil> | 4 "😀"
+Write 1 <nil> | 5 "😀a"
+ReadRune 128512 4 <nil> | 1 "a"
+WriteByte <nil> | 2 "a]"
+Peek "" <nil> | 2 "a]"
+Next "a]" | 0 ""
+WriteRune 3 <nil> | 3 "�"
+Write 2 <nil> | 5 "�é"
+Read 0 <nil> "" | 5 "�é"
+Truncate | 3 "�"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 3 "�"
+Peek "�" <nil> | 3 "�"
+Write 10 <nil> | 13 "�0123456789"
+WriteByte <nil> | 14 "�0123456789\xcd"
+ReadString "�0123456789\xcd" EOF | 0 ""
+UnreadByte <nil> | 1 "\xcd"
+WriteByte <nil> | 2 "͙"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 2 "͙"
+Grow | 2 "͙"
+WriteRune 3 <nil> | 5 "͙�"
+Next "͙\xef\xbf" | 1 "\xbd"
+ReadByte 189 <nil> | 0 ""
+Next "" | 0 ""
+ReadString "" EOF | 0 ""
+WriteRune 2 <nil> | 2 "é"
+WriteString 1 <nil> | 3 "éa"
+Next "éa" | 0 ""
+Next "" | 0 ""
+ReadString "" EOF | 0 ""
+WriteRune 1 <nil> | 1 "q"
+Truncate | 0 ""
+WriteString 1 <nil> | 1 "a"
+Next "a" | 0 ""
+ReadByte 0 EOF | 0 ""
+WriteByte <nil> | 1 "z"
+Truncate | 0 ""
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 0 ""
+Read 0 <nil> "" | 0 ""
+WriteString 2 <nil> | 2 "é"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 2 "é"
+Truncate | 0 ""
+WriteByte <nil> | 1 "\xd9"
+WriteString 2 <nil> | 3 "\xd9\xe2\x98"
+Peek "\xd9\xe2\x98" <nil> | 3 "\xd9\xe2\x98"
+Next "\xd9\xe2\x98" | 0 ""
+ReadByte 0 EOF | 0 ""
+Write 3 <nil> | 3 "☺"
+Peek "☺" <nil> | 3 "☺"
+WriteByte <nil> | 4 "☺\x11"
+Next "\xe2" | 3 "\x98\xba\x11"
+Write 1 <nil> | 4 "\x98\xba\x11\xff"
+ReadByte 152 <nil> | 3 "\xba\x11\xff"
+Read 1 <nil> "\xba" | 2 "\x11\xff"
+Next "\x11\xff" | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Read 0 EOF "" | 0 ""
+Grow | 0 ""
+Read 0 EOF "" | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+WriteRune 2 <nil> | 2 "é"
+Truncate | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+ReadByte 0 EOF | 0 ""
+WriteRune 3 <nil> | 3 "☺"
+Grow | 3 "☺"
+Truncate | 2 "\xe2\x98"
+Peek "\xe2\x98" EOF | 2 "\xe2\x98"
+WriteByte <nil> | 3 "\xe2\x98r"
+Read 3 <nil> "\xe2\x98r" | 0 ""
+WriteByte <nil> | 1 "\xae"
+Grow | 1 "\xae"
+WriteByte <nil> | 2 "\xae\xea"
+Read 0 <nil> "" | 2 "\xae\xea"
+Write 2 <nil> | 4 "\xae\xeabc"
+WriteByte <nil> | 5 "\xae\xeabch"
+Write 1 <nil> | 6 "\xae\xeabcha"
+Read 3 <nil> "\xae\xeab" | 3 "cha"
+Peek "c" <nil> | 3 "cha"
+WriteRune 3 <nil> | 6 "cha☺"
+ReadRune 99 1 <nil> | 5 "ha☺"
+ReadString "ha☺" EOF | 0 ""
+Truncate | 0 ""
+Next "" | 0 ""
+ReadByte 0 EOF | 0 ""
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 0 ""
+Grow | 0 ""
+ReadRune 0 0 EOF | 0 ""
+Grow | 0 ""
+Write 1 <nil> | 1 "a"
+Truncate | 0 ""
+Next "" | 0 ""
+WriteByte <nil> | 1 "x"
+ReadString "x" EOF | 0 ""
+ReadByte 0 EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Grow | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+WriteByte <nil> | 1 "\xe8"
+WriteRune 3 <nil> | 4 "\xe8☺"
+Peek "\xe8\xe2\x98" <nil> | 4 "\xe8☺"
+Write 1 <nil> | 5 "\xe8☺\xff"
+WriteByte <nil> | 6 "\xe8☺\xff\xd9"
+WriteString 2 <nil> | 8 "\xe8☺\xff\xd9é"
+WriteString 1 <nil> | 9 "\xe8☺\xff\xd9é\n"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 9 "\xe8☺\xff\xd9é\n"
+ReadByte 232 <nil> | 8 "☺\xff\xd9é\n"
+UnreadByte <nil> | 9 "\xe8☺\xff\xd9é\n"
+WriteByte <nil> | 10 "\xe8☺\xff\xd9é\n\xfd"
+ReadByte 232 <nil> | 9 "☺\xff\xd9é\n\xfd"
+Truncate | 7 "☺\xff\xd9é"
+Write 1 <nil> | 8 "☺\xff\xd9é\xff"
+WriteRune 3 <nil> | 11 "☺\xff\xd9é\xff�"
+ReadByte 226 <nil> | 10 "\x98\xba\xff\xd9é\xff�"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 10 "\x98\xba\xff\xd9é\xff�"
+Peek "\x98\xba\xff" <nil> | 10 "\x98\xba\xff\xd9é\xff�"
+Write 1 <nil> | 11 "\x98\xba\xff\xd9é\xff�a"
+Truncate | 8 "\x98\xba\xff\xd9é\xff\xef"
+Write 1 <nil> | 9 "\x98\xba\xff\xd9é\xff\xef\n"
+Write 2 <nil> | 11 "\x98\xba\xff\xd9é\xff\xef\nbc"
+Peek "\x98" <nil> | 11 "\x98\xba\xff\xd9é\xff\xef\nbc"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 11 "\x98\xba\xff\xd9é\xff\xef\nbc"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 11 "\x98\xba\xff\xd9é\xff\xef\nbc"
+ReadRune 65533 1 <nil> | 10 "\xba\xff\xd9é\xff\xef\nbc"
+WriteByte <nil> | 11 "\xba\xff\xd9é\xff\xef\nbc\xfc"
+Next "\xba" | 10 "\xff\xd9é\xff\xef\nbc\xfc"
+Truncate | 2 "\xff\xd9"
+WriteByte <nil> | 3 "\xff٢"
+Peek "\xff٢" <nil> | 3 "\xff٢"
+Read 2 <nil> "\xff\xd9" | 1 "\xa2"
+Peek "\xa2" <nil> | 1 "\xa2"
+WriteByte <nil> | 2 "\xa2\x13"
+ReadRune 65533 1 <nil> | 1 "\x13"
+Grow | 1 "\x13"
+Grow | 1 "\x13"
+WriteString 3 <nil> | 4 "\x13☺"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 4 "\x13☺"
+WriteByte <nil> | 5 "\x13☺\xec"
+ReadRune 19 1 <nil> | 4 "☺\xec"
+Peek "" <nil> | 4 "☺\xec"
+UnreadRune <nil> | 5 "\x13☺\xec"
+Truncate | 1 "\x13"
+Next "\x13" | 0 ""
+Peek "" EOF | 0 ""
+Write 10 <nil> | 10 "0123456789"
+Next "01" | 8 "23456789"
+Peek "2" <nil> | 8 "23456789"
+WriteByte <nil> | 9 "23456789\x8c"
+Next "234" | 6 "56789\x8c"
+ReadByte 53 <nil> | 5 "6789\x8c"
+ReadRune 54 1 <nil> | 4 "789\x8c"
+ReadRune 55 1 <nil> | 3 "89\x8c"
+Next "" | 3 "89\x8c"
+Truncate | 2 "89"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 2 "89"
+WriteRune 3 <nil> | 5 "89�"
+Truncate | 2 "89"
+WriteString 0 <nil> | 2 "89"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 2 "89"
+Grow | 2 "89"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 2 "89"
+WriteByte <nil> | 3 "89\xea"
+WriteString 3 <nil> | 6 "89\xea☺"
+WriteString 10 <nil> | 16 "89\xea☺0123456789"
+Next "8" | 15 "9\xea☺0123456789"
+Grow | 15 "9\xea☺0123456789"
+ReadString "9\xea☺0123456789" EOF | 0 ""
+Write 1 <nil> | 1 "\n"
+WriteRune 4 <nil> | 5 "\n😀"
+Read 3 <nil> "\n\xf0\x9f" | 2 "\x98\x80"
+Grow | 2 "\x98\x80"
+ReadString "\x98\x80" EOF | 0 ""
+Truncate | 0 ""
+ReadByte 0 EOF | 0 ""
+WriteByte <nil> | 1 "\x92"
+WriteString 1 <nil> | 2 "\x92\xff"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 2 "\x92\xff"
+WriteByte <nil> | 3 "\x92\xff\x06"
+ReadRune 65533 1 <nil> | 2 "\xff\x06"
+Truncate | 0 ""
+Next "" | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Truncate | 0 ""
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 0 ""
+Read 0 EOF "" | 0 ""
+Next "" | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Next "" | 0 ""
+Read 0 EOF "" | 0 ""
+ReadByte 0 EOF | 0 ""
+Write 10 <nil> | 10 "0123456789"
+ReadRune 48 1 <nil> | 9 "123456789"
+Write 1 <nil> | 10 "123456789\n"
+Read 3 <nil> "123" | 7 "456789\n"
+WriteRune 3 <nil> | 10 "456789\n☺"
+Grow | 10 "456789\n☺"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 10 "456789\n☺"
+WriteByte <nil> | 11 "456789\n☺\xe4"
+WriteString 0 <nil> | 11 "456789\n☺\xe4"
+Peek "45" <nil> | 11 "456789\n☺\xe4"
+WriteString 0 <nil> | 11 "456789\n☺\xe4"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 11 "456789\n☺\xe4"
+Write 10 <nil> | 21 "456789\n☺\xe40123456789"
+ReadRune 52 1 <nil> | 20 "56789\n☺\xe40123456789"
+WriteRune 3 <nil> | 23 "56789\n☺\xe40123456789☺"
+WriteRune 4 <nil> | 27 "56789\n☺\xe40123456789☺😀"
+WriteRune 1 <nil> | 28 "56789\n☺\xe40123456789☺😀q"
+ReadRune 53 1 <nil> | 27 "6789\n☺\xe40123456789☺😀q"
+UnreadByte <nil> | 28 "56789\n☺\xe40123456789☺😀q"
+Truncate | 24 "56789\n☺\xe40123456789☺\xf0"
+Grow | 24 "56789\n☺\xe40123456789☺\xf0"
+Grow | 24 "56789\n☺\xe40123456789☺\xf0"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 24 "56789\n☺\xe40123456789☺\xf0"
+WriteByte <nil> | 25 "56789\n☺\xe40123456789☺\xf0\xbd"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 25 "56789\n☺\xe40123456789☺\xf0\xbd"
+Peek "56" <nil> | 25 "56789\n☺\xe40123456789☺\xf0\xbd"
+ReadString "56789\n" <nil> | 19 "☺\xe40123456789☺\xf0\xbd"
+ReadString "☺\xe40123456789☺\xf0\xbd" EOF | 0 ""
+ReadRune 0 0 EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+ReadString "" EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+ReadByte 0 EOF | 0 ""
+Write 10 <nil> | 10 "0123456789"
+WriteRune 4 <nil> | 14 "0123456789😀"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 14 "0123456789😀"
+Write 10 <nil> | 24 "0123456789😀0123456789"
+Grow | 24 "0123456789😀0123456789"
+Grow | 24 "0123456789😀0123456789"
+Truncate | 7 "0123456"
+ReadByte 48 <nil> | 6 "123456"
+ReadByte 49 <nil> | 5 "23456"
+Truncate | 0 ""
+Write 0 <nil> | 0 ""
+Truncate | 0 ""
+WriteRune 3 <nil> | 3 "�"
+Truncate | 2 "\xef\xbf"
+WriteByte <nil> | 3 "ￄ"
+Next "\xef" | 2 "\xbf\x84"
+Write 2 <nil> | 4 "\xbf\x84\xe2\x98"
+WriteRune 1 <nil> | 5 "\xbf\x84\xe2\x98q"
+WriteRune 3 <nil> | 8 "\xbf\x84\xe2\x98q�"
+ReadByte 191 <nil> | 7 "\x84\xe2\x98q�"
+Write 3 <nil> | 10 "\x84\xe2\x98q�☺"
+Next "\x84\xe2" | 8 "\x98q�☺"
+Grow | 8 "\x98q�☺"
+UnreadByte <nil> | 9 "\xe2\x98q�☺"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 9 "\xe2\x98q�☺"
+ReadString "\xe2\x98q�☺" EOF | 0 ""
+ReadByte 0 EOF | 0 ""
+WriteRune 3 <nil> | 3 "�"
+Write 1 <nil> | 4 "�a"
+Read 4 <nil> "�a" | 0 ""
+WriteString 4 <nil> | 4 "xyz\n"
+Write 4 <nil> | 8 "xyz\nxyz\n"
+ReadByte 120 <nil> | 7 "yz\nxyz\n"
+Truncate | 6 "yz\nxyz"
+Grow | 6 "yz\nxyz"
+Peek "yz\n" <nil> | 6 "yz\nxyz"
+WriteByte <nil> | 7 "yz\nxyz\xe1"
+Write 3 <nil> | 10 "yz\nxyz\xe1☺"
+Write 4 <nil> | 14 "yz\nxyz\xe1☺xyz\n"
+ReadRune 121 1 <nil> | 13 "z\nxyz\xe1☺xyz\n"
+WriteRune 2 <nil> | 15 "z\nxyz\xe1☺xyz\né"
+Next "" | 15 "z\nxyz\xe1☺xyz\né"
+Peek "z" <nil> | 15 "z\nxyz\xe1☺xyz\né"
+Read 3 <nil> "z\nx" | 12 "yz\xe1☺xyz\né"
+Next "yz" | 10 "\xe1☺xyz\né"
+ReadString "\xe1☺xyz\n" <nil> | 2 "é"
+WriteByte <nil> | 3 "é\x1d"
+WriteByte <nil> | 4 "é\x1d\xb3"
+ReadByte 195 <nil> | 3 "\xa9\x1d\xb3"
+WriteByte <nil> | 4 "\xa9\x1d\xb3K"
+Write 1 <nil> | 5 "\xa9\x1d\xb3K\n"
+Peek "\xa9\x1d\xb3" <nil> | 5 "\xa9\x1d\xb3K\n"
+Write 10 <nil> | 15 "\xa9\x1d\xb3K\n0123456789"
+WriteByte <nil> | 16 "\xa9\x1d\xb3K\n0123456789\x9a"
+ReadRune 65533 1 <nil> | 15 "\x1d\xb3K\n0123456789\x9a"
+Write 4 <nil> | 19 "\x1d\xb3K\n0123456789\x9axyz\n"
+Peek "\x1d\xb3" <nil> | 19 "\x1d\xb3K\n0123456789\x9axyz\n"
+Truncate | 16 "\x1d\xb3K\n0123456789\x9ax"
+ReadRune 29 1 <nil> | 15 "\xb3K\n0123456789\x9ax"
+ReadString "\xb3K\n" <nil> | 12 "0123456789\x9ax"
+Read 1 <nil> "0" | 11 "123456789\x9ax"
+Truncate | 0 ""
+Peek "" <nil> | 0 ""
+Read 0 EOF "" | 0 ""
+ReadString "" EOF | 0 ""
+WriteByte <nil> | 1 "\x99"
+ReadRune 65533 1 <nil> | 0 ""
+ReadString "" EOF | 0 ""
+Read 0 EOF "" | 0 ""
+ReadRune 0 0 EOF | 0 ""
+Truncate | 0 ""
+ReadByte 0 EOF | 0 ""
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 0 ""
+Read 0 EOF "" | 0 ""
+Read 0 EOF "" | 0 ""
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 0 ""
+Read 0 EOF "" | 0 ""
+Truncate | 0 ""
+Grow | 0 ""
+Write 0 <nil> | 0 ""
+WriteByte <nil> | 1 "\x9b"
+ReadRune 65533 1 <nil> | 0 ""
+ReadRune 0 0 EOF | 0 ""
+Write 3 <nil> | 3 "☺"
+ReadRune 9786 3 <nil> | 0 ""
+Peek "" EOF | 0 ""
+UnreadByte <nil> | 1 "\xba"
+Read 1 <nil> "\xba" | 0 ""
+Next "" | 0 ""
+ReadString "" EOF | 0 ""
+ReadRune 0 0 EOF | 0 ""
+WriteByte <nil> | 1 "\x86"
+Read 1 <nil> "\x86" | 0 ""
+ReadByte 0 EOF | 0 ""
+WriteString 2 <nil> | 2 "\xe2\x98"
+ReadRune 65533 1 <nil> | 1 "\x98"
+UnreadRune <nil> | 2 "\xe2\x98"
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 2 "\xe2\x98"
+Read 2 <nil> "\xe2\x98" | 0 ""
+ReadString "" EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Truncate | 0 ""
+ReadByte 0 EOF | 0 ""
+Grow | 0 ""
+ReadByte 0 EOF | 0 ""
+WriteByte <nil> | 1 "\xab"
+WriteByte <nil> | 2 "\xabS"
+ReadRune 65533 1 <nil> | 1 "S"
+WriteByte <nil> | 2 "So"
+ReadString "So" EOF | 0 ""
+UnreadByte <nil> | 1 "o"
+WriteRune 1 <nil> | 2 "oq"
+WriteByte <nil> | 3 "oqE"
+WriteRune 3 <nil> | 6 "oqE☺"
+Grow | 6 "oqE☺"
+Truncate | 3 "oqE"
+WriteByte <nil> | 4 "oqE%"
+Read 0 <nil> "" | 4 "oqE%"
+UnreadByte bytes.Buffer: UnreadByte: previous operation was not a successful read | 4 "oqE%"
+Read 2 <nil> "oq" | 2 "E%"
+ReadString "E%" EOF | 0 ""
+Grow | 0 ""
+Grow | 0 ""
+Truncate | 0 ""
+ReadByte 0 EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+ReadString "" EOF | 0 ""
+Peek "" EOF | 0 ""
+UnreadRune bytes.Buffer: UnreadRune: previous operation was not a successful ReadRune | 0 ""
+Read 0 <nil> "" | 42 true 42
+UnreadRune false | 42 true 42
+ReadRune 233 2 <nil> | 40 true 40
+UnreadRune true | 42 true 42
+WriteTo 42 <nil> "é0123456789a\xe2\x9801234567890123456789\xffbc\xe2\x98é" | 0 true 0
+UnreadByte <nil> | 1 true 1
+ReadAt 1 <nil> "0" | 1 true 1
+UnreadByte <nil> | 2 true 2
+ReadAt 3 <nil> "234" | 2 true 2
+ReadAt 2 <nil> "é" | 2 true 2
+ReadByte 195 <nil> | 1 true 1
+Seek 6 true | 36 true 36
+UnreadByte <nil> | 37 true 37
+ReadByte 51 <nil> | 36 true 36
+ReadByte 52 <nil> | 35 true 35
+Seek 0 false | 35 true 35
+Read 4 <nil> "5678" | 31 true 31
+Seek 0 false | 31 true 31
+ReadByte 57 <nil> | 30 true 30
+WriteTo 30 <nil> "a\xe2\x9801234567890123456789\xffbc\xe2\x98é" | 0 true 0
+Seek 84 true | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+Seek 31 true | 11 true 11
+ReadAt 4 <nil> "8901" | 11 true 11
+ReadByte 54 <nil> | 10 true 10
+ReadRune 55 1 <nil> | 9 true 9
+UnreadByte <nil> | 10 true 10
+Seek 50 true | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 1 <nil> "\xa9" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadAt 1 <nil> "4" | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+UnreadByte <nil> | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadAt 4 <nil> "6789" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Seek 70 true | 0 true 0
+UnreadRune false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadRune false | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+ReadAt 3 <nil> "789" | 0 true 0
+Read 0 EOF "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Seek 70 true | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Seek 112 true | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 2 <nil> "23" | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadRune false | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+UnreadByte <nil> | 0 true 0
+UnreadByte <nil> | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadByte <nil> | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 4 <nil> "1234" | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+Seek 17 true | 25 true 25
+Seek 50 true | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+Seek 30 true | 12 true 12
+ReadAt 1 <nil> "2" | 12 true 12
+ReadAt 2 <nil> "90" | 12 true 12
+WriteTo 12 <nil> "56789\xffbc\xe2\x98é" | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadByte <nil> | 1 true 1
+Seek 64 true | 0 true 0
+UnreadRune false | 0 true 0
+ReadByte 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Seek 0 false | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Seek 64 true | 0 true 0
+UnreadByte <nil> | 0 true 0
+Seek 73 true | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadAt 4 <nil> "89\xffb" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Seek 4 true | 38 true 38
+WriteTo 38 <nil> "23456789a\xe2\x9801234567890123456789\xffbc\xe2\x98é" | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+Seek 85 true | 0 true 0
+ReadAt 1 <nil> "6" | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadByte 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+ReadByte 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 3 <nil> "789" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadByte <nil> | 0 true 0
+UnreadRune false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+Seek 93 true | 0 true 0
+Seek 19 true | 23 true 23
+ReadRune 52 1 <nil> | 22 true 22
+Seek 30 true | 12 true 12
+ReadByte 53 <nil> | 11 true 11
+ReadAt 2 <nil> "89" | 11 true 11
+ReadByte 54 <nil> | 10 true 10
+UnreadByte <nil> | 11 true 11
+UnreadByte <nil> | 12 true 12
+UnreadByte <nil> | 13 true 13
+ReadRune 52 1 <nil> | 12 true 12
+Seek 8 true | 34 true 34
+UnreadByte <nil> | 35 true 35
+UnreadByte <nil> | 36 true 36
+ReadRune 52 1 <nil> | 35 true 35
+Seek 43 true | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 3 <nil> "345" | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadAt 3 EOF "\x98é" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+Seek 0 false | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Seek 0 false | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadByte <nil> | 1 true 1
+Seek 42 true | 0 true 0
+Seek 48 true | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadAt 2 <nil> "90" | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+Seek 54 true | 0 true 0
+Seek 29 true | 13 true 13
+Seek 29 true | 13 true 13
+WriteTo 13 <nil> "456789\xffbc\xe2\x98é" | 0 true 0
+Seek 42 true | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadRune false | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 3 <nil> "234" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadAt 4 <nil> "bc\xe2\x98" | 0 true 0
+ReadAt 2 <nil> "23" | 0 true 0
+Seek 0 false | 0 true 0
+UnreadByte <nil> | 1 true 1
+ReadAt 2 <nil> "34" | 1 true 1
+UnreadByte <nil> | 2 true 2
+ReadByte 195 <nil> | 1 true 1
+WriteTo 1 <nil> "\xa9" | 0 true 0
+Seek 0 false | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+Seek 46 true | 0 true 0
+UnreadRune false | 0 true 0
+Seek 45 true | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+Seek 0 false | 0 true 0
+UnreadRune false | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+ReadAt 4 <nil> "789a" | 0 true 0
+Seek 78 true | 0 true 0
+UnreadByte <nil> | 0 true 0
+Seek 67 true | 0 true 0
+Seek 66 true | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadAt 4 <nil> "0123" | 0 true 0
+UnreadByte <nil> | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadRune false | 0 true 0
+UnreadRune false | 0 true 0
+Read 0 EOF "" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadRune false | 0 true 0
+UnreadByte <nil> | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+UnreadRune false | 0 true 0
+ReadAt 0 <nil> "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+UnreadByte <nil> | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadByte <nil> | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+Seek 48 true | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+UnreadRune false | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Seek 71 true | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadByte 0 EOF | 0 true 0
+WriteTo 0 <nil> "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+Seek 41 true | 1 true 1
+ReadAt 0 <nil> "" | 1 true 1
+ReadByte 169 <nil> | 0 true 0
+ReadByte 0 EOF | 0 true 0
+Read 0 EOF "" | 0 true 0
+ReadRune 0 0 EOF | 0 true 0
+UnreadRune false | 0 true 0

@@ -4,6 +4,7 @@
 #pragma once
 
 #include <eo/core.h>
+#include <eo/io.h>
 #include <eo/unicode/case.h>
 
 #include <algorithm>
@@ -14,9 +15,10 @@
 #include <utility>
 #include <vector>
 
-// Go's strings, in part, ported from Go 1.26's strings.go, builder.go, and replace.go. A function
-// that Go gives a string parameter takes a std::string, and the code points of a string are
+// Go's strings, in part, ported from Go 1.26's strings.go, builder.go, replace.go, and reader.go. A
+// function that Go gives a string parameter takes a std::string, and the code points of a string are
 // decoded as `range` decodes them: a byte that does not start a valid UTF-8 sequence is U+FFFD.
+// Reader is written as a translated type, with static methods, so that a ptr<Reader> is an io::Reader.
 
 namespace eo::strings {
 
@@ -763,6 +765,163 @@ inline auto NewReplacer(slice<std::string> oldnew) -> ptr<Replacer> {
     panic("strings.NewReplacer: odd argument count"s);
   }
   return New<Replacer>(std::move(oldnew));
+}
+
+namespace detail {
+
+  // copy(b, s[i:]), without the copy of s[i:] that eo::substr makes.
+  inline auto copy_at(const slice<uint8_t>& b, const std::string& s, int64_t i) -> int64_t {
+    auto n = std::min(eo::len(b), eo::len(s) - i);
+    std::copy_n(s.data() + i, n, b.data());
+    return n;
+  }
+
+} // namespace detail
+
+// Go's strings.Reader.
+struct Reader {
+  static constexpr std::string_view _eo_name = "strings.Reader";
+
+  std::string s{};
+  int64_t i{};
+  int64_t prevRune{};
+
+  auto operator==(const Reader&) const -> bool = default;
+
+  static auto Len(ptr<Reader> r) -> int64_t {
+    if (r->i >= eo::len(r->s)) {
+      return 0;
+    }
+    return eo::len(r->s) - r->i;
+  }
+
+  static auto Size(ptr<Reader> r) -> int64_t {
+    return eo::len(r->s);
+  }
+
+  static auto Read(ptr<Reader> r, slice<uint8_t> b) -> std::tuple<int64_t, error> {
+    if (r->i >= eo::len(r->s)) {
+      return {0, io::EOF_};
+    }
+    r->prevRune = -1;
+    auto n = detail::copy_at(b, r->s, r->i);
+    r->i += n;
+    return {n, nullptr};
+  }
+
+  static auto ReadAt(ptr<Reader> r, slice<uint8_t> b, int64_t off) -> std::tuple<int64_t, error> {
+    if (off < 0) {
+      return {0, errors::New("strings.Reader.ReadAt: negative offset")};
+    }
+    if (off >= eo::len(r->s)) {
+      return {0, io::EOF_};
+    }
+    auto n = detail::copy_at(b, r->s, off);
+    auto err = error{};
+    if (n < eo::len(b)) {
+      err = io::EOF_;
+    }
+    return {n, err};
+  }
+
+  static auto ReadByte(ptr<Reader> r) -> std::tuple<uint8_t, error> {
+    r->prevRune = -1;
+    if (r->i >= eo::len(r->s)) {
+      return {0, io::EOF_};
+    }
+    auto b = eo::at(r->s, r->i);
+    r->i++;
+    return {b, nullptr};
+  }
+
+  static auto UnreadByte(ptr<Reader> r) -> error {
+    if (r->i <= 0) {
+      return errors::New("strings.Reader.UnreadByte: at beginning of string");
+    }
+    r->prevRune = -1;
+    r->i--;
+    return nullptr;
+  }
+
+  static auto ReadRune(ptr<Reader> r) -> std::tuple<int32_t, int64_t, error> {
+    if (r->i >= eo::len(r->s)) {
+      r->prevRune = -1;
+      return {0, 0, io::EOF_};
+    }
+    r->prevRune = r->i;
+    auto [ch, size] = eo::detail::decode_rune(r->s, static_cast<std::size_t>(r->i));
+    r->i += static_cast<int64_t>(size);
+    return {static_cast<int32_t>(ch), static_cast<int64_t>(size), nullptr};
+  }
+
+  static auto UnreadRune(ptr<Reader> r) -> error {
+    if (r->i <= 0) {
+      return errors::New("strings.Reader.UnreadRune: at beginning of string");
+    }
+    if (r->prevRune < 0) {
+      return errors::New("strings.Reader.UnreadRune: previous operation was not ReadRune");
+    }
+    r->i = r->prevRune;
+    r->prevRune = -1;
+    return nullptr;
+  }
+
+  static auto Seek(ptr<Reader> r, int64_t offset, int64_t whence) -> std::tuple<int64_t, error> {
+    r->prevRune = -1;
+    auto abs = int64_t{0};
+    if (whence == io::SeekStart) {
+      abs = offset;
+    } else if (whence == io::SeekCurrent) {
+      abs = r->i + offset;
+    } else if (whence == io::SeekEnd) {
+      abs = eo::len(r->s) + offset;
+    } else {
+      return {0, errors::New("strings.Reader.Seek: invalid whence")};
+    }
+    if (abs < 0) {
+      return {0, errors::New("strings.Reader.Seek: negative position")};
+    }
+    r->i = abs;
+    return {abs, nullptr};
+  }
+
+  static auto WriteTo(ptr<Reader> r, io::Writer w) -> std::tuple<int64_t, error> {
+    r->prevRune = -1;
+    if (r->i >= eo::len(r->s)) {
+      return {0, nullptr};
+    }
+    auto s = eo::substr(r->s, r->i);
+    auto [m, err] = io::WriteString(std::move(w), s);
+    if (m > eo::len(s)) {
+      panic(std::string{"strings.Reader.WriteTo: invalid WriteString count"});
+    }
+    r->i += m;
+    if (m != eo::len(s) && err == nullptr) {
+      err = io::ErrShortWrite;
+    }
+    return {m, err};
+  }
+
+  static void Reset(ptr<Reader> r, std::string s) {
+    *r = Reader{std::move(s), 0, -1};
+  }
+
+  using _eo_methods = eo::methods<eo::method<&Reader::Len, "Len">,
+    eo::method<&Reader::Size, "Size">,
+    eo::method<&Reader::Read, "Read">,
+    eo::method<&Reader::ReadAt, "ReadAt">,
+    eo::method<&Reader::ReadByte, "ReadByte">,
+    eo::method<&Reader::UnreadByte, "UnreadByte">,
+    eo::method<&Reader::ReadRune, "ReadRune">,
+    eo::method<&Reader::UnreadRune, "UnreadRune">,
+    eo::method<&Reader::Seek, "Seek">,
+    eo::method<&Reader::WriteTo, "WriteTo">,
+    eo::method<&Reader::Reset, "Reset">>;
+};
+
+// Go's strings.NewReader.
+inline auto NewReader(std::string s) -> ptr<Reader> {
+  return eo::New<Reader>(Reader{std::move(s), 0, -1});
 }
 
 } // namespace eo::strings

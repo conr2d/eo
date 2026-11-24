@@ -2026,7 +2026,7 @@ The capacity of a new slice follows [Slices](#slices) and is outside this mappin
 
 #### The strings and bytes packages not covered yet
 
-- `strings.Reader`, `bytes.Buffer`, and `bytes.Reader`, the `io` methods of `Builder` and `Replacer`, and `Replacer.WriteString`, which need `io`;
+- the `io` methods of `Builder` and `Replacer`, such as `Builder` as an `io.Writer`, and `Replacer.WriteString`;
 - the iterator functions, such as `SplitSeq`, `FieldsSeq`, and `Lines`;
 - `Title`, `ToTitle`, `ToValidUTF8`, `SplitAfter`, `SplitAfterN`, the `Special` case functions, `ContainsFunc`, `IndexFunc` and `LastIndexFunc` of `bytes`, `bytes.Runes`, and the other functions not listed above.
 
@@ -2053,6 +2053,71 @@ Go's `math/bits` maps to the namespace `bits` from `<eo/math/bits.h>`. It covers
 - the constant `UintSize`, which is 64.
 
 Go's `uint` is `uint64_t`, and its `int` results are `int64_t`. Two results are a `std::tuple`, so `sum, carry := bits.Add64(x, y, 0)` is `auto [sum, carry] = bits::Add64(x, y, 0);`. A negative `RotateLeft` count rotates right. `Div` and `Rem` panic with `runtime error: integer divide by zero` for a zero divisor, as Go's do. `Div` also panics with `runtime error: integer overflow` when the quotient does not fit, and `Rem` does not.
+
+### The io package
+
+Go's `io` maps, in part, to the namespace `io` from `<eo/io.h>`. It covers:
+
+- the interfaces `Reader`, `Writer`, `Closer`, `Seeker`, `ReadWriter`, `ReadCloser`, `WriteCloser`, `ReadWriteCloser`, `ReadSeeker`, `ReadSeekCloser`, `WriteSeeker`, `ReadWriteSeeker`, `ReaderFrom`, `WriterTo`, `ReaderAt`, `WriterAt`, `ByteReader`, `ByteScanner`, `ByteWriter`, `RuneReader`, `RuneScanner`, and `StringWriter`;
+- the errors `EOF`, `ErrUnexpectedEOF`, `ErrShortWrite`, `ErrShortBuffer`, `ErrNoProgress`, and `ErrClosedPipe`, and the constants `SeekStart`, `SeekCurrent`, and `SeekEnd`;
+- `ReadFull`, `ReadAtLeast`, `ReadAll`, `Copy`, `CopyN`, `CopyBuffer`, `WriteString`, `Discard`, `NopCloser`, `LimitReader`, `MultiReader`, `MultiWriter`, `TeeReader`, and `NewSectionReader`;
+- the types `LimitedReader` and `SectionReader`.
+
+`EOF` is a macro of `<cstdio>`, so `io.EOF` is `io::EOF_`, as the builtin `delete` is `eo::delete_`: `if err == io.EOF` is `if (err == io::EOF_)`. The errors are package-level `error` values, so they compare as Go's do, and `errors.Is` finds them in a wrapped error.
+
+The interfaces are [interface types](#interface-types). A method of an interface value is called as a member, `r.Read(p)`, and the methods have Go's parameters and results: `Read(p []byte) (n int, err error)` is `auto Read(slice<uint8_t> p) const -> std::tuple<int64_t, error>`, and `whence` and the other `int`s are `int64_t`. A translated type with the methods converts to the interface as any other does, and so do `ptr<bytes::Buffer>`, `ptr<bytes::Reader>`, and `ptr<strings::Reader>`.
+
+`LimitedReader` and `SectionReader` are written as translated types: their methods are static members whose first parameter is the receiver, called as in [Methods](#methods). `lr := &io.LimitedReader{R: r, N: 4}` is `auto lr = New<io::LimitedReader>(io::LimitedReader{.R = r, .N = 4});`, `lr.Read(p)` is `io::LimitedReader::Read(lr, p)`, and `s.Size()` of a `*io.SectionReader` is `io::SectionReader::Size(s)`. `MultiReader` and `MultiWriter` are variadic, so their parameter is a slice: `io.MultiReader(a, b)` is `io::MultiReader(slice<io::Reader>::of({a, b}))`.
+
+The functions are ported from Go 1.26's `io.go` and `multi.go`:
+
+- `Copy` and `CopyN` use the source's `WriteTo` or the destination's `ReadFrom` when it has one, and otherwise copy through a buffer of 32 KiB, or of the remaining count of a `*LimitedReader`. A short write gives `ErrShortWrite`, and a write that reports more bytes than it got gives `invalid write result`.
+- `CopyBuffer` panics with `empty buffer in CopyBuffer` for a buffer that is empty and not nil.
+- `ReadAll` grows its buffer as Go's does. Go rounds each capacity up to an allocation size class, and Eo does not, so the capacity of the result is outside this mapping.
+- `MultiReader` flattens nested `MultiReader`s when it reads and when it writes to a `WriterTo`, and `MultiWriter` flattens nested `MultiWriter`s, as Go's do.
+- `NopCloser` keeps the `WriterTo` of its argument, as Go's does.
+- A method of a nil `Reader` or `Writer` panics with `runtime error: invalid memory address or nil pointer dereference`.
+
+#### The io package not covered yet
+
+- `Pipe`, `PipeReader`, and `PipeWriter`, `OffsetWriter` and `NewOffsetWriter`, and the `io/fs` and `io/ioutil` packages.
+
+### Buffers and readers
+
+`bytes.Buffer`, `bytes.Reader`, and `strings.Reader` map to `bytes::Buffer`, `bytes::Reader`, and `strings::Reader`, from `<eo/bytes.h>` and `<eo/strings.h>`, which include `<eo/io.h>`. Their methods have pointer receivers that put them in `io` interfaces, so, unlike `strings::Builder`, they are written as translated types, as `big::Int` is: each method is a static member whose first parameter is the receiver, and a call follows the call table in [Methods](#methods).
+
+```go
+var buf bytes.Buffer
+buf.WriteString("hello")
+r := strings.NewReader("abc")
+io.Copy(&buf, r)
+fmt.Println(buf.String(), r.Len())
+```
+
+```cpp
+auto buf = New<bytes::Buffer>();
+bytes::Buffer::WriteString(buf, "hello"s);
+auto r = strings::NewReader("abc"s);
+io::Copy(buf, r);
+auto _eo_call_0 = bytes::Buffer::String(buf);
+auto _eo_call_1 = strings::Reader::Len(r);
+fmt::Println(_eo_call_0, _eo_call_1);
+```
+
+`&buf` converted to `io.Writer` moves `buf` to heap, so it is [boxed](#boxed-variables) and `&buf` is the box. A `bytes.Buffer` that is not boxed is `bytes::Buffer buf{};`, and `buf.Len()` is `bytes::Buffer::Len(ref(buf))`. `bytes.NewBuffer`, `bytes.NewBufferString`, `bytes.NewReader`, and `strings.NewReader` return a `ptr`. `fmt.Println(&buf)` prints the contents, through `String`, and `String` of a nil `*bytes.Buffer` is `<nil>`, as in Go.
+
+The types have all their Go methods:
+
+- `Buffer`: `Bytes`, `AvailableBuffer`, `String`, `Peek`, `Len`, `Cap`, `Available`, `Truncate`, `Reset`, `Grow`, `Write`, `WriteString`, `WriteByte`, `WriteRune`, `ReadFrom`, `WriteTo`, `Read`, `Next`, `ReadByte`, `ReadRune`, `UnreadRune`, `UnreadByte`, `ReadBytes`, and `ReadString`, with `MinRead` and `ErrTooLarge`;
+- `bytes.Reader` and `strings.Reader`: `Len`, `Size`, `Read`, `ReadAt`, `ReadByte`, `UnreadByte`, `ReadRune`, `UnreadRune`, `Seek`, `WriteTo`, and `Reset`.
+
+They are ported from Go 1.26's `buffer.go` and `reader.go`:
+
+- `Bytes`, `Next`, `Peek`, and the slices that `ReadBytes` reads from alias the buffer until its next change, as in Go.
+- `Truncate` panics with `bytes.Buffer: truncation out of range`, `Grow` with `bytes.Buffer.Grow: negative count`, and a buffer that cannot grow with `ErrTooLarge`.
+- The errors of `UnreadByte`, `UnreadRune`, `ReadAt`, and `Seek` have Go's messages, such as `bytes.Reader.Seek: negative position` and `strings.Reader.UnreadByte: at beginning of string`.
+- A `Buffer` grows as Go's does, but Go rounds each new capacity up to an allocation size class, and Eo does not. The values of `Cap` and `Available`, and the length of `AvailableBuffer`, after the buffer has grown are outside this mapping, as is whether a `Bytes` result still aliases the buffer after a write that grows it.
+- Copying a `Buffer` copies its fields, so the copy shares the backing array, as in Go, where `go vet` reports the copy.
 
 ### Goroutine
 
