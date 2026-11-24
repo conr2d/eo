@@ -12,7 +12,7 @@ void roundTrip(binary::ByteOrder order) {
   auto v16 = order.Uint16(b);
   order.PutUint32(b, 0x01020304);
   auto v32 = order.Uint32(b);
-  order.PutUint64(b, uint64_t{72623859790382856});
+  order.PutUint64(b, uint64_t{72623859790382856u});
   auto v64 = order.Uint64(b);
   fmt::Println(order, b, v16, v32, v64);
 }
@@ -21,7 +21,7 @@ void appendAll(binary::AppendByteOrder order) {
   slice<uint8_t> b;
   b = order.AppendUint16(b, 0xabcd);
   b = order.AppendUint32(b, 0x01020304);
-  b = order.AppendUint64(b, uint64_t{1234605616436508552});
+  b = order.AppendUint64(b, uint64_t{1234605616436508552u});
   fmt::Println(order.String(), b);
 }
 
@@ -71,7 +71,7 @@ func<> eo_main() {
          300,
          16383,
          16384,
-         uint64_t{9223372036854775807},
+         uint64_t{9223372036854775807u},
          uint64_t{9223372036854775808u},
          uint64_t{18446744073709551615u}}))) {
     auto buf = eo::make_slice<uint8_t>(binary::MaxVarintLen64);

@@ -1937,7 +1937,7 @@ The functions are ported from Go 1.26:
 
 #### The strconv package not covered yet
 
-- `ParseFloat`, `FormatFloat`, `AppendFloat`, the complex functions, `QuoteToASCII`, `QuoteToGraphic`, the rune forms of those, `QuotedPrefix`, `CanBackquote`, and `IsGraphic`.
+- `ParseFloat`, `FormatFloat`, `AppendFloat`, the complex functions, `QuoteToASCII`, `QuoteToGraphic`, `AppendQuoteRune`, the rune and `Append` forms of the ASCII and graphic quoting functions, `QuotedPrefix`, `CanBackquote`, and `IsGraphic`.
 
 ### The encoding/hex package
 

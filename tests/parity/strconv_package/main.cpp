@@ -116,7 +116,7 @@ func<> eo_main() {
   fmt::Println(eo::string_from_bytes(buf), strconv::IntSize);
 
   // Quote, QuoteRune, IsPrint, and Unquote.
-  auto _eo_call_6 = strconv::Quote("hi\n\t\"\\\x00\x7f\xff é ☺ \u2028"s);
+  auto _eo_call_6 = strconv::Quote("hi\n\t\"\\\x{00}\x{7f}\x{ff} é ☺ \u2028"s);
   auto _eo_call_7 = strconv::QuoteRune(9786);
   auto _eo_call_8 = strconv::QuoteRune(39);
   auto _eo_call_9 = strconv::QuoteRune(10);
@@ -147,7 +147,7 @@ func<> eo_main() {
          "\"\\uD800\""s,
          "x"s,
          "\"é\""s,
-         "\"\xff\""s}))) {
+         "\"\x{ff}\""s}))) {
     unquote(s);
   }
   auto [r, multibyte, tail, err] = strconv::UnquoteChar("\\u263a rest"s, 34);

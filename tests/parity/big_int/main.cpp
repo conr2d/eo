@@ -161,8 +161,8 @@ func<> eo_main() {
   fmt::Println(_eo_call_21, _eo_call_22, _eo_call_23, _eo_call_24, _eo_call_25);
   auto buf = eo::make_slice<uint8_t>(12);
   fmt::Println(big::Int::FillBytes(m, buf), buf);
-  auto w =
-    big::Int::SetBits(New<big::Int>(), slice<big::Word>::of({big::Word{3}, big::Word{0}, big::Word{1}, big::Word{0}}));
+  auto w = big::Int::SetBits(New<big::Int>(),
+    slice<big::Word>::of({big::Word{3u}, big::Word{0u}, big::Word{1u}, big::Word{0u}}));
   auto empty = big::Int::SetBytes(New<big::Int>(), nullptr);
   auto eight = big::Int::SetInt64(New<big::Int>(), -8);
   auto _eo_call_26 = big::Int::Bits(w);
@@ -170,7 +170,7 @@ func<> eo_main() {
   fmt::Println(w, _eo_call_26, eo::len(_eo_call_27), empty, eight);
   auto nib = int64_t{9};
   auto words = eo::make_slice<big::Word>(2);
-  eo::at(words, 0) = big::Word{255};
+  eo::at(words, 0) = big::Word{255u};
   eo::at(words, 0) <<= 4;
   eo::at(words, 0) += big::Word(nib);
   eo::at(words, 1) = ~eo::at(words, 0);
