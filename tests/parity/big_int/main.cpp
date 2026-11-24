@@ -122,6 +122,13 @@ func<> eo_main() {
   auto u = big::Int::SetBit(New<big::Int>(), big::NewInt(-1), 3, 0);
   auto cleared = big::Int::SetBit(New<big::Int>(), t, 130, 0);
   fmt::Println(s, t, u, cleared);
+  auto huge = int64_t{4294967296};
+  auto minus2 = big::NewInt(-2);
+  auto unit = big::NewInt(1);
+  auto hb1 = big::Int::Bit(minus2, huge);
+  auto hb2 = big::Int::SetBit(New<big::Int>(), unit, huge, 0);
+  auto hb3 = big::Int::SetBit(New<big::Int>(), minus2, huge, 1);
+  fmt::Println(hb1, hb2, hb3);
 
   // Conversions to and from integers, bytes, and words.
   auto m =
@@ -275,6 +282,9 @@ func<> eo_main() {
   attempt("modinverse"s, [=]() mutable { big::Int::ModInverse(New<big::Int>(), big::NewInt(-1), New<big::Int>()); });
   auto small = eo::make_slice<uint8_t>(1);
   attempt("fill"s, [=]() mutable { big::Int::FillBytes(big::NewInt(256), small); });
+  auto low = eo::make_slice<uint8_t>(1);
+  attempt("fill low"s, [=]() mutable { big::Int::FillBytes(big::NewInt(0x0102), low); });
+  fmt::Println(low);
   attempt("bit"s, [=]() mutable { big::Int::Bit(big::NewInt(1), -1); });
   attempt("setbit"s, [=]() mutable { big::Int::SetBit(New<big::Int>(), big::NewInt(1), 1, 2); });
   attempt("setbit neg"s, [=]() mutable { big::Int::SetBit(New<big::Int>(), big::NewInt(-1), 1, 2); });

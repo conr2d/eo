@@ -1885,10 +1885,11 @@ The methods give Go's results:
 
 The methods panic as Go's do, with a Go string value:
 
-- `division by zero` from `Quo`, `Rem`, `Div`, `Mod`, and `ModInverse`;
+- `division by zero` from `Quo`, `Rem`, `QuoRem`, `Div`, `Mod`, `DivMod`, and `ModInverse`;
 - `math/big: buffer too small to fit value` from `FillBytes`;
 - `negative bit index` and `set bit is not 0 or 1` from `Bit` and `SetBit`;
-- `invalid base` from `Text`, and `invalid number base N` from `SetString`, for a base other than 0 and 2 through 62.
+- `invalid base` from `Text`, for a base other than 2 through 62;
+- `invalid number base N` from `SetString`, for a base other than 0 and 2 through 62.
 
 A nil receiver or operand panics with Go's nil dereference error. `String` and `Text` of a nil `*big.Int` give `<nil>`, as in Go.
 
@@ -1912,7 +1913,8 @@ A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` 
 
 - `big.Float`, `big.Rat`, and the functions and methods not listed above, such as `GCD`, `Sqrt`, `ProbablyPrime`, `Float64`, `Append`, `Scan`, and the `encoding` and `json` marshaling methods;
 - method values and method expressions of `big.Int` methods, and methods other than `String` in an interface;
-- `Format` with flags, width, or precision.
+- `Format` with flags, width, or precision, and `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
+- `QuoRem` and `DivMod` whose two results are the same `Int`, or whose modulus `m` is also `y`, where Go's result depends on the order of its own writes.
 
 ### Goroutine
 

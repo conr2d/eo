@@ -13,6 +13,7 @@
 8 -1 -9 -13 | -16 -1 15 11 | 1 -1 -2 -6 | -5 -5 0 0 | 4 -5902958103587056517120 -2 -1 1 0 1 0
 0 12 12 0 | 0 -12 -12 0 | 0 5 5 0 | 0 -5 -5 0 | -1 0 0 0 0 0 0 0
 -16 1361129467683753853853498429727072845829 -9 5
+1 1 -2
 18446744073709551618 [1 0 0 0 0 0 0 0 2] 2 2 [2 1] 0 false true
 -9223372036854775808 true false 1 false
 [0 0 0 1 0 0 0 0 0 0 0 2] [0 0 0 1 0 0 0 0 0 0 0 2]
@@ -58,6 +59,8 @@ div recovered: division by zero
 quo recovered: division by zero
 modinverse recovered: division by zero
 fill recovered: math/big: buffer too small to fit value
+fill low recovered: math/big: buffer too small to fit value
+[2]
 bit recovered: negative bit index
 setbit recovered: set bit is not 0 or 1
 setbit neg recovered: set bit is not 0 or 1

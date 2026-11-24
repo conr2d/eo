@@ -88,6 +88,13 @@ func main() {
 	u := new(big.Int).SetBit(big.NewInt(-1), 3, 0)
 	cleared := new(big.Int).SetBit(t, 130, 0)
 	fmt.Println(s, t, u, cleared)
+	huge := 1 << 32
+	minus2 := big.NewInt(-2)
+	unit := big.NewInt(1)
+	hb1 := minus2.Bit(huge)
+	hb2 := new(big.Int).SetBit(unit, huge, 0)
+	hb3 := new(big.Int).SetBit(minus2, huge, 1)
+	fmt.Println(hb1, hb2, hb3)
 
 	// Conversions to and from integers, bytes, and words.
 	m := new(big.Int).SetBytes([]byte{0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02})
@@ -179,6 +186,9 @@ func main() {
 	attempt("modinverse", func() { new(big.Int).ModInverse(big.NewInt(-1), new(big.Int)) })
 	small := make([]byte, 1)
 	attempt("fill", func() { big.NewInt(256).FillBytes(small) })
+	low := make([]byte, 1)
+	attempt("fill low", func() { big.NewInt(0x0102).FillBytes(low) })
+	fmt.Println(low)
 	attempt("bit", func() { big.NewInt(1).Bit(-1) })
 	attempt("setbit", func() { new(big.Int).SetBit(big.NewInt(1), 1, 2) })
 	attempt("setbit neg", func() { new(big.Int).SetBit(big.NewInt(-1), 1, 2) })

@@ -7,10 +7,12 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 
 // Go's math/big, in part: big.Int and big.Word. An Int holds its value in a Boost.Multiprecision
 // cpp_int, whose sign and magnitude match Go's representation, and its methods follow Go's
@@ -172,8 +174,7 @@ struct Int {
 
   static auto Set(ptr<Int> z, ptr<Int> x) -> ptr<Int> {
     if (z != x) {
-      auto v = x->value_;
-      z->value_ = std::move(v);
+      z->value_ = x->value_;
     }
     return z;
   }
@@ -237,9 +238,9 @@ struct Int {
     const auto& xv = x->value_;
     auto set_bit = [&](detail::cpp_int t, uint64_t bit) {
       if (bit == 0) {
-        boost::multiprecision::bit_unset(t, static_cast<unsigned>(i));
+        boost::multiprecision::bit_unset(t, static_cast<std::size_t>(i));
       } else if (bit == 1) {
-        boost::multiprecision::bit_set(t, static_cast<unsigned>(i));
+        boost::multiprecision::bit_set(t, static_cast<std::size_t>(i));
       } else {
         panic("set bit is not 0 or 1"s);
       }
@@ -527,9 +528,9 @@ struct Int {
       panic("negative bit index"s);
     }
     if (v < 0) {
-      return boost::multiprecision::bit_test(-v - 1, static_cast<unsigned>(i)) ? 0 : 1;
+      return boost::multiprecision::bit_test(-v - 1, static_cast<std::size_t>(i)) ? 0 : 1;
     }
-    return boost::multiprecision::bit_test(v, static_cast<unsigned>(i)) ? 1 : 0;
+    return boost::multiprecision::bit_test(v, static_cast<std::size_t>(i)) ? 1 : 0;
   }
 
   static auto Int64(ptr<Int> x) -> int64_t {
@@ -563,7 +564,8 @@ struct Int {
     return buf;
   }
 
-  // Sets buf to the magnitude as a big-endian number, zero-padded on the left.
+  // Sets buf to the magnitude as a big-endian number, zero-padded on the left. A value that does not
+  // fit leaves its low bytes in buf before the panic, as Go's nat.bytes does.
   static auto FillBytes(ptr<Int> x, slice<uint8_t> buf) -> slice<uint8_t> {
     auto n = eo::len(buf);
     for (int64_t i = 0; i < n; ++i) {
@@ -571,11 +573,11 @@ struct Int {
     }
     auto bytes = Bytes(x);
     auto k = eo::len(bytes);
+    for (int64_t i = 0; i < k && i < n; ++i) {
+      buf.data()[n - 1 - i] = bytes.data()[k - 1 - i];
+    }
     if (k > n) {
       panic("math/big: buffer too small to fit value"s);
-    }
-    for (int64_t i = 0; i < k; ++i) {
-      buf.data()[n - k + i] = bytes.data()[i];
     }
     return buf;
   }
