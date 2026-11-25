@@ -659,7 +659,7 @@ Go's `maps` package maps to the namespace `maps` from `<eo/maps.h>`, whose funct
 
 ### Structs
 
-A Go struct type maps to a C++ aggregate of the same name. A package-level struct first declares its Go type name, `_eo_name` (see [Method tables](#method-tables)). Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. Field tags are dropped. After the fields, every struct declares a defaulted `operator==`, then its methods as static member functions, in the order Go declares them (see [Methods](#methods)), then the forwarders of its promoted methods and the table of its methods, `_eo_methods`, if it has methods (see [Method tables](#method-tables)):
+A Go struct type maps to a C++ aggregate of the same name. A package-level struct first declares its Go type name, `_eo_name` (see [Method tables](#method-tables)). Its fields keep their names, order, and grouping, each with the translated type and the initializer `{}`, so a struct's fields start as their zero values and `T{}` is the zero value of `T`. A struct with a tagged or an embedded field then declares its field table, `_eo_fields` (see [Field tags and embedding](#field-tags-and-embedding)). After the fields, every struct declares a defaulted `operator==`, then its methods as static member functions, in the order Go declares them (see [Methods](#methods)), then the forwarders of its promoted methods and the table of its methods, `_eo_methods`, if it has methods (see [Method tables](#method-tables)):
 
 ```go
 type Point struct {
@@ -690,6 +690,8 @@ struct Labeled {
   Point At{};
   slice<std::string> Tags{};
   ptr<Labeled> Next{};
+
+  static constexpr eo::field _eo_fields[] = {{.tag = "json:\"name\""}, {}, {}, {}};
 
   auto operator==(const Labeled&) const -> bool = default;
 };
@@ -778,6 +780,25 @@ Base::Rename(ptr(p, &p->Base), "y"s);
 ```
 
 Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer table in [Pointer type](#pointer-type). An embedded field hidden by a shallower field of the same name, such as `Item.Name` hiding `Base.Name`, is reached by its path, `it.Base.Name`, as in Go.
+
+#### Field tags and embedding
+
+`reflect` reports a field's tag and whether the field is embedded, which the C++ type does not record. A struct that has a field with a tag or an embedded field lists every field in its field table, after the fields: `static constexpr eo::field _eo_fields[] = {...};`, from `<eo/struct.h>`, with one entry per field in declaration order. The entry of a tagged field is `{.tag = "..."}`, with the tag's value as a C++ string literal, the entry of an embedded field is `{.embedded = true}`, and the entry of a field that is neither is `{}`. A struct without tags or embedded fields has no table, and `reflect` reports its fields as untagged and not embedded. `eo::field` is always qualified, because a Go program can name a field `field`.
+
+```go
+type Item struct {
+	Base
+	*Counter
+	Name string `json:"name,omitempty"`
+	Size int
+}
+```
+
+```cpp
+static constexpr eo::field _eo_fields[] = {{.embedded = true}, {.embedded = true}, {.tag = "json:\"name,omitempty\""}, {}};
+```
+
+A struct type declared inside a function cannot have static data members in C++, so it has no table, and `reflect` reports no tags and no embedded fields for it.
 
 #### Printing
 
@@ -2198,6 +2219,64 @@ They are ported from Go 1.26's `bufio.go` and `scan.go`:
 
 - `%T` of a `SplitFunc` value, which prints its function type, where Go prints `bufio.SplitFunc`.
 
+### The reflect package
+
+Go's `reflect` maps to the namespace `reflect` from `<eo/reflect.h>`, ported from Go 1.26's `reflect` on the type information that Eo keeps for every type an interface can hold, as Go's runtime does. It covers:
+
+- `Kind`, a defined type with its `String` method, and its constants, `reflect::Invalid` through `reflect::UnsafePointer`, and `reflect::Ptr`;
+- `Type`, with the methods `Kind`, `Name`, `String`, `Elem`, `Key`, `Len`, `NumField`, `Field`, `NumMethod`, `Implements`, `AssignableTo`, `Comparable`, and `Bits`, and `StructField`, with `IsExported`, and `StructTag`, with `Get` and `Lookup`;
+- `Value`, with the methods `Kind`, `Type`, `IsValid`, `CanAddr`, `CanSet`, `CanInterface`, `Interface`, `IsNil`, `IsZero`, `Elem`, `Addr`, `NumField`, `Field`, `FieldByIndex`, `Len`, `Cap`, `Index`, `Bool`, `Int`, `Uint`, `Float`, `String`, `Bytes`, `Set`, `SetBool`, `SetInt`, `SetUint`, `SetFloat`, `SetString`, `SetBytes`, `SetZero`, `SetLen`, `Grow`, `MapIndex`, `MapKeys`, `MapRange`, `SetMapIndex`, `NumMethod`, `OverflowInt`, `OverflowUint`, and `OverflowFloat`, and `MapIter`, with `Next`, `Key`, and `Value`;
+- the functions `TypeOf`, `TypeFor`, `PointerTo`, `PtrTo`, `ValueOf`, `New`, `Zero`, `Indirect`, `MakeSlice`, `MakeMap`, `MakeMapWithSize`, `Copy`, and `TypeAssert`, and `ValueError`, which the `Value` methods panic with.
+
+`Value`, `StructField`, `StructTag`, `ValueError`, and `MapIter` are written as translated types, as in [Buffers and readers](#buffers-and-readers): each method is a static member whose first parameter is the receiver, so `v.Field(0).Int()` is `reflect::Value::Int(reflect::Value::Field(v, 0))`, and `MapRange` returns a `ptr<reflect::MapIter>`. Go's `Type` is an interface that only the runtime's type implements, so it maps to one class, `reflect::Type`, whose methods are called as members, as a translated interface's are: `t.Elem().Kind()` is `t.Elem().Kind()`. A nil `Type` is `nullptr`, two `Type`s are `==` when they are the same type, and a `Type` prints by its `String` method. The generic functions take their type argument as a template argument: `reflect.TypeFor[error]()` is `reflect::TypeFor<error>()`, and `x, ok := reflect.TypeAssert[int](v)` is `auto [x, ok] = reflect::TypeAssert<int64_t>(v);`.
+
+```go
+v := reflect.ValueOf(&p).Elem() // p is a Point
+for i := 0; i < v.NumField(); i++ {
+	f := v.Type().Field(i)
+	fmt.Println(f.Name, f.Tag.Get("json"), v.Field(i).Interface())
+}
+v.Field(0).SetInt(7)
+```
+
+```cpp
+auto v = reflect::Value::Elem(reflect::ValueOf(p)); // p is boxed: auto p = New<Point>();
+for (auto i = int64_t{0}; i < reflect::Value::NumField(v); i++) {
+  auto f = reflect::Value::Type(v).Field(i);
+  auto _eo_call_0 = reflect::StructTag::Get(f.Tag, "json"s);
+  auto _eo_call_1 = reflect::Value::Field(v, i);
+  auto _eo_call_2 = reflect::Value::Interface(_eo_call_1);
+  fmt::Println(f.Name, _eo_call_0, _eo_call_2);
+}
+reflect::Value::SetInt(reflect::Value::Field(v, 0), 7);
+```
+
+A `Value` holds the address of the value's storage, shared with what owns it, as a Go `Value` points into the heap, so setting a field through `reflect::ValueOf(p)` changes `*p`. The rules of Go's `reflect` hold:
+
+- A `Value` from `ValueOf` cannot be set. `Elem` of a pointer, `Index` of a slice, and `Field` or `Index` of a value that can be set give values that can be set, unless they come through an unexported field. A field is exported when its name starts with an ASCII upper-case letter, as in [Printing methods](#printing-methods).
+- `Interface` copies a value that can be addressed and shares one that cannot, which no one can change.
+- `Set` assigns a value of the same type, of the same underlying type when one of the two types is unnamed, as a `[]byte` to a `Bytes`, or of a type that has every method of the interface it is assigned to.
+- `Field` reports the tags and embedded fields of a struct's field table (see [Field tags and embedding](#field-tags-and-embedding)). `PkgPath` of an unexported field is its package's name, which Eo's type names keep, rather than its import path, and `Offset` is the C++ offset, which differs from Go's.
+- `IsZero` follows Go 1.26: a float is zero when it equals 0, so `-0.0` is zero and NaN is not.
+- `MapRange` iterates over a copy of the map's entries, taken by the first `Next`, and `MapKeys` returns the keys in the map's iteration order, which Go does not specify.
+- `Grow` picks a capacity by the formula of `append` (see [Slices](#slices)), without Go's rounding to an allocation size.
+- The panics have Go's messages and values: a `*reflect.ValueError`, such as `reflect: call of reflect.Value.Int on string Value`, or a string, such as `reflect: reflect.Value.SetInt using unaddressable value`.
+
+Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_t` (see [Basic types](#basic-types)), so `reflect` reports the kinds `Int` and `Uint` and the names `int` and `uint` for both, as `%T` does.
+
+#### The reflect package not covered yet
+
+- the kinds `Int64` and `Uint64`, which Eo reports as `Int` and `Uint`, and `Uintptr`, `Complex64`, `Complex128`, and `UnsafePointer`;
+- methods and calls: `Type.Method`, `Value.Method`, `MethodByName`, `Call`, and `MakeFunc`, and conversions: `Convert`, `CanConvert`, and `ConvertibleTo`;
+- `DeepEqual`, `Value.Equal`, `Value.Comparable`, `Value.Clear`, `Value.SetCap`, `Value.Slice`, `Value.Slice3`, `Value.Pointer`, `Value.UnsafePointer`, `Value.UnsafeAddr`, `Value.Seq`, and `Value.Seq2`;
+- `Type.FieldByName`, `Type.FieldByIndex`, `Type.PkgPath`, `Type.Size`, `Type.Align`, the function type methods `In`, `Out`, `NumIn`, `NumOut`, and `IsVariadic`, and `VisibleFields`;
+- channels, `Select`, and the constructors of types: `SliceOf`, `MapOf`, `ArrayOf`, `StructOf`, `FuncOf`, and `ChanOf`;
+- `PointerTo` of a pointer to a pointer, and `Interface` of a function or channel value;
+- `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
+- `Bytes` and `SetBytes` of a slice or array whose element is a defined byte type;
+- a struct type declared inside a function, which has no field table;
+- printing a `Value` inside another value, which Go prints by the `Value`'s own fields. A `Value` operand prints the value it holds, as in Go.
+
 ### Goroutine
 
 Go `go` statements follow the canonical mapping defined in [Goroutine Translation Design](./GOROUTINE.md).
@@ -2749,7 +2828,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - the forms in [The math/big package not covered yet](#the-mathbig-package-not-covered-yet);
 - the forms in [The strings and bytes packages not covered yet](#the-strings-and-bytes-packages-not-covered-yet) and [The unicode package not covered yet](#the-unicode-package-not-covered-yet);
-- the forms in [The io package not covered yet](#the-io-package-not-covered-yet) and [The bufio package not covered yet](#the-bufio-package-not-covered-yet);
+- the forms in [The io package not covered yet](#the-io-package-not-covered-yet), [The bufio package not covered yet](#the-bufio-package-not-covered-yet), and [The reflect package not covered yet](#the-reflect-package-not-covered-yet);
 - the forms in [The strconv package not covered yet](#the-strconv-package-not-covered-yet), [The encoding/hex package not covered yet](#the-encodinghex-package-not-covered-yet), and [The encoding/binary package not covered yet](#the-encodingbinary-package-not-covered-yet);
 - the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);

@@ -240,6 +240,8 @@ inline auto recover() -> any {
 
 } // namespace eo
 
-// The definitions of panic_nil and of the printing that Panic uses.
+// The definitions of panic_nil, of the printing that Panic uses, and of rtype_of, which every type
+// descriptor names.
 #include <eo/print.h>
 #include <eo/ptr.h>
+#include <eo/rtype.h>

@@ -691,6 +691,8 @@ struct ReadWriter {
   ptr<eo::bufio::Reader> Reader{};
   ptr<eo::bufio::Writer> Writer{};
 
+  static constexpr eo::field _eo_fields[] = {{.embedded = true}, {.embedded = true}};
+
   auto operator==(const ReadWriter&) const -> bool = default;
 
   static auto Available(ReadWriter _eo_receiver) -> int64_t {

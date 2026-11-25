@@ -71,6 +71,15 @@ namespace detail {
   template<typename T>
   auto type_name() -> std::string;
 
+  // The run-time type information that reflect reads, from <eo/rtype.h>.
+  struct rtype;
+
+  template<typename T>
+  auto rtype_of() -> const rtype*;
+
+  // The shared pointer inside a ptr, from <eo/ptr.h>.
+  struct ptr_access;
+
   // Go's fmt printer state, and the printing of one operand with a verb, from <eo/fmt.h>. `depth` is
   // 0 for an operand of Println or Printf, which prints a pointer to a struct, slice, or map as &
   // followed by its target.
@@ -293,7 +302,7 @@ namespace detail {
 
   // The descriptor of a dynamic type: its Go name, whether its kind is string, its equality, which
   // is null for an uncomparable type, its printing with a verb, its value as a * width or precision,
-  // and its method set. Its address identifies the type.
+  // its method set, and its information for reflect. Its address identifies the type.
   struct type_descriptor {
     auto (*name)() -> std::string;
     bool string_kind;
@@ -301,6 +310,8 @@ namespace detail {
     void (*print)(printer& p, const void* value, int32_t verb, int depth);
     auto (*as_int)(const void* value, int64_t& out) -> bool;
     std::span<const entry_base* const> methods;
+    auto (*reflect)() -> const rtype*;
+    const void* registration;
   };
 
   // Go's comparable types. std::array declares == for every element type, so an array is comparable
@@ -343,6 +354,24 @@ namespace detail {
     }
   }
 
+  // The type information of a pointer type *T, where T has no methods, is made at run time, and it
+  // gets the descriptor of *T at program start if the program converts a *T to an interface, which
+  // instantiates the descriptor (see <eo/rtype.h>).
+  template<typename D>
+  void register_pointer_descriptor();
+
+  template<typename D>
+  inline const bool pointer_descriptor_registered = (register_pointer_descriptor<D>(), true);
+
+  template<typename D>
+  constexpr auto descriptor_registration() -> const void* {
+    if constexpr (is_ptr<D> && !has_methods<typename pointee<D>::type>) {
+      return &pointer_descriptor_registered<D>;
+    } else {
+      return nullptr;
+    }
+  }
+
   template<typename D>
   inline constexpr type_descriptor descriptor{
     &type_name<D>,
@@ -351,6 +380,8 @@ namespace detail {
     &print_dynamic<D>,
     &int_dynamic<D>,
     method_set<D>::entries,
+    &rtype_of<D>,
+    descriptor_registration<D>(),
   };
 
   template<typename T>
@@ -432,18 +463,26 @@ namespace detail {
   template<typename I, typename List = typename I::_eo_methods>
   struct interface_methods;
 
+  // One method of an interface, with its position in the interface's method list.
+  struct named_method {
+    std::string_view name;
+    const void* signature;
+    std::size_t index;
+  };
+
+  // Not a template, so that every interface type shares one instantiation of the sort.
+  inline void sort_by_name(std::vector<named_method>& methods) {
+    std::ranges::sort(methods, {}, &named_method::name);
+  }
+
   template<typename I, typename... M>
   struct interface_methods<I, methods<M...>> {
-    struct named {
-      std::string_view name;
-      const void* signature;
-      std::size_t index;
-    };
+    using named = named_method;
 
     static auto sorted() -> std::vector<named> {
       [[maybe_unused]] auto i = std::size_t{0};
       auto result = std::vector<named>{named{M::name, &signature_tag<signature_of<M>>, i++}...};
-      std::ranges::sort(result, {}, &named::name);
+      sort_by_name(result);
       return result;
     }
   };

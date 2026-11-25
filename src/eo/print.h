@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/fields.h>
 #include <eo/float.h>
 #include <eo/interface.h>
 #include <eo/panic.h>
@@ -64,13 +65,6 @@ struct pp;
 } // namespace fmt
 
 namespace eo::detail {
-
-// A translated Go struct: a class aggregate, which Boost.PFR can visit field by field. This also
-// matches other aggregates, so it is ambiguous with fmt's own formatters for aggregate types, such as
-// std::tm in <fmt/chrono.h>, std::monostate in <fmt/std.h>, and fmt::streamed. Eo uses none of them
-// for Go values.
-template<typename T>
-concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_array<T>;
 
 template<typename T>
 consteval auto is_composite_type() -> bool {
@@ -180,53 +174,6 @@ auto type_of(const T& value) -> std::string {
     return "?";
   }
 }
-
-// The name of field I of the translated struct T, as %+v and %#v print it. Boost.PFR gives field
-// names only from Boost 1.84, so Eo reads them as PFR does: from the name of a function whose template
-// argument points to the field of an object that is declared and never defined. GCC and Clang print
-// that pointer as an expression that ends with the field's name, such as
-// `(& field_object<T>.field_holder<T>::value.T::Name))}` and `&field_object.value.Name}`.
-template<typename T>
-struct field_holder {
-  T value;
-};
-
-#if defined(__clang__)
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wundefined-var-template"
-#endif
-
-template<typename T>
-extern const field_holder<T> field_object;
-
-template<typename T>
-struct field_pointer {
-  const T* pointer;
-};
-
-template<auto P>
-auto field_signature() -> const char* {
-  return __PRETTY_FUNCTION__;
-}
-
-template<typename T, std::size_t I>
-auto field_name() -> std::string_view {
-  using F = std::remove_cvref_t<decltype(boost::pfr::get<I>(field_object<T>.value))>;
-  auto s = std::string_view{field_signature<field_pointer<F>{&boost::pfr::get<I>(field_object<T>.value)}>()};
-  auto end = s.size();
-  while (end > 0 && (s[end - 1] == ']' || s[end - 1] == '}' || s[end - 1] == ')')) {
-    --end;
-  }
-  auto start = end;
-  while (start > 0 && s[start - 1] != '.' && s[start - 1] != ':') {
-    --start;
-  }
-  return s.substr(start, end - start);
-}
-
-#if defined(__clang__)
-#  pragma clang diagnostic pop
-#endif
 
 // %!verb(type=value), with the value printed as %v without its methods, or %!verb(<nil>).
 template<typename T>
