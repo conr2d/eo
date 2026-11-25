@@ -113,14 +113,13 @@ auto select_commits_only_winning_send(eo::chan<int> first, eo::chan<int> second)
 }
 
 auto select_ready_without_default_skips_wait() -> eo::func<> {
-  int first_waits = 0;
-  int second_waits = 0;
-  auto select = eo::Select{ReadyProbeCase{&first_waits}, ReadyProbeCase{&second_waits}};
+  int waits = 0;
+  auto select = eo::Select{ReadyProbeCase{&waits}};
 
   auto index = co_await select.index();
 
-  check(index == 0 || index == 1, "ready blocking select should choose a ready case");
-  check(first_waits == 0 && second_waits == 0, "ready blocking select should not enter the wait path");
+  check(index == 0, "ready blocking select should choose its ready case");
+  check(waits == 0, "ready blocking select should not enter the wait path");
 }
 
 auto select_blocking_winner_and_reuse_loser(eo::chan<int> first, eo::chan<int> second) -> eo::func<> {

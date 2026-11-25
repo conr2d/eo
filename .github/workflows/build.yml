@@ -31,6 +31,56 @@ jobs:
       - name: Test
         run: ctest --test-dir build --output-on-failure
 
+  # Builds and tests with the latest Boost release, from its source archive, since the runner image
+  # ships Ubuntu's 1.83. Eo uses only header-only Boost libraries, so nothing is built.
+  latest-boost:
+    if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.label.name == 'ci:run'
+    runs-on: ubuntu-24.04
+    env:
+      BOOST_VERSION: 1.92.0
+      BOOST_SHA256: c4a3b310ddd2472416e091067166b0713be97c63f38c212c484ada022fd296ce
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libfmt-dev
+      - name: Cache Boost
+        id: cache-boost
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/boost
+          key: boost-${{ env.BOOST_VERSION }}
+      - name: Download Boost
+        if: steps.cache-boost.outputs.cache-hit != 'true'
+        run: |
+          archive="boost_${BOOST_VERSION//./_}.tar.gz"
+          curl -sSfLo "$RUNNER_TEMP/$archive" "https://archives.boost.io/release/$BOOST_VERSION/source/$archive"
+          echo "$BOOST_SHA256  $RUNNER_TEMP/$archive" | sha256sum -c
+          mkdir -p "$RUNNER_TEMP/boost"
+          tar xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/boost" --strip-components=1
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DBUILD_TESTING=ON -DBoost_ROOT="$RUNNER_TEMP/boost" -DBoost_NO_SYSTEM_PATHS=ON
+      - name: Check the Boost version
+        run: |
+          version="${BOOST_VERSION%.*}"
+          grep -q "define BOOST_LIB_VERSION \"${version//./_}\"" "$RUNNER_TEMP/boost/boost/version.hpp"
+          grep "^Boost_INCLUDE_DIR:" build/CMakeCache.txt | grep -q "$RUNNER_TEMP/boost"
+      - name: Build
+        run: cmake --build build
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+      - name: Test with one worker
+        run: ctest --test-dir build --output-on-failure
+        env:
+          EOMAXPROCS: 1
+
   sanitizers:
     if: github.event_name != 'pull_request' || github.event.action == 'opened' || github.event.label.name == 'ci:run'
     runs-on: ubuntu-24.04

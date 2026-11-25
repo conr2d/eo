@@ -118,18 +118,12 @@ public:
     } else if constexpr ((detail::queued_case<T> || ... || detail::queued_case<Ts>)) {
       static_assert(sizeof(T) == 0, "a blocking Select cannot mix channel cases with other case types");
       co_return -1;
-    } else if constexpr (!sizeof...(Ts)) {
+    } else {
+      // Go's select has only channel cases. One case of another type, which tests use, waits alone.
+      static_assert(!sizeof...(Ts), "a blocking Select of several cases needs channel cases");
       co_await std::get<0>(cases).wait();
       selected_index = 0;
       co_return 0;
-    } else {
-      // Cases other than channel operations, which tests use, wait with asio's ||.
-      auto index = co_await [this]<size_t... I>(std::index_sequence<I...>) -> boost::asio::awaitable<int> {
-        auto res = co_await (std::get<I>(cases).wait() || ...);
-        co_return res.index();
-      }(std::make_index_sequence<sizeof...(Ts) + 1>());
-      selected_index = index;
-      co_return static_cast<int>(index);
     }
   }
 
