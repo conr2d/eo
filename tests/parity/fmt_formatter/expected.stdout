@@ -1,0 +1,60 @@
+0xdeadbeef|0xdeadbeef|deadbeef|DEADBEEF|0xdeadbeef|0XDEADBEEF|"0xdeadbeef"|[222 173 190 239]|%!e(hash=deadbeef)
+0xdeadbeef [0xdeadbeef 0x01020304]
+{0xdeadbeef [222 173 190 239]}|{H:0xdeadbeef h:[222 173 190 239]}
+{named:a {b} {{c}} {named:d} {e} named:f [{g}]}
+{Pub:named:a priv:{s:b} in:{N:{s:c}} In:{N:named:d} v:{s:e} V:named:f list:[{s:g}]}
+0xdeadbeef main.Hash
+0xdeadbeef 0xdeadbeef|
+%v[0 false 0 false *fmt.pp]
+%+v[0 false 0 false *fmt.pp]
+%#v[0 false 0 false *fmt.pp]
+%-8.3x[8 true 3 true *fmt.pp]
+% 05d[5 true 0 false *fmt.pp]
+%+#q[0 false 0 false *fmt.pp]
+%7.2s[7 true 2 true *fmt.pp]
+%.0v[0 false 0 true *fmt.pp]
+%5c[5 true 0 false *fmt.pp]
+%-4d[4 true 0 false *fmt.pp]
+counter(1) counter(2)
+counter(3) {2}
+partial%!v(PANIC=Format method: boom)|partial%!d(PANIC=Format method: boom)|
+<nil>|<nil>|<nil>|<nil>|
+nilsafe(7) nilsafe(8)
+wrapped: fe<v 3> true 3
+fe<v 4> fe<s 5> fe<d 6>
+255 -42 0
+00000255 -0000042 00000000
++255 -42 +0
+ 255 -42  0
+255     | -42     | 0       |
+     255|      -42|        0|
+000255 -000042 000000
+     000ff|     -0002a|      00000|
+0xff -0x2a 0x0
+0XFF -0X2A 0X0
+0b11111111 -0b101010 0b0
+0377 -052 00
+0o377 -0o52 0o0
+ff -2a 0
+FF -2A 0
+255 -42 0
+255 -42 0
++255 -42 +0
+%!q(big.Int=255) %!q(big.Int=-42) %!q(big.Int=0)
+     255     -042      000
+255     | -42     | 0       |
+[] [] [] [255]
+<nil>|<nil>|<nil>|%!q(big.Int=<nil>)
+255 -42 [255 0]
+{false [255]}|{neg:false abs:[255]}|{%!d(bool=true) [42]}|{%!x(bool=false) [ff]}
+13 <nil> a1 2b3.5 true
+8 <nil> "a 1 2 b\n"
+21 <nil> 00042|6869|0xdeadbeef
+"start:x1 2[007]end 0xdeadbeef\n" 30
+ true 0
+print1 2
+9 <nil>
+println 1 2
+12 <nil>
+printf 3
+9 <nil>

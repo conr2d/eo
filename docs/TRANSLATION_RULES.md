@@ -785,7 +785,7 @@ Here `it` is not boxed. A boxed `it` gives `ptr(it, &it->Base)`, by the pointer 
 
 #### Struct forms not covered yet
 
-- printing a struct with an unexported field whose type has an `Error` or `String` method (see [Printing methods](#printing-methods));
+- printing a struct with a field whose name starts with an upper-case letter that is not ASCII, which Go exports and Eo does not (see [Printing methods](#printing-methods));
 - anonymous struct types other than `struct{}`, conversions between struct types, and blank fields `_`;
 - a method named after its own struct, which C++ does not allow, and a local struct type hidden by a member or a local variable where the translation spells it (see [Package-level names hidden by members](#package-level-names-hidden-by-members));
 - generic struct types, such as `type List[T any] struct`, and type aliases, such as `type A = B`.
@@ -1705,7 +1705,15 @@ The variable of each clause is a new variable, which is boxed by the same rules 
 
 `fmt::Println` and the other printing functions (see [Formatted printing](#formatted-printing)) print an interface value as its dynamic value, and a nil interface value as `<nil>`. They print a value whose method set has `Error() string` by calling `Error`, and otherwise one whose method set has `String() string` by calling `String`, as Go's fmt does, for the verbs `%v`, `%s`, `%x`, `%X`, and `%q`. This applies to operands, to elements of slices and maps, and to struct fields, and the method set is the static type's: a `T` whose `String` has a pointer receiver prints as a struct, and a `ptr<T>` calls `String`. A panic in the method prints `%!v(PANIC=String method: message)`, with the verb in place of `v`, or `<nil>` if the receiver is a nil pointer, as in Go. The message is the panic value as `%v` prints it, which calls its own `Error` or `String` method.
 
-Go calls these methods only for exported struct fields, and for the fields of structs reached through them. Eo calls them for every field. A program that prints a struct with an unexported field whose type has an `Error` or `String` method is not covered yet.
+A value whose method set has `Format(f fmt.State, verb rune)` is a `fmt.Formatter`, and Go calls its `Format` in place of the other methods, for every verb, before `GoString` for `%#v`. The method is `static void Format(T t, fmt::State f, int32_t verb)`, as any method is written (see [Methods](#methods)). `fmt::State` and `fmt::Formatter` are interfaces from `<eo/fmt.h>`:
+
+- `f.Write(b)` appends `b` to the text being printed, without padding. A `fmt::State` is an `io::Writer`, so `fmt.Fprintf(f, "%x", v)` is `fmt::Fprintf(f, "%x"s, v)`.
+- `f.Width()` and `f.Precision()` return `std::tuple<int64_t, bool>`, the number and whether the directive has one. `f.Flag(c)` reports the flag `c`, which is `true` for `+` and `#` of `%+v` and `%#v`.
+- `fmt.FormatString(f, verb)` is `fmt::FormatString(f, verb)`, the directive rebuilt from the state, as `%-8.3x`.
+- The dynamic type of the state is `*fmt.pp`, as `%T` prints it. It refers to the call that prints, so it is valid only while `Format` runs, as in Go.
+- A panic in `Format` keeps what it wrote and adds `%!v(PANIC=Format method: message)`, and a nil pointer receiver adds `<nil>`, as for the other methods.
+
+Go calls these methods only for exported struct fields, as a value that `reflect` reads from an unexported field cannot be passed through an interface. The same holds for the values inside such a field: its elements, its own fields, and the dynamic value of an interface it holds. Eo follows this, and prints them by their kinds. A field is exported when its name starts with an ASCII upper-case letter. A field whose name starts with another upper-case letter, which Go also exports, is not covered yet.
 
 #### Interfaces not covered yet
 
@@ -1827,7 +1835,11 @@ These behave as in Go:
 
 ### Formatted printing
 
-Go's `fmt.Println`, `fmt.Fprintln`, `fmt.Sprint`, `fmt.Sprintln`, `fmt.Sprintf`, `fmt.Printf`, `fmt.Fprintf`, and `fmt.Errorf` are function objects of the same names in `fmt::`, from `<eo/fmt.h>`, so `fmt.Println(f())` is `std::apply(fmt::Println, f())` (see [Calls with the results of another call](#calls-with-the-results-of-another-call)). Their operands are C++ arguments, not a `slice<any>`: `fmt.Printf("%d %s\n", n, s)` is `fmt::Printf("%d %s\n"s, n, s)`. A `nil` operand is `nullptr`, and a numeric constant operand takes its default type, as in [Untyped constant arguments](#untyped-constant-arguments). `fmt::Fprintln` and `fmt::Fprintf` write to a `std::FILE*`, and `fmt::Printf` to `stdout`. Each call that prints writes its whole text and flushes it, as Go writes to the unbuffered `os.Stdout`.
+Go's `fmt.Print`, `fmt.Println`, `fmt.Printf`, `fmt.Fprint`, `fmt.Fprintln`, `fmt.Fprintf`, `fmt.Sprint`, `fmt.Sprintln`, `fmt.Sprintf`, `fmt.Append`, `fmt.Appendln`, `fmt.Appendf`, and `fmt.Errorf` are function objects of the same names in `fmt::`, from `<eo/fmt.h>`, so `fmt.Println(f())` is `std::apply(fmt::Println, f())` (see [Calls with the results of another call](#calls-with-the-results-of-another-call)). Their operands are C++ arguments, not a `slice<any>`: `fmt.Printf("%d %s\n", n, s)` is `fmt::Printf("%d %s\n"s, n, s)`. A `nil` operand is `nullptr`, and a numeric constant operand takes its default type, as in [Untyped constant arguments](#untyped-constant-arguments).
+
+- `fmt::Print`, `fmt::Println`, and `fmt::Printf` write to `stdout`. `fmt::Fprint`, `fmt::Fprintln`, and `fmt::Fprintf` write to an `io::Writer`, such as a `fmt::State`, a `ptr<strings::Builder>`, or a `ptr<bytes::Buffer>`, with one `Write` of the whole text, or to a `std::FILE*`: `fmt.Fprintln(os.Stderr, x)` is `fmt::Fprintln(stderr, x)`, and `os.Stdout` is `stdout` there. Each call to a `std::FILE*` writes its whole text and flushes it, as Go writes to the unbuffered `os.Stdout`.
+- Each of these returns `std::tuple<int64_t, error>`, Go's `(n int, err error)`: the result of `Write`, or the length of the text and `nullptr` for a `std::FILE*`. `n, err := fmt.Fprintf(w, "%d", x)` is `auto [n, err] = fmt::Fprintf(w, "%d"s, x);`, and a call whose results are not used is a statement.
+- `fmt::Append`, `fmt::Appendln`, and `fmt::Appendf` take a `slice<uint8_t>` and return it with the text appended, as `eo::append_slice` does. `fmt.Append(nil)` stays nil.
 
 All of them print an operand as Go's fmt does, with these verbs:
 
@@ -1839,7 +1851,7 @@ All of them print an operand as Go's fmt does, with these verbs:
 - `%p` for a pointer, a slice, and a map;
 - `%T`, the Go type name, `%%`, and `%w` in `fmt::Errorf`.
 
-A verb that the list above does not give for the operand's kind prints the bad-verb form described below. An array, a slice, a struct, and a pointer operand to an array, a struct, or a slice apply the verb to each element or field, as Go does: `fmt.Sprintf("%x", []int{10, 11})` is `[a b]`. A value whose method set has `Error() string` or `String() string` is printed by calling it, as in [Printing methods](#printing-methods). Errors in the format print as in Go: `%!d(string=s)` for a verb that the operand does not take, with the operand printed by `%v` without its methods, `%!d(MISSING)` for a missing operand, `%!(EXTRA string=x, float64=2.5)` for unused operands, `%!(NOVERB)` for a `%` at the end, and `%!w(...)` for `%w` outside `fmt::Errorf`. `fmt.Sprint` puts a space between two operands when neither is a string, as Go does.
+A verb that the list above does not give for the operand's kind prints the bad-verb form described below. An array, a slice, a struct, and a pointer operand to an array, a struct, or a slice apply the verb to each element or field, as Go does: `fmt.Sprintf("%x", []int{10, 11})` is `[a b]`. A value whose method set has `Format(fmt.State, rune)`, `Error() string`, or `String() string` is printed by calling it, as in [Printing methods](#printing-methods). Errors in the format print as in Go: `%!d(string=s)` for a verb that the operand does not take, with the operand printed by `%v` without its methods, `%!d(MISSING)` for a missing operand, `%!(EXTRA string=x, float64=2.5)` for unused operands, `%!(NOVERB)` for a `%` at the end, and `%!w(...)` for `%w` outside `fmt::Errorf`. `fmt.Sprint` puts a space between two operands when neither is a string, as Go does.
 
 The flags, widths, precisions, and operand indexes are ported from Go's `fmt/format.go` and `fmt/print.go`, so they behave as in Go:
 
@@ -1860,8 +1872,9 @@ Eo reads the field names for `%+v` and `%#v` from the compiler. Boost.PFR gives 
 
 - `%p` of a channel or a function, and complex numbers;
 - `%#v` of an anonymous struct, a pointer inside another value, or a function, and the type names of `%#v` that Eo does not know, as for `%T`;
-- the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
-- the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter` and `fmt.State` other than the `Format` of `*big.Int` (see [The math/big package](#the-mathbig-package)), and an `io.Writer` other than a `std::FILE*`;
+- the `Sscan` family, and a `fmt.State` that is not the one `Format` gets, such as one that a program implements;
+- `os.Stdout` and `os.Stderr` other than as the writer of `fmt.Fprint`, `fmt.Fprintln`, and `fmt.Fprintf`, such as an `io.Writer` variable that holds one;
+- `%v` of a `fmt.State`, which prints Go's whole `pp` struct;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;
 - `%q` and `%#U` of an unassigned code point or a format character not listed above, which Go escapes, or prints without the character for `%#U`, and Eo prints as it is;
 - `%T` of an `int64` value, which prints `int` ([#107](https://github.com/conr2d/eo/issues/107)).
@@ -1913,13 +1926,15 @@ Three operations copy where Go shares storage:
 - `SetBits` copies the words, where Go makes them the storage of `z`.
 - Copying a `big.Int` value copies the number. Go copies the header of the slice that holds the magnitude, and `go vet` does not report it. A program that changes one copy and reads the other is outside this mapping.
 
-`fmt` prints a `*big.Int` as Go's `Int.Format` does, for operands and inside slices, maps, struct fields, and interfaces:
+A `*big.Int` is a `fmt.Formatter`, and `big::Int::Format` is Go's `Int.Format`, ported from `math/big/intconv.go`. `fmt` calls it for operands and inside slices, maps, struct fields, and interfaces:
 
 - `%d`, `%s`, and `%v` print in decimal, and `%b`, `%o`, `%O`, `%x`, and `%X` print in their bases, as in `-deadbeef`;
-- a nil pointer prints `<nil>`;
+- `+` and space print the sign of a value that is not negative, `#` gives `0b`, `0`, `0x`, or `0X`, and `%O` always gives `0o`;
+- a precision sets the least number of digits, and a precision of 0 prints nothing for 0. A width pads with spaces on the left, on the right for `-`, or with zeros for `0` without a precision;
+- a nil pointer prints `<nil>`, without padding;
 - another verb prints `%!q(big.Int=10)`.
 
-Its `Format` ignores flags, widths, and precisions, which Go's applies. `%T` prints `*big.Int`. A `big.Int` that is not a pointer has neither `Format` nor `String`, so it prints as its struct, `{false [10]}`, as in Go.
+`%T` prints `*big.Int`. A `big.Int` that is not a pointer has neither `Format` nor `String`, so it prints as its struct, `{false [10]}`, with the verb and flags applied to the sign and each word, and `{neg:false abs:[10]}` for `%+v`, as in Go. `%#v` prints `big.Int{neg:false, abs:big.nat{0xa}}`, and `big.nat(nil)` for 0.
 
 A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` is in its method table, so `x.(fmt.Stringer)` succeeds. A `big.Int` value is not comparable, because Go's holds a slice.
 
@@ -1927,7 +1942,8 @@ A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` 
 
 - `big.Float`, `big.Rat`, and the functions and methods not listed above, such as `GCD`, `Sqrt`, `ProbablyPrime`, `Float64`, `Append`, `Scan`, and the `encoding` and `json` marshaling methods;
 - method values and method expressions of `big.Int` methods, and methods other than `String` in an interface;
-- `Format` with flags, width, or precision, and `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
+- `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
+- `%#v` of a `big.Int` value of 0 that an operation has set, which Go prints `big.nat{}` and Eo `big.nat(nil)`;
 - `QuoRem` and `DivMod` whose two results are the same `Int`, or whose modulus `m` is also `y`, where Go's result depends on the order of its own writes.
 
 ### The strconv package
@@ -2035,6 +2051,7 @@ The capacity of a new slice follows [Slices](#slices) and is outside this mappin
 `strings.Builder` is `strings::Builder`. Its methods are member functions, as for the other Eo library types (see [Methods](#methods)): `var b strings.Builder` is `strings::Builder b;`, `b.WriteString(s)` is `b.WriteString(s)`, and `n, err := b.WriteString(s)` is `auto [n, err] = b.WriteString(s);`.
 
 - The methods are `Write`, `WriteByte`, `WriteRune`, `WriteString`, `String`, `Len`, `Cap`, `Grow`, and `Reset`.
+- A `ptr<strings::Builder>` has them in its method set, as a `*strings.Builder` does, so `&b` is an `io.Writer` and a `fmt.Stringer`. Go moves a `b` passed as `&b` to an `io.Writer` to the heap, so `b` is [boxed](#boxed-variables): `var b strings.Builder` is `auto b = New<strings::Builder>();`, `fmt.Fprintf(&b, "%d", n)` is `fmt::Fprintf(b, "%d"s, n)`, and `b.String()` is `b->String()`.
 - `WriteRune` writes an invalid code point as U+FFFD.
 - A `Builder` that is written to and then copied panics on the next write through the copy, with `strings: illegal use of non-zero Builder copied by value`, as Go's does.
 - `Grow` panics on a negative count with `strings.Builder.Grow: negative count`.
@@ -2042,7 +2059,7 @@ The capacity of a new slice follows [Slices](#slices) and is outside this mappin
 
 #### The strings and bytes packages not covered yet
 
-- the `io` methods of `Builder` and `Replacer`, such as `Builder` as an `io.Writer`, and `Replacer.WriteString`;
+- the `io` methods of `Replacer`, such as `Replacer.WriteString`, and method values and method expressions of `Builder` methods;
 - the iterator functions, such as `SplitSeq`, `FieldsSeq`, and `Lines`;
 - `Title`, `ToTitle`, `ToValidUTF8`, `SplitAfter`, `SplitAfterN`, the `Special` case functions, `ContainsFunc`, `IndexFunc` and `LastIndexFunc` of `bytes`, `bytes.Runes`, and the other functions not listed above.
 

@@ -697,6 +697,46 @@ public:
     return {static_cast<int64_t>(s.size()), nullptr};
   }
 
+  // The method set of *Builder, so that a ptr<Builder> is an io.Writer, an io.StringWriter, and a
+  // fmt.Stringer, as a *strings.Builder is in Go. A Builder that is not a pointer has no methods.
+  static auto _eo_String(ptr<Builder> b) -> std::string {
+    return b->String();
+  }
+  static auto _eo_Len(ptr<Builder> b) -> int64_t {
+    return b->Len();
+  }
+  static auto _eo_Cap(ptr<Builder> b) -> int64_t {
+    return b->Cap();
+  }
+  static void _eo_Reset(ptr<Builder> b) {
+    b->Reset();
+  }
+  static void _eo_Grow(ptr<Builder> b, int64_t n) {
+    b->Grow(n);
+  }
+  static auto _eo_Write(ptr<Builder> b, slice<uint8_t> p) -> std::tuple<int64_t, error> {
+    return b->Write(std::move(p));
+  }
+  static auto _eo_WriteByte(ptr<Builder> b, uint8_t c) -> error {
+    return b->WriteByte(c);
+  }
+  static auto _eo_WriteRune(ptr<Builder> b, int32_t r) -> std::tuple<int64_t, error> {
+    return b->WriteRune(r);
+  }
+  static auto _eo_WriteString(ptr<Builder> b, std::string s) -> std::tuple<int64_t, error> {
+    return b->WriteString(std::move(s));
+  }
+
+  using _eo_methods = eo::methods<eo::method<&Builder::_eo_Cap, "Cap">,
+    eo::method<&Builder::_eo_Grow, "Grow">,
+    eo::method<&Builder::_eo_Len, "Len">,
+    eo::method<&Builder::_eo_Reset, "Reset">,
+    eo::method<&Builder::_eo_String, "String">,
+    eo::method<&Builder::_eo_Write, "Write">,
+    eo::method<&Builder::_eo_WriteByte, "WriteByte">,
+    eo::method<&Builder::_eo_WriteRune, "WriteRune">,
+    eo::method<&Builder::_eo_WriteString, "WriteString">>;
+
 private:
   void copy_check() {
     if (addr_ == nullptr) {

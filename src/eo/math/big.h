@@ -604,12 +604,11 @@ struct Int {
     return Text(x, 10);
   }
 
-  using _eo_methods = eo::methods<eo::method<&Int::String, "String">>;
-
-  // Go's Int.Format, without flags, width, or precision.
-  friend auto _eo_format(const ptr<Int>& x, int32_t verb) -> std::string {
+  // Go's Int.Format: the verbs b, o, O, d, s, v, x, and X, with the flags, width, and precision of
+  // the State.
+  static void Format(ptr<Int> x, fmt::State s, int32_t ch) {
     auto base = int64_t{0};
-    switch (verb) {
+    switch (ch) {
     case 'b':
       base = 2;
       break;
@@ -627,32 +626,131 @@ struct Int {
       base = 16;
       break;
     default:
-      return fmt::Sprintf("%%!%c(big.Int=%s)"s, verb, String(x));
+      fmt::Fprintf(s, "%%!%c(big.Int=%s)"s, ch, String(x));
+      return;
     }
     if (x == nullptr) {
-      return "<nil>";
+      fmt::Fprint(s, "<nil>"s);
+      return;
     }
     const auto& v = x->value_;
+    auto sign = std::string{};
+    if (v < 0) {
+      sign = "-";
+    } else if (s.Flag('+')) {
+      sign = "+";
+    } else if (s.Flag(' ')) {
+      sign = " ";
+    }
+    auto prefix = std::string{};
+    if (s.Flag('#')) {
+      switch (ch) {
+      case 'b':
+        prefix = "0b";
+        break;
+      case 'o':
+        prefix = "0";
+        break;
+      case 'x':
+        prefix = "0x";
+        break;
+      case 'X':
+        prefix = "0X";
+        break;
+      default:
+        break;
+      }
+    }
+    if (ch == 'O') {
+      prefix = "0o";
+    }
     auto digits = detail::utoa(abs(v), base);
-    if (verb == 'X') {
+    if (ch == 'X') {
       for (auto& c : digits) {
         if ('a' <= c && c <= 'z') {
           c = static_cast<char>('A' + (c - 'a'));
         }
       }
     }
-    return (v < 0 ? "-" : "") + std::string{verb == 'O' ? "0o" : ""} + digits;
+    auto n = static_cast<int64_t>(digits.size());
+    // Spaces left of the number, zeros left of the digits, and spaces right of the number.
+    auto left = int64_t{0};
+    auto zeros = int64_t{0};
+    auto right = int64_t{0};
+    auto [precision, precision_set] = s.Precision();
+    if (precision_set) {
+      if (n < precision) {
+        zeros = precision - n;
+      } else if (digits == "0" && precision == 0) {
+        return;
+      }
+    }
+    auto length = static_cast<int64_t>(sign.size() + prefix.size()) + zeros + n;
+    if (auto [width, width_set] = s.Width(); width_set && length < width) {
+      auto d = width - length;
+      if (s.Flag('-')) {
+        right = d;
+      } else if (s.Flag('0') && !precision_set) {
+        zeros = d;
+      } else {
+        left = d;
+      }
+    }
+    write_multiple(s, " ", left);
+    write_multiple(s, sign, 1);
+    write_multiple(s, prefix, 1);
+    write_multiple(s, "0", zeros);
+    s.Write(bytes_from_string(digits));
+    write_multiple(s, " ", right);
   }
+
+  using _eo_methods = eo::methods<eo::method<&Int::String, "String">, eo::method<&Int::Format, "Format">>;
 
   // A big.Int that is not a pointer has no Format or String method, so Go prints it as its struct,
   // {neg abs}, with the verb applied to the sign and to each word.
-  friend auto _eo_format(const Int& x, int32_t verb) -> std::string {
-    auto spec = fmt::Sprintf("%%%c"s, verb);
-    return "{" + fmt::Sprintf(spec, x.value_ < 0) + " " + fmt::Sprintf(spec, words(x.value_)) + "}";
+  friend void _eo_print(eo::detail::printer& p, const Int& x, int32_t verb, int depth) {
+    const auto names = p.flags.plus_v || p.flags.sharp_v;
+    if (p.flags.sharp_v) {
+      p.buf += "big.Int";
+    }
+    p.buf += names ? "{neg:" : "{";
+    eo::detail::print_arg(p, x.value_ < 0, verb, depth + 1);
+    p.buf += p.flags.sharp_v ? ", " : " ";
+    if (names) {
+      p.buf += "abs:";
+    }
+    auto abs = words(x.value_);
+    if (p.flags.sharp_v) {
+      // Go's nat is a defined []Word, nil for a zero Int that no operation has set.
+      if (abs.size() == 0) {
+        p.buf += "big.nat(nil)";
+      } else {
+        p.buf += "big.nat{";
+        for (int64_t i = 0; i < abs.size(); ++i) {
+          if (i > 0) {
+            p.buf += ", ";
+          }
+          eo::detail::print_arg(p, abs.data()[i], verb, depth + 2);
+        }
+        p.buf += '}';
+      }
+    } else {
+      eo::detail::print_arg(p, abs, verb, depth + 1);
+    }
+    p.buf += '}';
   }
 
 private:
   detail::cpp_int value_{};
+
+  static void write_multiple(const fmt::State& s, const std::string& text, int64_t count) {
+    if (!text.empty()) {
+      auto b = bytes_from_string(text);
+      for (; count > 0; --count) {
+        s.Write(b);
+      }
+    }
+  }
 
   static auto words(const detail::cpp_int& value) -> slice<Word> {
     auto magnitude = abs(value);
