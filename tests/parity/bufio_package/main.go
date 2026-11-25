@@ -53,6 +53,15 @@ type bufferedI interface {
 	Buffered() int
 }
 
+// stalled returns no bytes and no error, and liar reports one byte more than it was given.
+type stalled struct{}
+
+func (stalled) Read(p []byte) (int, error) { return 0, nil }
+
+type liar struct{}
+
+func (liar) Read(p []byte) (int, error) { return len(p) + 1, nil }
+
 func attempt(name string, f func()) {
 	defer func() {
 		fmt.Println(name, "recovered:", recover())
@@ -196,6 +205,15 @@ func readerCases() {
 	m, err = r.WriteTo(cw)
 	fmt.Println(m, err, string(cw.data), cw.calls > 1)
 
+	r = bufio.NewReaderSize(&oneByte{strings.NewReader("into a reader from")}, 16)
+	out.Reset()
+	m, err = r.WriteTo(&out)
+	fmt.Println(m, err, out.String())
+
+	r = bufio.NewReader(stalled{})
+	c, err = r.ReadByte()
+	fmt.Println(c, err, err == io.ErrNoProgress)
+
 	r = bufio.NewReaderSize(strings.NewReader("big read goes straight through"), 16)
 	n, err = r.Read(buf)
 	fmt.Println(n, string(buf[:n]), err, r.UnreadByte())
@@ -278,6 +296,8 @@ func writerCases() {
 	w = bufio.NewWriterSize(l, 8)
 	w.WriteString("abcdef")
 	fmt.Println(w.Flush(), w.Buffered(), l.buf.String())
+	n, err = w.WriteString("x")
+	fmt.Println(n, err, w.WriteByte('x'), w.Flush(), w.Buffered(), l.buf.String())
 
 	out.Reset()
 	w = bufio.NewWriterSize(&out, 4)
@@ -401,6 +421,25 @@ func scannerCases() {
 
 	s = bufio.NewScanner(strings.NewReader(""))
 	fmt.Println(s.Scan(), s.Err(), s.Bytes() == nil)
+
+	s = bufio.NewScanner(stalled{})
+	fmt.Println(s.Scan(), s.Err(), s.Err() == io.ErrNoProgress)
+	s = bufio.NewScanner(liar{})
+	fmt.Println(s.Scan(), s.Err())
+	s = bufio.NewScanner(strings.NewReader("abc"))
+	s.Split(func(data []byte, atEOF bool) (int, []byte, error) {
+		if !atEOF {
+			return 0, nil, nil
+		}
+		return 0, data[:0], nil
+	})
+	scans := 0
+	attempt("empty tokens", func() {
+		for s.Scan() {
+			scans++
+		}
+	})
+	fmt.Println(scans)
 
 	adv, tok, err := bufio.ScanLines([]byte("no newline"), false)
 	fmt.Println(adv, tok == nil, err)

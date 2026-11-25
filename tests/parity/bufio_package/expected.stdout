@@ -72,6 +72,8 @@ a 1
 false 0 EOF
 15 <nil> write to buffer
 21 <nil> hrough a plain writer true
+18 <nil> into a reader from
+0 multiple Read calls return no data or error true
 30 big read goes straight through <nil> <nil>
 104 <nil>
 4096
@@ -100,6 +102,7 @@ a long string that skips the buffer 9
 4 <nil>
 0 <nil>
 limited: full 4 ab
+0 limited: full limited: full limited: full 4 ab
 18 <nil> xyread from a reader 0
 xyread from a reader
 13 <nil> 1
@@ -123,6 +126,10 @@ false split failed
 Split after Scan recovered: Split called after Scan
 Buffer after Scan recovered: Buffer called after Scan
 false <nil> true
+false multiple Read calls return no data or error true
+false bufio.Scanner: Read returned impossible count
+empty tokens recovered: bufio.Scan: too many empty tokens without progressing
+100
 0 true <nil>
 3 "cr" <nil>
 3 true <nil>

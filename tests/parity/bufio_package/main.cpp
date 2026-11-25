@@ -16,6 +16,8 @@ struct oneByte;
 struct limited;
 struct counting;
 struct bufferedI;
+struct stalled;
+struct liar;
 
 // oneByte returns at most one byte per Read, as testing/iotest.OneByteReader does.
 struct oneByte {
@@ -69,6 +71,35 @@ struct bufferedI : eo::interface<bufferedI> {
 
 inline auto bufferedI::Buffered() const -> int64_t {
   return _eo_call<&bufferedI::Buffered>();
+}
+
+// stalled returns no bytes and no error, and liar reports one byte more than it was given.
+struct stalled {
+  static constexpr std::string_view _eo_name = "main.stalled";
+
+  auto operator==(const stalled&) const -> bool = default;
+
+  static auto Read(stalled, slice<uint8_t> p) -> std::tuple<int64_t, error>;
+
+  using _eo_methods = eo::methods<eo::method<&stalled::Read, "Read">>;
+};
+
+struct liar {
+  static constexpr std::string_view _eo_name = "main.liar";
+
+  auto operator==(const liar&) const -> bool = default;
+
+  static auto Read(liar, slice<uint8_t> p) -> std::tuple<int64_t, error>;
+
+  using _eo_methods = eo::methods<eo::method<&liar::Read, "Read">>;
+};
+
+auto stalled::Read(stalled, slice<uint8_t> p) -> std::tuple<int64_t, error> {
+  return {0, nullptr};
+}
+
+auto liar::Read(liar, slice<uint8_t> p) -> std::tuple<int64_t, error> {
+  return {eo::len(p) + 1, nullptr};
 }
 
 auto oneByte::Read(ptr<oneByte> o, slice<uint8_t> p) -> std::tuple<int64_t, error> {
@@ -293,6 +324,15 @@ void readerCases() {
   std::tie(m, err) = bufio::Reader::WriteTo(r, cw);
   fmt::Println(m, err, eo::string_from_bytes(cw->data), cw->calls > 1);
 
+  r = bufio::NewReaderSize(New<oneByte>(oneByte{strings::NewReader("into a reader from"s)}), 16);
+  bytes::Buffer::Reset(out);
+  std::tie(m, err) = bufio::Reader::WriteTo(r, out);
+  fmt::Println(m, err, bytes::Buffer::String(out));
+
+  r = bufio::NewReader(stalled{});
+  std::tie(c, err) = bufio::Reader::ReadByte(r);
+  fmt::Println(c, err, err == io::ErrNoProgress);
+
   r = bufio::NewReaderSize(strings::NewReader("big read goes straight through"s), 16);
   std::tie(n, err) = bufio::Reader::Read(r, buf);
   auto _eo_call_6 = bufio::Reader::UnreadByte(r);
@@ -399,6 +439,12 @@ void writerCases() {
   auto _eo_call_20 = bufio::Writer::Buffered(w);
   auto _eo_call_21 = bytes::Buffer::String(ptr(l, &l->buf));
   fmt::Println(_eo_call_19, _eo_call_20, _eo_call_21);
+  std::tie(n, err) = bufio::Writer::WriteString(w, "x"s);
+  auto _eo_call_25 = bufio::Writer::WriteByte(w, 120);
+  auto _eo_call_26 = bufio::Writer::Flush(w);
+  auto _eo_call_27 = bufio::Writer::Buffered(w);
+  auto _eo_call_28 = bytes::Buffer::String(ptr(l, &l->buf));
+  fmt::Println(n, err, _eo_call_25, _eo_call_26, _eo_call_27, _eo_call_28);
 
   bytes::Buffer::Reset(out);
   w = bufio::NewWriterSize(out, 4);
@@ -544,14 +590,38 @@ void scannerCases() {
 
   s = bufio::NewScanner(strings::NewReader("a\nb"s));
   bufio::Scanner::Scan(s);
-  attempt("Split after Scan"s, [=]() mutable { bufio::Scanner::Split(s, bufio::ScanWords); });
-  attempt("Buffer after Scan"s, [=]() mutable { bufio::Scanner::Buffer(s, nullptr, 10); });
+  attempt("Split after Scan"s, [=, &s]() mutable { bufio::Scanner::Split(s, bufio::ScanWords); });
+  attempt("Buffer after Scan"s, [=, &s]() mutable { bufio::Scanner::Buffer(s, nullptr, 10); });
 
   s = bufio::NewScanner(strings::NewReader(""s));
   auto _eo_call_10 = bufio::Scanner::Scan(s);
   auto _eo_call_11 = bufio::Scanner::Err(s);
   auto _eo_call_12 = bufio::Scanner::Bytes(s);
   fmt::Println(_eo_call_10, _eo_call_11, _eo_call_12 == nullptr);
+
+  s = bufio::NewScanner(stalled{});
+  auto _eo_call_13 = bufio::Scanner::Scan(s);
+  auto _eo_call_14 = bufio::Scanner::Err(s);
+  auto _eo_call_15 = bufio::Scanner::Err(s);
+  fmt::Println(_eo_call_13, _eo_call_14, _eo_call_15 == io::ErrNoProgress);
+  s = bufio::NewScanner(liar{});
+  auto _eo_call_16 = bufio::Scanner::Scan(s);
+  auto _eo_call_17 = bufio::Scanner::Err(s);
+  fmt::Println(_eo_call_16, _eo_call_17);
+  s = bufio::NewScanner(strings::NewReader("abc"s));
+  bufio::Scanner::Split(s, [=](slice<uint8_t> data, bool atEOF) mutable -> std::tuple<int64_t, slice<uint8_t>, error> {
+    if (!atEOF) {
+      return {0, nullptr, nullptr};
+    }
+    return {0, eo::subslice(data, 0, 0), nullptr};
+  });
+  auto scans = int64_t{0};
+  attempt("empty tokens"s, [=, &s, &scans]() mutable {
+    while (bufio::Scanner::Scan(s)) {
+      scans++;
+    }
+  });
+  fmt::Println(scans);
 
   auto [adv, tok, err] = bufio::ScanLines(eo::bytes_from_string("no newline"s), false);
   fmt::Println(adv, tok == nullptr, err);
