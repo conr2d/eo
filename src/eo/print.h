@@ -56,6 +56,13 @@ struct formatter<std::chrono::time_point<Clock>> {
 // print_value its printValue, and print_format its doPrintf. The fmt_ functions and pad follow the
 // methods of Go's fmt in format.go, with the flags, width, and precision in the printer.
 
+namespace fmt {
+
+struct State;
+struct pp;
+
+} // namespace fmt
+
 namespace eo::detail {
 
 // A translated Go struct: a class aggregate, which Boost.PFR can visit field by field. This also
@@ -141,6 +148,9 @@ struct printer {
   // Printing the value of a panic in an Error or String method. Another panic then propagates, as Go's
   // catchPanic does.
   bool panicking = false;
+  // Printing an unexported struct field, or a value inside one, which Go cannot pass to a method
+  // through an interface. Its methods are not called.
+  bool unexported = false;
   fmt_flags flags{};
   int64_t wid = 0;
   int64_t prec = 0;
@@ -849,42 +859,49 @@ auto string_method(std::size_t position) -> const entry<std::string()>* {
   return static_cast<const entry<std::string()>*>(method_set<T>::entries[position]);
 }
 
+// Go's catchPanic, for a panic in an Error, String, GoString, or Format method that fmt called. It
+// prints <nil> for a nil pointer, without padding, and otherwise the verb, the method, and the panic's value, without
+// the flags. A panic while printing that value propagates.
+template<typename T>
+void catch_panic(printer& p, const T& value, int32_t verb, std::string_view method) {
+  if constexpr (is_ptr<T>) {
+    if (value == nullptr) {
+      p.buf += "<nil>";
+      return;
+    }
+  }
+  if (p.panicking) {
+    throw;
+  }
+  // Any exception is a panic, whose value prints as recover() would return it.
+  auto recovered = panic_value(std::current_exception());
+  auto flags = p.flags;
+  auto wid = p.wid;
+  auto prec = p.prec;
+  p.clear_flags();
+  p.buf += "%!";
+  append_rune(p.buf, verb);
+  p.buf += "(PANIC=";
+  p.buf += method;
+  p.buf += " method: ";
+  p.panicking = true;
+  print_arg(p, recovered, 'v', 0);
+  p.panicking = false;
+  p.buf += ')';
+  p.flags = flags;
+  p.wid = wid;
+  p.prec = prec;
+}
+
 // Calls an Error, String, or GoString method for fmt and prints its result: with the verb, or with
-// %s for GoString. A panic in it prints as Go's catchPanic prints it, without the flags, and as <nil>
-// for a nil pointer receiver.
+// %s for GoString.
 template<typename T>
 void print_method(printer& p, const T& value, const entry<std::string()>* method, int32_t verb, bool go_string) {
   auto s = std::string{};
   try {
     s = method->fn(&value);
   } catch (...) {
-    if constexpr (is_ptr<T>) {
-      if (value == nullptr) {
-        p.buf += "<nil>";
-        return;
-      }
-    }
-    if (p.panicking) {
-      throw;
-    }
-    // Any exception is a panic, whose value prints as recover() would return it.
-    auto recovered = panic_value(std::current_exception());
-    auto flags = p.flags;
-    auto wid = p.wid;
-    auto prec = p.prec;
-    p.clear_flags();
-    p.buf += "%!";
-    append_rune(p.buf, verb);
-    p.buf += "(PANIC=";
-    p.buf += method->name;
-    p.buf += " method: ";
-    p.panicking = true;
-    print_arg(p, recovered, 'v', 0);
-    p.panicking = false;
-    p.buf += ')';
-    p.flags = flags;
-    p.wid = wid;
-    p.prec = prec;
+    catch_panic(p, value, verb, method->name);
     return;
   }
   if (go_string) {
@@ -894,11 +911,25 @@ void print_method(printer& p, const T& value, const entry<std::string()>* method
   }
 }
 
+// A Format method takes a fmt::State, which <eo/fmt.h> defines. A type with one has its Format
+// declared with that header, so print_formatter, a template on it, sees the complete types.
+
+// Calls a Format method with the printer as its State.
+template<typename T, typename State = ::fmt::State, typename Pp = ::fmt::pp>
+void print_formatter(printer& p, const T& value, const entry<void(State, int32_t)>* method, int32_t verb) {
+  auto state = Pp{&p};
+  try {
+    method->fn(&value, Pp::_eo_state(state), verb);
+  } catch (...) {
+    catch_panic(p, value, verb, method->name);
+  }
+}
+
 // Go's handleMethods: %w of an error in Errorf, a Formatter, and GoString for %#v, or Error or String,
 // which Go prefers in that order, for %v, %s, %x, %X, and %q. Returns whether it printed the operand.
 template<typename T>
 auto handle_methods(printer& p, const T& value, int32_t verb) -> bool {
-  if (p.erroring) {
+  if (p.erroring || p.unexported) {
     return false;
   }
   constexpr auto error = method_position<T, std::string()>("Error");
@@ -911,12 +942,13 @@ auto handle_methods(printer& p, const T& value, int32_t verb) -> bool {
     }
     verb = 'v';
   }
-  // A Go Formatter prints itself for every verb. Eo library types that Go formats this way, such as
-  // a *big.Int, declare _eo_format, found by argument-dependent lookup.
-  if constexpr (requires {
-                  { _eo_format(value, verb) } -> std::convertible_to<std::string>;
-                }) {
-    p.buf += _eo_format(value, verb);
+  // A Formatter prints itself for every verb.
+  constexpr auto format = method_position<T, void(::fmt::State, int32_t)>("Format");
+  if constexpr (format != no_method) {
+    print_formatter(p,
+      value,
+      static_cast<const entry<void(::fmt::State, int32_t)>*>(method_set<T>::entries[format]),
+      verb);
     return true;
   }
   if (p.flags.sharp_v) {
@@ -1092,11 +1124,16 @@ void print_value(printer& p, const T& value, int32_t verb, int depth, const std:
         if (J > 0) {
           print_separator(p);
         }
+        const auto name = field_name<T, J>();
         if (p.flags.plus_v || p.flags.sharp_v) {
-          p.buf += field_name<T, J>();
+          p.buf += name;
           p.buf += ':';
         }
+        // Go exports a field whose name starts with an upper-case letter. Eo checks only ASCII ones.
+        const auto unexported = p.unexported;
+        p.unexported = unexported || name.empty() || name[0] < 'A' || name[0] > 'Z';
         print_arg(p, boost::pfr::get<J>(value), verb, depth + 1);
+        p.unexported = unexported;
       };
       (field(std::integral_constant<std::size_t, I>{}), ...);
     }(std::make_index_sequence<boost::pfr::tuple_size_v<T>>{});
@@ -1232,6 +1269,12 @@ void print_arg(printer& p, const T& value, int32_t verb, int depth) {
       print_arg(p, std::string{std::string_view{value}}, verb, depth);
     } else {
       if (handle_methods(p, value, verb)) {
+        return;
+      }
+      // A library type whose Go type is a struct with unexported fields, such as a big.Int value,
+      // prints them by _eo_print, found by argument-dependent lookup.
+      if constexpr (requires { _eo_print(p, value, verb, depth); }) {
+        _eo_print(p, value, verb, depth);
         return;
       }
       // Go's printArg names a []byte operand []byte for %#v, where printValue names it []uint8.
