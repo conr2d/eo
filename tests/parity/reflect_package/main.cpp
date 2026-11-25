@@ -18,6 +18,8 @@ struct Celsius;
 struct Bytes;
 struct Outer;
 struct Stringer;
+struct inner;
+struct Wrapper;
 
 struct Point {
   static constexpr std::string_view _eo_name = "main.Point";
@@ -109,6 +111,26 @@ struct Stringer : eo::interface<Stringer> {
 inline auto Stringer::String() const -> std::string {
   return _eo_call<&Stringer::String>();
 }
+
+struct inner {
+  static constexpr std::string_view _eo_name = "main.inner";
+
+  int64_t Val{};
+  std::string note{};
+
+  auto operator==(const inner&) const -> bool = default;
+};
+
+struct Wrapper {
+  static constexpr std::string_view _eo_name = "main.Wrapper";
+
+  ::inner inner{};
+  chan<int64_t> Ch{};
+
+  static constexpr eo::field _eo_fields[] = {{.embedded = true}, {}};
+
+  auto operator==(const Wrapper&) const -> bool = default;
+};
 
 auto Base::Describe(Base b) -> std::string {
   return fmt::Sprintf("base %d"s, b.ID);
@@ -613,18 +635,60 @@ void slicesAndArrays() {
   auto _eo_call_31 = reflect::ValueOf(eo::subslice(ints, 2));
   n = reflect::Copy(_eo_call_30, _eo_call_31);
   fmt::Println(n, ints);
+  ints = slice<int64_t>::of({1, 2, 3, 4, 5});
+  auto _eo_call_32 = reflect::ValueOf(eo::subslice(ints, 2, 5));
+  auto _eo_call_33 = reflect::ValueOf(eo::subslice(ints, 0, 3));
+  n = reflect::Copy(_eo_call_32, _eo_call_33);
+  fmt::Println(n, ints);
   auto dst = eo::make_slice<uint8_t>(3);
-  auto _eo_call_32 = reflect::ValueOf(dst);
-  auto _eo_call_33 = reflect::ValueOf("xyzw"s);
-  auto _eo_call_34 = reflect::Copy(_eo_call_32, _eo_call_33);
-  fmt::Println(_eo_call_34, eo::string_from_bytes(dst));
-  auto _eo_call_35 = reflect::TypeOf(Bytes{slice<uint8_t>::of({})});
-  auto _eo_call_36 = reflect::MakeSlice(_eo_call_35, 0, 0);
-  auto _eo_call_37 = reflect::Value::Interface(_eo_call_36);
-  auto _eo_call_38 = reflect::TypeOf(Bytes{slice<uint8_t>::of({})});
-  auto _eo_call_39 = reflect::MakeSlice(_eo_call_38, 0, 0);
-  auto _eo_call_40 = reflect::Value::IsNil(_eo_call_39);
-  fmt::Println(_eo_call_37, _eo_call_40);
+  auto _eo_call_34 = reflect::ValueOf(dst);
+  auto _eo_call_35 = reflect::ValueOf("xyzw"s);
+  auto _eo_call_36 = reflect::Copy(_eo_call_34, _eo_call_35);
+  fmt::Println(_eo_call_36, eo::string_from_bytes(dst));
+  auto _eo_call_37 = reflect::TypeOf(Bytes{slice<uint8_t>::of({})});
+  auto _eo_call_38 = reflect::MakeSlice(_eo_call_37, 0, 0);
+  auto _eo_call_39 = reflect::Value::Interface(_eo_call_38);
+  auto _eo_call_40 = reflect::TypeOf(Bytes{slice<uint8_t>::of({})});
+  auto _eo_call_41 = reflect::MakeSlice(_eo_call_40, 0, 0);
+  auto _eo_call_42 = reflect::Value::IsNil(_eo_call_41);
+  fmt::Println(_eo_call_39, _eo_call_42);
+}
+
+void embedded() {
+  auto w = New<Wrapper>(Wrapper{.inner = inner{.Val = 1}});
+  auto v = reflect::Value::Elem(reflect::ValueOf(w));
+  auto in = reflect::Value::Field(v, 0);
+  auto _eo_call_0 = reflect::Value::CanSet(in);
+  auto _eo_call_1 = reflect::Value::CanInterface(in);
+  auto _eo_call_2 = reflect::Value::Field(in, 0);
+  auto _eo_call_3 = reflect::Value::CanSet(_eo_call_2);
+  auto _eo_call_4 = reflect::Value::Field(in, 0);
+  auto _eo_call_5 = reflect::Value::CanInterface(_eo_call_4);
+  auto _eo_call_6 = reflect::Value::Field(in, 1);
+  auto _eo_call_7 = reflect::Value::CanSet(_eo_call_6);
+  fmt::Println(_eo_call_0, _eo_call_1, _eo_call_3, _eo_call_5, _eo_call_7);
+  reflect::Value::SetInt(reflect::Value::Field(in, 0), 9);
+  auto _eo_call_8 = reflect::Value::Field(in, 0);
+  auto _eo_call_9 = reflect::Value::Interface(_eo_call_8);
+  fmt::Println(w->inner.Val, _eo_call_9);
+  auto p = reflect::Value::Addr(in);
+  auto _eo_call_10 = reflect::Value::CanInterface(p);
+  auto _eo_call_11 = reflect::Value::Elem(p);
+  auto _eo_call_12 = reflect::Value::CanSet(_eo_call_11);
+  auto _eo_call_13 = reflect::Value::Elem(p);
+  auto _eo_call_14 = reflect::Value::Field(_eo_call_13, 0);
+  auto _eo_call_15 = reflect::Value::CanSet(_eo_call_14);
+  auto _eo_call_16 = reflect::Value::Elem(p);
+  auto _eo_call_17 = reflect::Value::Field(_eo_call_16, 1);
+  auto _eo_call_18 = reflect::Value::CanSet(_eo_call_17);
+  fmt::Println(_eo_call_10, _eo_call_12, _eo_call_15, _eo_call_18);
+  auto ch = reflect::Value::Field(v, 1);
+  auto _eo_call_19 = reflect::Value::Kind(ch);
+  auto _eo_call_20 = reflect::Value::Type(ch);
+  auto _eo_call_21 = reflect::Value::IsNil(ch);
+  auto _eo_call_22 = reflect::Value::Type(ch).Elem();
+  auto _eo_call_23 = reflect::Value::CanSet(ch);
+  fmt::Println(_eo_call_19, _eo_call_20, _eo_call_21, _eo_call_22, _eo_call_23);
 }
 
 void maps() {
@@ -809,6 +873,7 @@ func<> eo_main() {
   values();
   setters();
   slicesAndArrays();
+  embedded();
   maps();
   panics();
   co_return;

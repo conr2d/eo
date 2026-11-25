@@ -432,7 +432,16 @@ struct MapIter;
 namespace detail {
 
   inline constexpr uint8_t flag_addr = 1;
-  inline constexpr uint8_t flag_ro = 2;
+  // Go's flagStickyRO and flagEmbedRO. A value read through an unexported embedded field has
+  // flag_embed_ro, which Value.Field drops, so the exported fields promoted from it stay settable.
+  inline constexpr uint8_t flag_sticky_ro = 2;
+  inline constexpr uint8_t flag_embed_ro = 4;
+  inline constexpr uint8_t flag_ro = flag_sticky_ro | flag_embed_ro;
+
+  // Go's flag.ro: either read-only bit becomes the sticky one.
+  constexpr auto ro(uint8_t flag) noexcept -> uint8_t {
+    return (flag & flag_ro) != 0 ? flag_sticky_ro : 0;
+  }
 
   [[noreturn]] inline void panic_value_error(std::string method, uint8_t kind) {
     eo::panic(eo::New<ValueError>(ValueError{std::move(method), Kind{kind}}));
@@ -521,9 +530,7 @@ struct Value {
       if (type == nullptr) {
         return Value{};
       }
-      return Value{type->reflect(),
-        std::const_pointer_cast<void>(value),
-        static_cast<uint8_t>(v._eo_flag & detail::flag_ro)};
+      return Value{type->reflect(), std::const_pointer_cast<void>(value), detail::ro(v._eo_flag)};
     }
     case eo::detail::rk_pointer: {
       auto target = v._eo_typ->load(v._eo_ptr.get());
@@ -565,9 +572,9 @@ struct Value {
     }
     const auto& f = fields[static_cast<std::size_t>(i)];
     auto* address = f.address(v._eo_typ->rep_addr(v._eo_ptr.get()));
-    auto flag = static_cast<uint8_t>(v._eo_flag & (detail::flag_addr | detail::flag_ro));
+    auto flag = static_cast<uint8_t>(v._eo_flag & (detail::flag_addr | detail::flag_sticky_ro));
     if (!detail::is_exported(f.name)) {
-      flag |= detail::flag_ro;
+      flag |= f.embedded ? detail::flag_embed_ro : detail::flag_sticky_ro;
     }
     return Value{f.type(), std::shared_ptr<void>(v._eo_ptr, address), flag};
   }
@@ -634,7 +641,7 @@ struct Value {
       auto* address = v._eo_typ->array_at(v._eo_ptr.get(), i);
       return Value{v._eo_typ->elem(),
         std::shared_ptr<void>(v._eo_ptr, address),
-        static_cast<uint8_t>(v._eo_flag & (detail::flag_addr | detail::flag_ro))};
+        static_cast<uint8_t>((v._eo_flag & detail::flag_addr) | detail::ro(v._eo_flag))};
     }
     case eo::detail::rk_slice: {
       if (i < 0 || i >= v._eo_typ->slice_len(v._eo_ptr.get())) {
@@ -642,7 +649,7 @@ struct Value {
       }
       return Value{v._eo_typ->elem(),
         v._eo_typ->slice_at(v._eo_ptr.get(), i),
-        static_cast<uint8_t>(detail::flag_addr | (v._eo_flag & detail::flag_ro))};
+        static_cast<uint8_t>(detail::flag_addr | detail::ro(v._eo_flag))};
     }
     case eo::detail::rk_string: {
       auto s = v._eo_typ->get_string(v._eo_ptr.get());
@@ -651,7 +658,7 @@ struct Value {
       }
       return Value{eo::detail::rtype_of<uint8_t>(),
         std::make_shared<uint8_t>(static_cast<uint8_t>(s[static_cast<std::size_t>(i)])),
-        static_cast<uint8_t>(v._eo_flag & detail::flag_ro)};
+        detail::ro(v._eo_flag)};
     }
     default:
       detail::panic_value_error("reflect.Value.Index", kind(v));
@@ -814,7 +821,7 @@ struct Value {
     if (!v._eo_typ->map_get(v._eo_ptr.get(), k.get(), found.get())) {
       return Value{};
     }
-    return Value{elem, std::move(found), static_cast<uint8_t>((v._eo_flag | key._eo_flag) & detail::flag_ro)};
+    return Value{elem, std::move(found), detail::ro(v._eo_flag | key._eo_flag)};
   }
 
   static auto MapKeys(Value v) -> slice<Value> {
@@ -825,8 +832,7 @@ struct Value {
     }
     auto out = slice<Value>::allocate(static_cast<int64_t>(entries.size()), static_cast<int64_t>(entries.size()));
     for (std::size_t i = 0; i < entries.size(); ++i) {
-      out.data()[i] =
-        Value{v._eo_typ->key(), std::move(entries[i].first), static_cast<uint8_t>(v._eo_flag & detail::flag_ro)};
+      out.data()[i] = Value{v._eo_typ->key(), std::move(entries[i].first), detail::ro(v._eo_flag)};
     }
     return out;
   }
@@ -1044,9 +1050,7 @@ struct MapIter {
     if (iter->i >= iter->entries.size()) {
       eo::panic("MapIter.Key called on exhausted iterator");
     }
-    return reflect::Value{iter->m._eo_typ->key(),
-      iter->entries[iter->i].first,
-      static_cast<uint8_t>(iter->m._eo_flag & detail::flag_ro)};
+    return reflect::Value{iter->m._eo_typ->key(), iter->entries[iter->i].first, detail::ro(iter->m._eo_flag)};
   }
 
   static auto Value(ptr<MapIter> iter) -> reflect::Value {
@@ -1056,9 +1060,7 @@ struct MapIter {
     if (iter->i >= iter->entries.size()) {
       eo::panic("MapIter.Value called on exhausted iterator");
     }
-    return reflect::Value{iter->m._eo_typ->elem(),
-      iter->entries[iter->i].second,
-      static_cast<uint8_t>(iter->m._eo_flag & detail::flag_ro)};
+    return reflect::Value{iter->m._eo_typ->elem(), iter->entries[iter->i].second, detail::ro(iter->m._eo_flag)};
   }
 };
 
@@ -1207,10 +1209,10 @@ inline auto Copy(Value dst, Value src) -> int64_t {
   if (n == 0) {
     return 0;
   }
-  // Copy backward when dst starts inside src, as memmove does.
+  // Copy backward when dst starts after src's first element and no later than its last, as memmove does.
   auto* d0 = element(dst, 0);
   auto* s0 = element(src, 0);
-  if (std::less<void*>{}(s0, d0) && std::less<void*>{}(d0, element(src, n - 1))) {
+  if (std::less<void*>{}(s0, d0) && !std::less<void*>{}(element(src, n - 1), d0)) {
     for (auto i = n; i-- > 0;) {
       de->assign(element(dst, i), element(src, i));
     }

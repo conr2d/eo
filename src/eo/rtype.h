@@ -262,6 +262,14 @@ namespace detail {
   inline constexpr bool is_chan_type<chan<E>> = true;
 
   template<typename T>
+  struct chan_element;
+
+  template<typename E>
+  struct chan_element<chan<E>> {
+    using type = E;
+  };
+
+  template<typename T>
   inline constexpr int pointer_depth = 0;
 
   template<typename T>
@@ -359,7 +367,7 @@ namespace detail {
     } else if constexpr (is_fn_type<U>) {
       return fn_string<U>::get();
     } else if constexpr (is_chan_type<U>) {
-      return "chan " + rtype_string<typename U::value_type>();
+      return "chan " + rtype_string<typename chan_element<U>::type>();
     } else if constexpr (is_ptr<U>) {
       return "*" + rtype_string<typename pointee<U>::type>();
     } else if constexpr (is_std_array<U>) {
@@ -663,7 +671,7 @@ namespace detail {
         return true;
       };
     } else if constexpr (is_chan_type<R>) {
-      r.elem = rtype_ref{&rtype_of<typename R::value_type>};
+      r.elem = rtype_ref{&rtype_of<typename chan_element<R>::type>};
       r.is_nil = [](const void* p) { return *rep_of<T>(p) == nullptr; };
     } else if constexpr (is_fn_type<R>) {
       r.is_nil = [](const void* p) { return *rep_of<T>(p) == nullptr; };

@@ -49,6 +49,16 @@ type Stringer interface {
 	String() string
 }
 
+type inner struct {
+	Val  int
+	note string
+}
+
+type Wrapper struct {
+	inner
+	Ch chan int
+}
+
 func kinds() {
 	for _, k := range []reflect.Kind{reflect.Invalid, reflect.Bool, reflect.Int, reflect.Uint8, reflect.Float64,
 		reflect.Array, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice, reflect.String, reflect.Struct,
@@ -243,9 +253,25 @@ func slicesAndArrays() {
 	ints = []int{1, 2, 3, 4, 5}
 	n = reflect.Copy(reflect.ValueOf(ints), reflect.ValueOf(ints[2:]))
 	fmt.Println(n, ints)
+	ints = []int{1, 2, 3, 4, 5}
+	n = reflect.Copy(reflect.ValueOf(ints[2:5]), reflect.ValueOf(ints[0:3]))
+	fmt.Println(n, ints)
 	dst := make([]byte, 3)
 	fmt.Println(reflect.Copy(reflect.ValueOf(dst), reflect.ValueOf("xyzw")), string(dst))
 	fmt.Println(reflect.MakeSlice(reflect.TypeOf(Bytes{}), 0, 0).Interface(), reflect.MakeSlice(reflect.TypeOf(Bytes{}), 0, 0).IsNil())
+}
+
+func embedded() {
+	w := Wrapper{inner: inner{Val: 1}}
+	v := reflect.ValueOf(&w).Elem()
+	in := v.Field(0)
+	fmt.Println(in.CanSet(), in.CanInterface(), in.Field(0).CanSet(), in.Field(0).CanInterface(), in.Field(1).CanSet())
+	in.Field(0).SetInt(9)
+	fmt.Println(w.Val, in.Field(0).Interface())
+	p := in.Addr()
+	fmt.Println(p.CanInterface(), p.Elem().CanSet(), p.Elem().Field(0).CanSet(), p.Elem().Field(1).CanSet())
+	ch := v.Field(1)
+	fmt.Println(ch.Kind(), ch.Type(), ch.IsNil(), ch.Type().Elem(), ch.CanSet())
 }
 
 func maps() {
@@ -362,6 +388,7 @@ func main() {
 	values()
 	setters()
 	slicesAndArrays()
+	embedded()
 	maps()
 	panics()
 }

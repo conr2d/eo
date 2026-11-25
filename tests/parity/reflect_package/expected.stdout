@@ -106,8 +106,13 @@ w
 6 101 3
 4 [1 1 2 3 4]
 3 [3 4 5 4 5]
+3 [1 2 1 2 3]
 3 xyz
 [] false
+false false true true false
+9 9
+false false true false
+chan chan int true int true
 2 1 false
 [a b]
 map[b:2 c:3]

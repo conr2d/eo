@@ -2253,7 +2253,7 @@ reflect::Value::SetInt(reflect::Value::Field(v, 0), 7);
 
 A `Value` holds the address of the value's storage, shared with what owns it, as a Go `Value` points into the heap, so setting a field through `reflect::ValueOf(p)` changes `*p`. The rules of Go's `reflect` hold:
 
-- A `Value` from `ValueOf` cannot be set. `Elem` of a pointer, `Index` of a slice, and `Field` or `Index` of a value that can be set give values that can be set, unless they come through an unexported field. A field is exported when its name starts with an ASCII upper-case letter, as in [Printing methods](#printing-methods).
+- A `Value` from `ValueOf` cannot be set. `Elem` of a pointer, `Index` of a slice, and `Field` or `Index` of a value that can be set give values that can be set, unless they come through an unexported field. The exported fields of an unexported embedded struct can still be set, as in Go, which `encoding/json` relies on to decode them. A field is exported when its name starts with an ASCII upper-case letter, as in [Printing methods](#printing-methods).
 - `Interface` copies a value that can be addressed and shares one that cannot, which no one can change.
 - `Set` assigns a value of the same type, of the same underlying type when one of the two types is unnamed, as a `[]byte` to a `Bytes`, or of a type that has every method of the interface it is assigned to.
 - `Field` reports the tags and embedded fields of a struct's field table (see [Field tags and embedding](#field-tags-and-embedding)). `PkgPath` of an unexported field is its package's name, which Eo's type names keep, rather than its import path, and `Offset` is the C++ offset, which differs from Go's.
@@ -2268,9 +2268,9 @@ Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_
 
 - the kinds `Int64` and `Uint64`, which Eo reports as `Int` and `Uint`, and `Uintptr`, `Complex64`, `Complex128`, and `UnsafePointer`;
 - methods and calls: `Type.Method`, `Value.Method`, `MethodByName`, `Call`, and `MakeFunc`, and conversions: `Convert`, `CanConvert`, and `ConvertibleTo`;
-- `DeepEqual`, `Value.Equal`, `Value.Comparable`, `Value.Clear`, `Value.SetCap`, `Value.Slice`, `Value.Slice3`, `Value.Pointer`, `Value.UnsafePointer`, `Value.UnsafeAddr`, `Value.Seq`, and `Value.Seq2`;
-- `Type.FieldByName`, `Type.FieldByIndex`, `Type.PkgPath`, `Type.Size`, `Type.Align`, the function type methods `In`, `Out`, `NumIn`, `NumOut`, and `IsVariadic`, and `VisibleFields`;
-- channels, `Select`, and the constructors of types: `SliceOf`, `MapOf`, `ArrayOf`, `StructOf`, `FuncOf`, and `ChanOf`;
+- `DeepEqual`, `Append`, `AppendSlice`, `Value.Equal`, `Value.Comparable`, `Value.Clear`, `Value.FieldByName`, `Value.FieldByNameFunc`, `Value.CanInt`, `Value.CanUint`, `Value.CanFloat`, `Value.CanComplex`, `Value.Complex`, `Value.SetComplex`, `Value.OverflowComplex`, `Value.SetCap`, `Value.Slice`, `Value.Slice3`, `Value.Pointer`, `Value.UnsafePointer`, `Value.UnsafeAddr`, `Value.Seq`, and `Value.Seq2`, and `MapIter.Reset`, `Value.SetIterKey`, and `Value.SetIterValue`;
+- `Type.FieldByName`, `Type.FieldByNameFunc`, `Type.FieldByIndex`, `Type.OverflowInt`, `Type.OverflowUint`, `Type.OverflowFloat`, `Type.OverflowComplex`, `Type.PkgPath`, `Type.Size`, `Type.Align`, the function type methods `In`, `Out`, `NumIn`, `NumOut`, and `IsVariadic`, and `VisibleFields`;
+- channels: `Len` and `Cap` of a channel `Value`, `Type.ChanDir`, `Send`, `Recv`, `Close`, `MakeChan`, and `Select`, and the constructors of types: `SliceOf`, `MapOf`, `ArrayOf`, `StructOf`, `FuncOf`, and `ChanOf`;
 - `PointerTo` of a pointer to a pointer, and `Interface` of a function or channel value;
 - `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
 - `Bytes` and `SetBytes` of a slice or array whose element is a defined byte type;
