@@ -1,0 +1,160 @@
+0 invalid invalid
+1 bool bool
+2 int int
+8 uint8 uint8
+14 float64 float64
+17 array array
+20 interface interface
+21 map map
+22 ptr ptr
+23 slice slice
+24 string string
+25 struct struct
+26 unsafe.Pointer unsafe.Pointer
+99 kind99 kind99
+true
+bool|bool|bool|true
+int|int|int|true
+int8|int8|int8|true
+int16|int16|int16|true
+int32|int32|int32|true
+uint|uint|uint|true
+uint8|uint8|uint8|true
+uint16|uint16|uint16|true
+uint32|uint32|uint32|true
+float32|float32|float32|true
+float64|float64|float64|true
+string|string|string|true
+[]int||slice|false
+[2]string||array|true
+map[string]bool||map|false
+*main.Point||ptr|true
+main.Point|Point|struct|true
+main.Celsius|Celsius|float64|true
+main.Bytes|Bytes|slice|false
+struct {}||struct|true
+true
+int string bool 3 Point
+8 32 64
+error|interface|main.Stringer|Stringer|""|interface {}
+true false true false
+true *errors.errorString
+true true *int
+0 1 1 1 0
+true true false true
+false true true
+**main.Point true true true
+11
+0 Name "" string exported=true anonymous=false index=[0] json="name"
+1 Count "" int exported=true anonymous=false index=[1] json="count,omitempty"
+2 hidden "main" bool exported=false anonymous=false index=[2] json=""
+3 Base "" main.Base exported=true anonymous=true index=[3] json=""
+4 Next "" *main.Tagged exported=true anonymous=false index=[4] json=""
+5 Tags "" []string exported=true anonymous=false index=[5] json=""
+6 Attrs "" map[string]int exported=true anonymous=false index=[6] json=""
+7 Err "" error exported=true anonymous=false index=[7] json=""
+8 Any "" interface {} exported=true anonymous=false index=[8] json=""
+9 Raw "" [4]uint8 exported=true anonymous=false index=[9] json=""
+10 F "" float64 exported=true anonymous=false index=[10] json=""
+n true
+"" false
+two "quoted"
+"" false
+Aé
+ptr *main.Point false false
+struct main.Point true true 2
+{10 20} 10 20
+false false 4
+false true
+hi <int Value> <invalid Value>
+true 200 1.25 -3
+2.5 float64
+true
+{5 6} 1.0C
+<invalid reflect.Value>
+*int 10
+99
+99 7
+*main.Point {0 7} 7
+{0 0} true false
+true true false true true true true false
+true true true true interface false
+true false true true false false
+5 true
+"" false
+3.0C true
+false
+n 3 42 [a b] map[k:1] boom {1 1} 0.5 child base 42
+interface *errors.errorString main.Point 1 0 1
+true
+4
+false false false true
+""
+[0 9 0 0]
+4 [97 98 99 100]
+[120 121] [120 121] main.Bytes slice
+z
+w
+36.6C
+4464
+2 5 [0 0] false
+[0 7] true
+4 [0 7 0 0]
+4 true [0 7 0 0]
+[0 7 0 0 5] [0 7]
+[A b c] 3 3 c false
+6 101 3
+4 [1 1 2 3 4]
+3 [3 4 5 4 5]
+3 [1 2 1 2 3]
+3 xyz
+[] false
+false false true true false
+9 9
+false false true false
+chan chan int true int true
+2 1 false
+[a b]
+map[b:2 c:3]
+2 5
+map[1:one] 1 0
+false 0
+7 false
+Int of string recovered: reflect: call of reflect.Value.Int on string Value
+Type of zero recovered: reflect: call of reflect.Value.Type on zero Value
+SetInt unaddressable recovered: reflect: reflect.Value.SetInt using unaddressable value
+SetBool unexported recovered: reflect: reflect.Value.SetBool using value obtained using unexported field
+Interface unexported recovered: reflect.Value.Interface: cannot return value obtained from unexported field or method
+Set not assignable recovered: reflect.Set: value of type string is not assignable to type int
+Set zero Value recovered: reflect: call of reflect.Value.Set on zero Value
+Elem of int type recovered: reflect: Elem of invalid type int
+Elem of int recovered: reflect: call of reflect.Value.Elem on int Value
+Field out of range recovered: reflect: Field index out of range
+Type.Field out of range recovered: reflect: Field index out of bounds
+Index out of range recovered: reflect: slice index out of range
+SetLen out of range recovered: reflect: slice length out of range in SetLen
+Bytes of ints recovered: reflect.Value.Bytes of non-byte slice
+Bytes of unaddressable array recovered: reflect.Value.Bytes of unaddressable byte array
+New nil recovered: reflect: New(nil)
+MakeSlice of map recovered: reflect.MakeSlice of non-slice type
+MakeSlice len > cap recovered: reflect.MakeSlice: len > cap
+Implements non-interface recovered: reflect: non-interface type passed to Type.Implements
+NumField of int recovered: reflect: NumField of non-struct type int
+Key of slice recovered: reflect: Key of non-map type []int
+Len of slice type recovered: reflect: Len of non-array type []int
+Bits of string recovered: reflect: Bits of non-arithmetic Type string
+MapIter exhausted recovered: MapIter.Next called on exhausted iterator
+MapIter Key before Next recovered: MapIter.Key called before Next
+SetMapIndex wrong key recovered: reflect.Value.SetMapIndex: value of type string is not assignable to type int
+SetMapIndex nil map recovered: assignment to entry in nil map
+Copy mismatch recovered: reflect.Copy: int != string
+Copy into int recovered: reflect: call of reflect.Copy on int Value
+IsNil of int recovered: reflect: call of reflect.Value.IsNil on int Value
+IsZero of zero recovered: reflect: call of reflect.Value.IsZero on zero Value
+Addr unaddressable recovered: reflect.Value.Addr of unaddressable value
+Len of int recovered: reflect: call of reflect.Value.Len on int Value
+Grow negative recovered: reflect.Value.Grow: negative len
+Float of int recovered: reflect: call of reflect.Value.Float on int Value
+SetString of int recovered: reflect: call of reflect.Value.SetString on int Value
+TypeAssert zero recovered: reflect: call of reflect.TypeAssert on zero Value
+FieldByIndex nil embedded recovered: reflect: indirection through nil pointer to embedded struct

@@ -21,6 +21,7 @@ class slice;
 namespace detail {
 
   struct ref_fn;
+  struct ptr_access;
 
   // The targets that a release has yet to destroy. The first few are held in inline slots that are
   // constructed only when used, so a release that queues only a handful, as freeing a small struct
@@ -178,6 +179,7 @@ private:
   template<typename U, typename... Args>
   friend auto New(Args&&... args) -> ptr<U>;
   friend struct detail::ref_fn;
+  friend struct detail::ptr_access;
 
   explicit ptr(std::shared_ptr<T> p) noexcept: p_(std::move(p)) {}
 
@@ -221,6 +223,23 @@ namespace detail {
 // could outlive it. A function object, like the string helpers (see <eo/string.h>), so that ref(x) of
 // a std::string or a std::array does not also find std::ref by argument-dependent lookup.
 inline constexpr detail::ref_fn ref{};
+
+namespace detail {
+
+  // The shared pointer that a ptr holds, for reflect, which handles pointers with their types erased.
+  struct ptr_access {
+    template<typename T>
+    static auto shared(const ptr<T>& p) noexcept -> const std::shared_ptr<T>& {
+      return p.p_;
+    }
+
+    template<typename T>
+    static auto make(std::shared_ptr<T> p) noexcept -> ptr<T> {
+      return ptr<T>{std::move(p)};
+    }
+  };
+
+} // namespace detail
 
 namespace runtime {
 
