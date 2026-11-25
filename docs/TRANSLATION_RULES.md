@@ -646,7 +646,7 @@ A key type must be a bool, an integer or float type, a string, a pointer, `eo::e
 
 A map compares only with `nil`. A struct with a map field is not comparable, and comparing two interface values that hold maps panics with `runtime error: comparing uncomparable type map[string]int`, as in Go. Concurrent writes to a map, or a write concurrent with a read, are a data race in Eo, as for any other variable, and a program that has one is outside the mapping. Go detects some of them with the fatal error `concurrent map writes`, and Eo does not.
 
-`fmt` prints a map as Go does, as `map[k1:v1 k2:v2]` with the keys in the order of Go's `internal/fmtsort`: numbers by value, with NaN first, strings by bytes, `false` before `true`, structs field by field, and pointers by address. A verb applies to each key and value, so `%d` of a `map[string]int` prints `map[%!d(string=k):7]`, as in Go. `%p` is not covered (see [Formatted printing not covered yet](#formatted-printing-not-covered-yet)). An operand that is a pointer to a map prints as `&` followed by the map. `%T` prints the Go type, such as `map[string][]int`. Pointer keys print in address order, which differs from run to run, so parity cases do not print a map with pointer keys.
+`fmt` prints a map as Go does, as `map[k1:v1 k2:v2]` with the keys in the order of Go's `internal/fmtsort`: numbers by value, with NaN first, strings by bytes, `false` before `true`, structs field by field, and pointers by address. A verb applies to each key and value, so `%d` of a `map[string]int` prints `map[%!d(string=k):7]`, as in Go. `%p` of a map prints its address, as for a pointer. An operand that is a pointer to a map prints as `&` followed by the map. `%T` prints the Go type, such as `map[string][]int`. Pointer keys print in address order, which differs from run to run, so parity cases do not print a map with pointer keys.
 
 `for range` over a map is in [Range loops](#range-loops).
 
@@ -1833,23 +1833,37 @@ All of them print an operand as Go's fmt does, with these verbs:
 
 - `%v`, which is how `Println` prints;
 - `%d`, `%b`, `%o`, `%O`, `%x`, `%X`, `%c`, `%q`, and `%U` for an integer, `%q` giving a quoted rune;
-- `%e`, `%E`, `%f`, `%F`, and `%g` for a float;
+- `%b`, `%e`, `%E`, `%f`, `%F`, `%g`, `%G`, `%x`, and `%X` for a float;
 - `%s`, `%q`, `%x`, and `%X` for a string, a `[]byte`, and a `[N]byte`;
 - `%t` for a `bool`;
+- `%p` for a pointer, a slice, and a map;
 - `%T`, the Go type name, `%%`, and `%w` in `fmt::Errorf`.
 
 A verb that the list above does not give for the operand's kind prints the bad-verb form described below. An array, a slice, a struct, and a pointer operand to an array, a struct, or a slice apply the verb to each element or field, as Go does: `fmt.Sprintf("%x", []int{10, 11})` is `[a b]`. A value whose method set has `Error() string` or `String() string` is printed by calling it, as in [Printing methods](#printing-methods). Errors in the format print as in Go: `%!d(string=s)` for a verb that the operand does not take, with the operand printed by `%v` without its methods, `%!d(MISSING)` for a missing operand, `%!(EXTRA string=x, float64=2.5)` for unused operands, `%!(NOVERB)` for a `%` at the end, and `%!w(...)` for `%w` outside `fmt::Errorf`. `fmt.Sprint` puts a space between two operands when neither is a string, as Go does.
+
+The flags, widths, precisions, and operand indexes are ported from Go's `fmt/format.go` and `fmt/print.go`, so they behave as in Go:
+
+- The flags are `#`, `0`, `+`, `-`, and space. A width or precision is a number or `*`, which takes the next operand: an integer operand whose value is at most 1e6 in magnitude. A negative `*` width sets the `-` flag. `%!(BADWIDTH)` and `%!(BADPREC)` mark an operand that cannot be one.
+- An operand index, as in `%[2]d` or `%[3]*.[2]*[1]f`, picks the operand for the verb, the width, or the precision, and `%!d(BADINDEX)` marks a bad one. A format with an index does not report unused operands.
+- A width pads with spaces, or with zeros for the `0` flag, counting runes. A precision cuts a string to that many runes, and `%x` of a string or `[]byte` to that many bytes. For a float it sets the digits after the point for `%e` and `%f`, and the significant digits for `%g`. For an integer it sets the least number of digits.
+- `+` prints the sign of a number and escapes `%q` to ASCII. `#` gives `0x`, `0X`, `0b`, or a leading `0` to an integer, a backquoted string to `%q` when it can be one, a decimal point to a float, with trailing zeros for `%g`, `%G`, and `%x` but not `%X`, as in Go, and `U+0078 'x'` to `%U`. Space puts a space before a number without a sign, and between the bytes of `%x`.
+- The flags apply to each element or field of a value, and to the text of an `Error` or `String` method, as in Go: `fmt.Sprintf("%6v", point{1, 2})` is `{     1      2}`.
+- `%+v` prints struct field names, as in `{X:1 Y:2}`.
+- `%#v` prints Go syntax: `main.point{X:1, Y:2}`, `[]int{1, 2}`, `map[string]int{"a":1}`, `[]byte(nil)`, `0x2a` for an unsigned integer, a quoted string, and `error(nil)` for a nil interface inside another value. It calls a `GoString() string` method in place of `Error` and `String`. A defined slice, array, or map type prints with its own name, as in `main.Hashes{0xab}`.
+- Floats are formatted as Go's `strconv.FormatFloat` formats them, from the digits of `std::to_chars`, so `%.2f` of `1.005` is `1.00` and `%.0f` of `2.5` is `2`.
+
+Eo reads the field names for `%+v` and `%#v` from the compiler. Boost.PFR gives them only from Boost 1.84, so `<eo/print.h>` takes them, as PFR does, from the function signature that GCC and Clang print for a pointer to the field. A translated struct keeps its Go field names, so they print as in Go.
 
 `%q` escapes the bytes that are not valid UTF-8, the ASCII control characters, and the code points that Go's `unicode.IsPrint` rejects among C1 controls, spaces other than U+0020, U+00AD, U+2000 through U+200F, U+2028 through U+202F, U+205F through U+2064, U+3000, U+FEFF, U+FFF9 through U+FFFB, noncharacters U+FFFE and U+FFFF, and private use. It prints other code points as they are.
 
 #### Formatted printing not covered yet
 
-- flags, width, precision, and argument indexes, such as `%-10v`, `%08x`, `%.2f`, `%+v`, `%#v`, and `%[1]d`;
-- `%p` of any operand, and `%G`, `%x`, `%X`, and `%b` of a float, which print a bad-verb form such as `%!x(float64=1)`, and complex numbers. A slice, struct, or map applies `%p` to its elements, where Go prints the address of a slice or map;
+- `%p` of a channel or a function, and complex numbers;
+- `%#v` of an anonymous struct, a pointer inside another value, or a function, and the type names of `%#v` that Eo does not know, as for `%T`;
 - the results of the printing functions, `(n int, err error)`, which Eo's functions do not return, so they are only statements;
-- the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter` other than that of `*big.Int` (see [The math/big package](#the-mathbig-package)), `fmt.GoStringer`, and an `io.Writer` other than a `std::FILE*`;
+- the `Print`, `Fprint`, `Sscan`, and `Append` families, `fmt.Formatter` and `fmt.State` other than the `Format` of `*big.Int` (see [The math/big package](#the-mathbig-package)), and an `io.Writer` other than a `std::FILE*`;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;
-- `%q` of an unassigned code point or a format character not listed above, which Go escapes and Eo prints as it is;
+- `%q` and `%#U` of an unassigned code point or a format character not listed above, which Go escapes, or prints without the character for `%#U`, and Eo prints as it is;
 - `%T` of an `int64` value, which prints `int` ([#107](https://github.com/conr2d/eo/issues/107)).
 
 ### The math/big package
@@ -1905,7 +1919,7 @@ Three operations copy where Go shares storage:
 - a nil pointer prints `<nil>`;
 - another verb prints `%!q(big.Int=10)`.
 
-Flags and widths are not covered, as for other operands. `%T` prints `*big.Int`. A `big.Int` that is not a pointer has neither `Format` nor `String`, so it prints as its struct, `{false [10]}`, as in Go.
+Its `Format` ignores flags, widths, and precisions, which Go's applies. `%T` prints `*big.Int`. A `big.Int` that is not a pointer has neither `Format` nor `String`, so it prints as its struct, `{false [10]}`, as in Go.
 
 A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` is in its method table, so `x.(fmt.Stringer)` succeeds. A `big.Int` value is not comparable, because Go's holds a slice.
 
@@ -1922,8 +1936,9 @@ Go's `strconv` maps, in part, to the namespace `strconv` from `<eo/strconv.h>`. 
 
 - `ParseInt`, `ParseUint`, `Atoi`, and `ParseBool`;
 - `Itoa`, `FormatInt`, `FormatUint`, and `FormatBool`;
+- `FormatFloat` and `AppendFloat`;
 - `AppendInt`, `AppendUint`, `AppendBool`, and `AppendQuote`;
-- `Quote`, `QuoteRune`, `Unquote`, `UnquoteChar`, and `IsPrint`;
+- `Quote`, `QuoteToASCII`, `QuoteRune`, `QuoteRuneToASCII`, `CanBackquote`, `Unquote`, `UnquoteChar`, and `IsPrint`;
 - the error type `NumError` and the variables `ErrRange` and `ErrSyntax`;
 - the constant `IntSize`, which is 64.
 
@@ -1933,11 +1948,12 @@ The functions are ported from Go 1.26:
 - A failed parse returns a `*strconv.NumError` as its `error`. Its `Error` is Go's, as in `strconv.ParseInt: parsing "999": value out of range`, and it unwraps to `strconv::ErrRange`, `strconv::ErrSyntax`, or an error for an invalid base or bit size. So `errors::Is(err, strconv::ErrRange)` and `errors::As(err, p)` with a `ptr<strconv::NumError>` target work as in Go.
 - `Unquote` and `UnquoteChar` return `strconv::ErrSyntax` itself.
 - `FormatInt`, `FormatUint`, `AppendInt`, and `AppendUint` panic with `strconv: illegal AppendInt/FormatInt base` for a base other than 2 through 36.
+- `FormatFloat` takes the formats `'b'`, `'e'`, `'E'`, `'f'`, `'g'`, `'G'`, `'x'`, and `'X'`, and a precision of -1 for the fewest digits that read back as the same value. Another format gives `%` followed by the format, and a bit size other than 32 or 64 panics with `strconv: illegal AppendFloat/FormatFloat bitSize`, as in Go.
 - `Quote` and `IsPrint` decide which code points are printable as `%q` does (see [Formatted printing](#formatted-printing)), so an unassigned code point counts as printable.
 
 #### The strconv package not covered yet
 
-- `ParseFloat`, `FormatFloat`, `AppendFloat`, the complex functions, `QuoteToASCII`, `QuoteToGraphic`, `AppendQuoteRune`, the rune and `Append` forms of the ASCII and graphic quoting functions, `QuotedPrefix`, `CanBackquote`, and `IsGraphic`.
+- `ParseFloat`, the complex functions, `QuoteToGraphic`, `AppendQuoteRune`, the `Append` forms of the ASCII quoting functions, the graphic quoting functions, `QuotedPrefix`, and `IsGraphic`.
 
 ### The encoding/hex package
 

@@ -41,6 +41,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | The `strconv` package, in part | [The strconv package](./TRANSLATION_RULES.md#the-strconv-package) | `strconv_package` |
 | The `encoding/hex` and `encoding/binary` packages, in part | [The encoding/hex package](./TRANSLATION_RULES.md#the-encodinghex-package), [The encoding/binary package](./TRANSLATION_RULES.md#the-encodingbinary-package) | `hex_package`, `binary_package` |
 | The `io` package, `bytes.Buffer`, `bytes.Reader`, and `strings.Reader`, in part | [The io package](./TRANSLATION_RULES.md#the-io-package), [Buffers and readers](./TRANSLATION_RULES.md#buffers-and-readers) | `io_package`, `buffer_readers` |
+| `fmt`'s flags, widths, precisions, operand indexes, `%+v`, `%#v`, and `%p`, and `strconv.FormatFloat` | [Formatted printing](./TRANSLATION_RULES.md#formatted-printing), [The strconv package](./TRANSLATION_RULES.md#the-strconv-package) | `fmt_flags`, `fmt_random` |
 | Goroutines | [Goroutine](./TRANSLATION_RULES.md#goroutine) | `shared_variable`, `method_goroutine`, `loop_variable_goroutine` |
 | Channels | [Channels](./TRANSLATION_RULES.md#channels) | `channel_buffered`, `channel_panics`, `channel_recv_ok` |
 | `select` | [Select](./TRANSLATION_RULES.md#select) | `select_default`, `labels` |

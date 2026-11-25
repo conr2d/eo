@@ -13,8 +13,9 @@
 #include <string_view>
 #include <tuple>
 
-// Go's strconv, in part: the integer and bool conversions, Quote, QuoteRune, Unquote, and IsPrint,
-// ported from Go 1.26's strconv and internal/strconv.
+// Go's strconv, in part: the integer and bool conversions, FormatFloat and AppendFloat, Quote,
+// QuoteToASCII, QuoteRune, QuoteRuneToASCII, CanBackquote, Unquote, and IsPrint, ported from Go 1.26's
+// strconv and internal/strconv.
 
 namespace eo::strconv {
 
@@ -339,14 +340,45 @@ inline auto AppendQuote(slice<uint8_t> dst, std::string s) -> slice<uint8_t> {
   return detail::append_string(std::move(dst), Quote(std::move(s)));
 }
 
+inline auto QuoteToASCII(std::string s) -> std::string {
+  auto out = std::string{};
+  eo::detail::append_quoted(out, s, true);
+  return out;
+}
+
 inline auto QuoteRune(int32_t r) -> std::string {
   if (!detail::valid_rune(r)) {
     r = 0xfffd;
   }
-  auto out = std::string{"'"};
-  eo::detail::append_escaped_rune(out, static_cast<char32_t>(r), '\'');
-  out += '\'';
+  auto out = std::string{};
+  eo::detail::append_quoted_rune(out, static_cast<char32_t>(r));
   return out;
+}
+
+inline auto QuoteRuneToASCII(int32_t r) -> std::string {
+  if (!detail::valid_rune(r)) {
+    r = 0xfffd;
+  }
+  auto out = std::string{};
+  eo::detail::append_quoted_rune(out, static_cast<char32_t>(r), true);
+  return out;
+}
+
+inline auto CanBackquote(std::string s) -> bool {
+  return eo::detail::can_backquote(s);
+}
+
+// Go's strconv.FormatFloat, for the formats 'b', 'e', 'E', 'f', 'g', 'G', 'x', and 'X'. A bit size
+// other than 32 or 64 panics, as in Go.
+inline auto FormatFloat(double f, uint8_t fmt, int64_t prec, int64_t bitSize) -> std::string {
+  if (bitSize != 32 && bitSize != 64) {
+    panic("strconv: illegal AppendFloat/FormatFloat bitSize"s);
+  }
+  return eo::detail::format_float(f, static_cast<char>(fmt), static_cast<int>(prec), static_cast<int>(bitSize));
+}
+
+inline auto AppendFloat(slice<uint8_t> dst, double f, uint8_t fmt, int64_t prec, int64_t bitSize) -> slice<uint8_t> {
+  return detail::append_string(std::move(dst), FormatFloat(f, fmt, prec, bitSize));
 }
 
 // Go's UnquoteChar.

@@ -79,6 +79,11 @@ namespace detail {
   template<typename T>
   void print_arg(printer& p, const T& value, int32_t verb, int depth);
 
+  // The value of an integer operand, for a * width or precision of Printf: false if the operand is
+  // not an integer or its value does not fit in an int.
+  template<typename T>
+  auto int_from(const T& value, int64_t& out) -> bool;
+
   // Go's runtime panics, from <eo/panic.h> and <eo/ptr.h>.
   [[noreturn]] inline void panic_runtime_error(std::string message);
   [[noreturn]] inline void panic_nil_dereference();
@@ -287,13 +292,14 @@ namespace detail {
   }
 
   // The descriptor of a dynamic type: its Go name, whether its kind is string, its equality, which
-  // is null for an uncomparable type, its printing with a verb, and its method set. Its address
-  // identifies the type.
+  // is null for an uncomparable type, its printing with a verb, its value as a * width or precision,
+  // and its method set. Its address identifies the type.
   struct type_descriptor {
     auto (*name)() -> std::string;
     bool string_kind;
     auto (*equal)(const void*, const void*) -> bool;
     void (*print)(printer& p, const void* value, int32_t verb, int depth);
+    auto (*as_int)(const void* value, int64_t& out) -> bool;
     std::span<const entry_base* const> methods;
   };
 
@@ -324,6 +330,11 @@ namespace detail {
   }
 
   template<typename D>
+  auto int_dynamic(const void* value, int64_t& out) -> bool {
+    return int_from(*static_cast<const D*>(value), out);
+  }
+
+  template<typename D>
   constexpr auto equality_of() -> bool (*)(const void*, const void*) {
     if constexpr (go_comparable<D>) {
       return &equal_values<D>;
@@ -338,6 +349,7 @@ namespace detail {
     std::is_convertible_v<const D&, std::string_view>,
     equality_of<D>(),
     &print_dynamic<D>,
+    &int_dynamic<D>,
     method_set<D>::entries,
   };
 

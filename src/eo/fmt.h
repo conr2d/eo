@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdio>
@@ -196,13 +197,19 @@ namespace detail {
       auto p = eo::detail::printer{.wrap_errs = true};
       const auto operands = std::array<eo::detail::operand, sizeof...(T)>{eo::detail::make_operand(args)...};
       auto wrapped = std::vector<std::size_t>{};
-      eo::detail::print_format(p, format, operands, &wrapped);
+      auto reordered = eo::detail::print_format(p, format, operands, &wrapped);
       if (wrapped.empty()) {
         return eo::errors::New(std::move(p.buf));
       }
       auto error_of = [&](std::size_t i) { return operands[i].as_error(operands[i].value); };
       if (wrapped.size() == 1) {
         return eo::New<wrapError>(wrapError{std::move(p.buf), error_of(wrapped[0])});
+      }
+      // Operand indexes can name an operand out of order or more than once. Go then sorts the
+      // positions and wraps each operand once.
+      if (reordered) {
+        std::sort(wrapped.begin(), wrapped.end());
+        wrapped.erase(std::unique(wrapped.begin(), wrapped.end()), wrapped.end());
       }
       auto errs = std::vector<eo::error>{};
       for (auto i : wrapped) {
