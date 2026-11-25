@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <string>
 #include <utility>
 
 // Go's slices package, in part: the functions that ported code has needed so far. Each takes its
@@ -51,6 +52,19 @@ auto Clone(slice<E> s) -> slice<E> {
     return nullptr;
   }
   return eo::append_slice(slice<E>::of({}), s);
+}
+
+// slices.Grow(s, n): s with room for n more elements past its length, in a new array when its
+// capacity is short. A negative n panics with Go's message, "cannot be negative".
+template<typename E>
+auto Grow(slice<E> s, int64_t n) -> slice<E> {
+  if (n < 0) {
+    panic(std::string{"cannot be negative"});
+  }
+  if (n -= eo::cap(s) - eo::len(s); n > 0) {
+    s = eo::subslice(eo::append_slice(eo::subslice(s, 0, eo::cap(s)), eo::make_slice<E>(n)), 0, eo::len(s));
+  }
+  return s;
 }
 
 // slices.Delete(s, i, j): removes s[i:j] in place, zeroes the elements between the new length and

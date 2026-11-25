@@ -1,0 +1,423 @@
+    0 0
+Zg== Zg== Zg Zg 4 2
+Zm8= Zm8= Zm8 Zm8 4 3
+Zm9v Zm9v Zm9v Zm9v 4 4
+Zm9vYg== Zm9vYg== Zm9vYg Zm9vYg 8 6
+Zm9vYmE= Zm9vYmE= Zm9vYmE Zm9vYmE 8 7
+Zm9vYmFy Zm9vYmFy Zm9vYmFy Zm9vYmFy 8 8
++/+/ -_-_ +/+/ -_-_ 4 4
+AAAAAAAAAAAA AAAAAAAAAAAA AAAAAAAAAAAA AAAAAAAAAAAA 12 12
+B6EawT0gRJ** custom! <nil> 9 8
+[97 71 86 115 98 71 56 61 0 0 0 0] aGVsbG8=
+x=aGkgdGhlcmU=
+"y:hi???>" <nil>
+"hi???>" illegal base64 data at input byte 8
+15 <nil>
+std "Zm9v" -> "foo" <nil> false 0
+std "Zm9vYg==" -> "foob" <nil> false 0
+std "Zm9vYg=" -> "foo" illegal base64 data at input byte 7 true 7
+std "Zm9vYg" -> "foo" illegal base64 data at input byte 4 true 4
+std "Zm9vYmE=" -> "fooba" <nil> false 0
+std "Zm9vYmE" -> "foo" illegal base64 data at input byte 4 true 4
+std "Zm9v\nYmFy" -> "foobar" <nil> false 0
+std "Zm9v\r\nYmFy\n" -> "foobar" <nil> false 0
+std "Zm9vYg==\n" -> "foob" <nil> false 0
+std "Zm9vYg==x" -> "foob" illegal base64 data at input byte 8 true 8
+std "Zm9vYg=\n=" -> "foob" <nil> false 0
+std "Zm9vYg\n==" -> "foob" <nil> false 0
+std "=" -> "" illegal base64 data at input byte 0 true 0
+std "Z" -> "" illegal base64 data at input byte 0 true 0
+std "Zm=" -> "" illegal base64 data at input byte 3 true 3
+std "Zm9=v" -> "fo" illegal base64 data at input byte 4 true 4
+std "Zm9v!" -> "foo" illegal base64 data at input byte 4 true 4
+std "Zm9vYmFy!xyz" -> "foobar" illegal base64 data at input byte 8 true 8
+std "Zm9vYmFyYmF6" -> "foobarbaz" <nil> false 0
+std "Zm9vYmFyYmF6=" -> "foobarbaz" illegal base64 data at input byte 12 true 12
+std "Zh==" -> "f" <nil> false 0
+std "Zm9=" -> "fo" <nil> false 0
+std "Zm8=" -> "fo" <nil> false 0
+std "\n\n" -> "" <nil> false 0
+std "Zm9vYmFyYmF6cXV4YQ==" -> "foobarbazquxa" <nil> false 0
+std "Zm9vYmFyYmF6cXV4!Q==" -> "foobarbazqux" illegal base64 data at input byte 16 true 16
+rawurl "Zh" -> "f" <nil> false 0
+rawurl "Zm9" -> "fo" <nil> false 0
+rawurl "Zm8" -> "fo" <nil> false 0
+rawurl "Zm9vYg" -> "foob" <nil> false 0
+rawurl "Zm9vYg==" -> "foo" illegal base64 data at input byte 6 true 6
+rawurl "aGk_" -> "hi?" <nil> false 0
+rawurl "aGk/" -> "" illegal base64 data at input byte 3 true 3
+strict "Zh==" -> "" illegal base64 data at input byte 2 true 2
+strict "Zm9=" -> "" illegal base64 data at input byte 3 true 3
+strict "Zm8=" -> "fo" <nil> false 0
+strict "Zm9vYg==" -> "foob" <nil> false 0
+strict "Zm9vYh==" -> "foo" illegal base64 data at input byte 6 true 6
+strict "Zm9vYmF=" -> "foo" illegal base64 data at input byte 7 true 7
+strict "Zm9vYmE=" -> "fooba" <nil> false 0
+rawstrict "Zh" -> "" illegal base64 data at input byte 0 true 0
+rawstrict "Zm9" -> "" illegal base64 data at input byte 2 true 2
+rawstrict "Zm8" -> "fo" <nil> false 0
+illegal base64 data at input byte 42|base64.CorruptInputError|7|illegal base64 data at input byte -1
+92 <nil> <nil>
+true VGhlIHF1aWNrIGJyb3du
+1 true 71 EOF
+3 true 71 EOF
+4 true 71 EOF
+7 true 71 EOF
+1000 true 71 EOF
+92 <nil> <nil>
+true VGhlIHF1aWNrIGJyb3du
+1 true 71 EOF
+3 true 71 EOF
+4 true 71 EOF
+7 true 71 EOF
+1000 true 71 EOF
+"foobar" illegal base64 data at input byte 8
+"foo" unexpected EOF
+"fooba" <nil>
+"foo" illegal base64 data at input byte 0
+0 full 
+0 full full
+full YWJj
+*base64.encoder *base64.decoder
+0 "" 0  <nil>
+1 "X9V5TV6F3DXfABDD=F8" 12 5fd5794d5e85dc35df0010c3 illegal base64 data at input byte 16
+2 "CSYAd2eodrkhk0B5G" 12 0926007767a876b921934079 illegal base64 data at input byte 16
+3 "ZQ6319ywtlggyrH-Ges=" 9 650eb7d7dcb0b65820 illegal base64 data at input byte 15
+4 "yrMWXlPiO9\nwGsgP9zwa" 12 cab3165e53e23bdc06b203fd illegal base64 data at input byte 19
+5 "mD4Qm67hDP3s=" 9 983e109baee10cfdec illegal base64 data at input byte 12
+6 "g1Av\nnlNPM3I" 8 83502f9e534f3372 <nil>
+7 "wEtkOoD3xj60s8lNMw==" 13 c04b643a80f7c63eb4b3c94d33 <nil>
+8 "7UEHCYlIJw1SO53TjbzL4Pg=" 17 ed4107098948270d523b9dd38dbccbe0f8 <nil>
+9 "X+lommq4=gdK8kVs" 6 5fe9689a6ab8 illegal base64 data at input byte 8
+10 "bGSee+OGpYfeXyIxTzBP" 15 6c649e7be386a587de5f22314f304f <nil>
+11 "CQ-" 0  illegal base64 data at input byte 2
+12 "I!t+mDpYexe6xzcyz=" 0  illegal base64 data at input byte 1
+13 "hn_PWJD7mkZ-+9P_vqxxlhw" 9 867fcf5890fb9a467e illegal base64 data at input byte 12
+14 "7BhYlpIR22wyS0PRHaw" 14 ec1858969211db6c324b43d11dac <nil>
+15 "TWbFhPU/s+CDnU4Tkf3efw5ksg==" 19 4d66c584f53fb3e0839d4e1391fdde7f0e64b2 <nil>
+16 "0UEnhhG5p\n0gSIlRht-LO7MQPw" 18 d141278611b9a74812225461b7e2ceecc40f illegal base64 data at input byte 25
+17 "7zvo1A\r==" 4 ef3be8d4 <nil>
+18 "cabU9" 3 71a6d4 illegal base64 data at input byte 4
+19 "8yWYqC5BhHiUVhw+oiM" 14 f32598a82e41847894561c3ea223 <nil>
+20 "/iC/CF6/9knLJCDYJlPWGQ=/" 15 fe20bf085ebff649cb2420d82653d6 illegal base64 data at input byte 22
+21 "RLQFUf+KMQE" 8 44b40551ff8a3101 <nil>
+22 "OnssFFv!trwnU2AU9" 3 3a7b2c illegal base64 data at input byte 7
+23 "FpyH_dPlYEN=JjMw" 6 169c87fdd3e5 illegal base64 data at input byte 11
+24 "56w9AVzM_" 6 e7ac3d015ccc illegal base64 data at input byte 8
+25 "D3Uy0Tv0rANkPQUXKETBog" 16 0f7532d13bf4ac03643d05172844c1a2 <nil>
+26 "0pVxqe8ZA_dDAe5YUsz4q5AAgga" 20 d29571a9ef1903f74301ee5852ccf8ab90008206 <nil>
+27 "e/E" 0  illegal base64 data at input byte 1
+28 "cQBsYnfo10g" 8 71006c6277e8d748 <nil>
+29 "RnO5+ZaRY" 6 4673b9f99691 illegal base64 data at input byte 8
+30 "uZ97mmorWcPQRs83Mufebsc=" 17 b99f7b9a6a2b59c3d046cf3732e7de6ec7 <nil>
+31 "qM3o-laYM99X-IQ" 11 a8cde8fa569833df57f884 <nil>
+32 "alfd2WZbuYTV+N4TWQl-A" 12 6a57ddd9665bb984d5f8de13 illegal base64 data at input byte 19
+33 "hw==" 1 87 <nil>
+34 "O69Hj8xdI" 6 3baf478fcc5d illegal base64 data at input byte 8
+35 "F8zT" 3 17ccd3 <nil>
+36 "9h+5uGJVB6+r\r" 9 f61fb9b8625507afab <nil>
+37 "N-6o3t4zChJjxKUu87XDBOLcPcA" 20 37eea8dede330a1263c4a52ef3b5c304e2dc3dc0 <nil>
+38 "uR_=" 0  illegal base64 data at input byte 2
+39 "6GOwX5jy!zLbzjVzrEQ==" 6 e863b05f98f2 illegal base64 data at input byte 8
+40 "t_CR\rtI=" 3 b7f091 illegal base64 data at input byte 8
+41 "KHS8RBcirIBFVLm39Bk=" 14 2874bc441722ac804554b9b7f419 <nil>
+42 "hBmWOI_n9bOE0SbJlfWLni8-" 18 841996388fe7f5b384d126c995f58b9e2f3e <nil>
+43 "a=g" 0  illegal base64 data at input byte 1
+44 "6e2l3VAcTjI4AGvAmRqA" 15 e9eda5dd501c4e3238006bc0991a80 <nil>
+45 "SP5vaM4Q" 6 48fe6f68ce10 <nil>
+46 "" 0  <nil>
+47 "KWi16ob\nb=0Vkcs6jdwqp" 6 2968b5ea86db illegal base64 data at input byte 9
+48 "AgwaO4dQ3ojMUg" 10 020c1a3b8750de88cc52 <nil>
+49 "TTBEHEpU1pkexMoMJh9!6" 12 4d30441c4a54d6991ec4ca0c illegal base64 data at input byte 19
+50 "P/t6s3A" 0  illegal base64 data at input byte 1
+51 "uR-8gz12XATqgF=jnye8" 9 b91fbc833d765c04ea illegal base64 data at input byte 14
+52 "i/hBu0e=" 3 8bf841 illegal base64 data at input byte 7
+53 "h48q\rbhpwf2QSswFhq94qg3Q" 17 878f2a6e1a707f6412b30161abde2a8374 <nil>
+54 "-aB2sdHZiJ7vhmbT1EVY==" 15 f9a076b1d1d9889eef8666d3d44558 illegal base64 data at input byte 20
+55 "FFxKFHpz0Q==" 7 145c4a147a73d1 <nil>
+56 "5EODUA2mKicVa4g8FX82Eh20=" 18 e44383500da62a27156b883c157f36121db4 illegal base64 data at input byte 24
+57 "W1o0tRGuJQ==" 7 5b5a34b511ae25 <nil>
+58 "QMUS4HdGKO+JZAOxbBQ2A1pZ=Yw" 18 40c512e0774628ef896403b16c1436035a59 illegal base64 data at input byte 24
+59 "rJx-Vf/o_" 3 ac9c7e illegal base64 data at input byte 6
+60 "Cq0bXQa9sqRgP6pbhStC=" 15 0aad1b5d06bdb2a4603faa5b852b42 illegal base64 data at input byte 20
+61 "o10P/ws+ELvdlcdh" 12 a35d0fff0b3e10bbdd95c761 <nil>
+62 "0daRlH4Gnvmhu5TP7bM=" 14 d1d691947e069ef9a1bb94cfedb3 <nil>
+63 "FjMz/7ZfiUe-WmtAxWcPWg" 6 163333ffb65f illegal base64 data at input byte 11
+64 "nUC3ZIHX9nb41KALE+LT4CaK" 12 9d40b76481d7f676f8d4a00b illegal base64 data at input byte 17
+65 "IYk09jd/4ayhGoDwrw==" 13 218934f6377fe1aca11a80f0af <nil>
+66 "DFUUdrXf5hCoSQOf8zwACKuO" 18 0c551476b5dfe610a849039ff33c0008ab8e <nil>
+67 "yRU=OtuiEzd1M/u7I0" 2 c915 illegal base64 data at input byte 4
+68 "8U32_U-BrlvbUWpg" 12 f14df6fd4f81ae5bdb516a60 <nil>
+69 "" 0  <nil>
+70 "kpiE39k0lUi6YpyM1VZBd+bDmmQ==" 20 929884dfd9349548ba629c8cd5564177e6c39a64 illegal base64 data at input byte 28
+71 "DmA9sQ_" 5 0e603db10f <nil>
+72 "94FboO+37JQ97xR+ZCY=" 14 f7815ba0efb7ec943def147e6426 <nil>
+73 "7w==" 1 ef <nil>
+74 "RLZBKudEg=g=" 6 44b6412ae744 illegal base64 data at input byte 9
+75 "6XUNPDGh9" 6 e9750d3c31a1 illegal base64 data at input byte 8
+76 "LA" 1 2c <nil>
+77 "K7dv3f5PBvaD077Es1w=" 14 2bb76fddfe4f06f683d3bec4b35c <nil>
+78 "7!LYdOzMbNrVnpW7Ne4R1SBQy" 0  illegal base64 data at input byte 1
+79 "ZQvEKgJUDpaUTtbNvZ" 12 650bc42a02540e96944ed6cd illegal base64 data at input byte 16
+80 "XfRgzx-OSA" 7 5df460cf1f8e48 <nil>
+81 "0/Q2ARvYaC/swtcZ" 12 d3f436011bd8682fecc2d719 <nil>
+82 "" 0  <nil>
+83 "\r5p2/Xb60+14" 8 e69dbf5dbeb4fb5e <nil>
+84 "j99037\n==" 3 8fdf74 illegal base64 data at input byte 7
+85 "GA==" 1 18 <nil>
+86 "9cO1BA0A\r0e_0" 9 f5c3b5040d00d1eff4 <nil>
+87 "VlWgmuX9f8QWIfkymN73" 15 5655a09ae5fd7fc41621f93298def7 <nil>
+88 "t_YXp+s9" 0  illegal base64 data at input byte 1
+89 "9L0/=-" 0  illegal base64 data at input byte 3
+90 "NPZnW01DwsKZWO9Q" 12 34f6675b4d43c2c29958ef50 <nil>
+91 "--Ifh" 3 fbe21f illegal base64 data at input byte 4
+92 "2H8=Z" 2 d87f illegal base64 data at input byte 4
+93 "Zg=a=+" 0  illegal base64 data at input byte 2
+94 "c6r31hgTZURv-qBw" 12 73aaf7d6181365446ffaa070 <nil>
+95 "3glc/L!Y" 3 de095c illegal base64 data at input byte 6
+96 "e8uP4mWgtJxdtWunZ0tkOxk" 17 7bcb8fe265a0b49c5db56ba7674b643b19 <nil>
+97 "4tR=e0FQ" 0  illegal base64 data at input byte 3
+98 "!kXJ06" 0  illegal base64 data at input byte 0
+99 "5RCdN1A7GpySTkw" 11 e5109d37503b1a9c924e4c <nil>
+100 "1H=uN_bidtac" 0  illegal base64 data at input byte 2
+101 "8p\n9r1gXDGMRI7UIVC1-1HH4" 17 f29f6bd605c318c448ed42150b5fb51c7e <nil>
+102 "_LJ96KA7aFOYcvH4sVwg==" 0  illegal base64 data at input byte 0
+103 "FZdnLFZ7Kpjq/" 9 1597672c567b2a98ea illegal base64 data at input byte 12
+104 "G0QfrjrKi+FZv7abeqhp" 15 1b441fae3aca8be159bfb69b7aa869 <nil>
+105 "QRRM" 3 41144c <nil>
+106 "!Wak=" 0  illegal base64 data at input byte 0
+107 "Wtikp_Z27gxQWg" 10 5ad8a4a7f676ee0c505a <nil>
+108 "7szicxBuy+9mujTZOV3KmeA=" 17 eecce273106ecbef66ba34d9395dca99e0 <nil>
+109 "pI2ZpDPk51x7A/d8VEC+jLEk" 18 a48d99a433e4e75c7b03f77c5440be8cb124 <nil>
+110 "OIeJGKk=" 5 38878918a9 <nil>
+111 "+UMpZQ==" 4 f9432965 <nil>
+112 "IO3TRhuYK8a7p0Az=" 12 20edd3461b982bc6bba74033 illegal base64 data at input byte 16
+113 "Lz\rcRLrzIsN8WIQUgOg==" 13 2f37112ebcc8b0df162105203a <nil>
+114 "LaBFntlA84xyE0Yj-OOU+Nofp" 15 2da0459ed940f38c72134623f8e394 illegal base64 data at input byte 20
+115 "QUheDSxP2U_X" 9 41485e0d2c4fd94fd7 <nil>
+116 "pDRCNIKKBMkfnF5FKrj1" 15 a4344234828a04c91f9c5e452ab8f5 <nil>
+117 "sTMK8+hzM3Thp00zuasVHsQ==" 3 b1330a illegal base64 data at input byte 5
+118 "Q0vvIZM=" 5 434bef2193 <nil>
+119 "W2EtjFpc" 6 5b612d8c5a5c <nil>
+120 "0iuW-A3g8MqGwbg==" 3 d22b96 illegal base64 data at input byte 4
+121 "c86BOQ0D2Yytk0sfTZ44Hi_V" 18 73ce81390d03d98cad934b1f4d9e381e2fd5 <nil>
+122 "rz/VsPj1X/D/QBzwTEuzZQrA" 18 af3fd5b0f8f55ff0ff401cf04c4bb3650ac0 <nil>
+123 "muJjdumC" 6 9ae26376e982 <nil>
+124 "--8=" 2 fbef <nil>
+125 "ZMwbhqVs=" 6 64cc1b86a56c illegal base64 data at input byte 8
+126 "hWAZoRoIP" 6 856019a11a08 illegal base64 data at input byte 8
+127 "pWbvIqnUuX9i9LZUhx6kagVgn" 18 a566ef22a9d4b97f62f4b654871ea46a0560 illegal base64 data at input byte 24
+128 "AaooMHE" 5 01aa283071 <nil>
+129 "PnHgiLivDmd4" 9 3e71e088b8af0e6778 <nil>
+130 "4Y/Zm\rmXVZGaJjE7XnU6GN+HIbg==" 19 e18fd99a65d56466898c4ed79d4e8637e1c86e <nil>
+131 "LEscoGsE=kwy\n0" 6 2c4b1ca06b04 illegal base64 data at input byte 8
+132 "Zl_CQJCywm91Hd" 10 665fc24090b2c26f751d <nil>
+133 "Szjln+n0" 3 4b38e5 illegal base64 data at input byte 5
+134 "tDMFjHim7D4Ech0rGM0" 14 b433058c78a6ec3e04721d2b18cd <nil>
+135 "Wxd_uKE9He8=" 8 5b177fb8a13d1def <nil>
+136 "O5mkByZP" 6 3b99a407264f <nil>
+137 "zQtgWb48MtmYiBj+" 12 cd0b6059be3c32d9988818fe <nil>
+138 "7IPH2UPEIekeVWugM79kg22yDQ==" 19 ec83c7d943c421e91e556ba033bf64836db20d <nil>
+139 "Gw==" 1 1b <nil>
+140 "/gqVOnDo" 6 fe0a953a70e8 <nil>
+141 "_oncQ" 3 fe89dc illegal base64 data at input byte 4
+142 "Q6P3ajTcLBwJacty0BycMQ" 16 43a3f76a34dc2c1c0969cb72d01c9c31 <nil>
+143 "1C-PpTwAx7H1WmM-gqnzbzOSCcw==" 20 d42f8fa53c00c7b1f55a633e82a9f36f339209cc illegal base64 data at input byte 28
+144 "-Ka1D-EM" 6 f8a6b50fe10c <nil>
+145 "" 0  <nil>
+146 "0Wir7AzZz3Xqx9k" 11 d168abec0cd9cf75eac7d9 <nil>
+147 "geC09p+brseaIj4" 11 81e0b4f69f9baec79a223e <nil>
+148 "s5nWjpIz6MKC0d86zbNfE03Y" 18 b399d68e9233e8c282d1df3acdb35f134dd8 <nil>
+149 "=1p1oxeji_0" 0  illegal base64 data at input byte 0
+150 "od\nF10Q==" 4 a1d175d1 <nil>
+151 "1Iv4gDz/fRxYeOnpFWs=" 14 d48bf8803cff7d1c5878e9e9156b <nil>
+152 "3WblRyft7Gme9yTCx=j9p" 12 dd66e54727edec699ef724c2 illegal base64 data at input byte 17
+153 "bshVVTIB!bJOJCPU0U3DM" 6 6ec855553201 illegal base64 data at input byte 8
+154 "Gc17" 3 19cd7b <nil>
+155 "" 0  <nil>
+156 "SqbXe9sVH2BiNeSAla9xN" 15 4aa6d77bdb151f606235e48095af71 illegal base64 data at input byte 20
+157 "nlxUxb5Y9qDrMHmA!" 12 9e5c54c5be58f6a0eb307980 illegal base64 data at input byte 16
+158 "tg" 1 b6 <nil>
+159 "Yr_SUpPBJoO1jXbQz9-KXbQ" 17 62bfd25293c12683b58d76d0cfdf8a5db4 <nil>
+160 "_Q==" 1 fd <nil>
+161 "N1oFA8jSng" 7 375a0503c8d29e <nil>
+162 "wQJ4xF-eV3dSvwnQ==" 3 c10278 illegal base64 data at input byte 6
+163 "LQmAApFNnYU=!" 8 2d098002914d9d85 illegal base64 data at input byte 12
+164 "\raatA=" 3 69ab40 illegal base64 data at input byte 5
+165 "cB8YXuAXkcf2gncwkk+zb4g" 12 701f185ee01791c7f6827730 illegal base64 data at input byte 18
+166 "wnF64oiOZ+gLqCLdZ6Yp4cB/SO" 18 c2717ae2888e67e80ba822dd67a629e1c07f illegal base64 data at input byte 24
+167 "s+BVJWGWZ+nmlh7/23NsRogu" 18 b3e05525619667e9e6961effdb736c46882e <nil>
+168 "T0M3UgXJCw==" 7 4f43375205c90b <nil>
+169 "1592+Caqqm6yTg" 10 d79f76f826aaaa6eb24e <nil>
+170 "zLycBAEbWYzZEySnjVQ" 14 ccbc9c04011b598cd91324a78d54 <nil>
+171 "DdeWcpzQF2+N_kg_==" 9 0dd796729cd0176f8d illegal base64 data at input byte 12
+172 "ICsbh/JHDg==" 7 202b1b87f2470e <nil>
+173 "oA_+" 0  illegal base64 data at input byte 2
+174 "TTNeiqQl9HhHy" 9 4d335e8aa425f47847 illegal base64 data at input byte 12
+175 "J\rQ=" 0  illegal base64 data at input byte 4
+176 "2AoQOa4J0tm/IU/B" 12 d80a1039ae09d2d9bf214fc1 <nil>
+177 "3gE8F4H_al26KoKIDMGI4uck" 18 de013c1781ff6a5dba2a82880cc188e2e724 <nil>
+178 "bgqH-z7IMNHNV1jY3JOE" 15 6e0a87fb3ec830d1cd5758d8dc9384 <nil>
+179 "" 0  <nil>
+180 "XMJMZTYjLUD2ZkM=" 11 5cc24c6536232d40f66643 <nil>
+181 "/hjnrd65miTDBdplgO91Bwg=" 17 fe18e7addeb99a24c305da6580ef750708 <nil>
+182 "" 0  <nil>
+183 "y/" 0  illegal base64 data at input byte 1
+184 "MB8ywzaxEQzeTZYtLNkTyA=9" 15 301f32c336b1110cde4d962d2cd913 illegal base64 data at input byte 22
+185 "ZwO7oR7HczBZg-Ptn4h+YPZEgow" 12 6703bba11ec773305983e3ed illegal base64 data at input byte 19
+186 "TvQqsBGlDQlSGZlSiFZ3Qs!\n" 15 4ef42ab011a50d0952199952885677 illegal base64 data at input byte 22
+187 "Itb0/GHFRj9ctbpcn2KwbSfdZQ==_" 19 22d6f4fc61c5463f5cb5ba5c9f62b06d27dd65 illegal base64 data at input byte 28
+188 "YtCqcy+YECorIg" 10 62d0aa732f98102a2b22 <nil>
+189 "jIJH-j4mJoEJIJQS\nje8I=" 3 8c8247 illegal base64 data at input byte 4
+190 "H9f_QfrZB5srGg==" 0  illegal base64 data at input byte 3
+191 "k/HzKNZplTa0r" 0  illegal base64 data at input byte 1
+192 "0p8o/rSd52zrDd6yO" 3 d29f28 illegal base64 data at input byte 4
+193 "3Lxbtuzzmg==" 7 dcbc5bb6ecf39a <nil>
+194 "DI4rWa3t_w" 7 0c8e2b59adedff <nil>
+195 "-M0=!" 0  illegal base64 data at input byte 0
+196 "ZM5UQaYQSbmidbglm2eV" 15 64ce5441a61049b9a275b8259b6795 <nil>
+197 "qFAQhHFNgQp-Sf5j7D+0_Bcj7Q" 12 a8501084714d810a7e49fe63 illegal base64 data at input byte 18
+198 "84lQocFcjbg164Q" 11 f38950a1c15c8db835eb84 <nil>
+199 "eVlA1Lxj/MHifo7RP0IDwA_==" 15 795940d4bc63fcc1e27e8ed13f4203 illegal base64 data at input byte 22
+200 "\nZcy2XoVe\nzLYiRZ0O" 12 65ccb65e855eccb622459d0e <nil>
+201 "yqSnZABPeL38Gu2ADj1S34K5l" 18 caa4a764004f78bdfc1aed800e3d52df82b9 illegal base64 data at input byte 24
+202 "y\n_vJHac9OysW6I" 0  illegal base64 data at input byte 2
+203 "v0-//YxR9lvw==" 0  illegal base64 data at input byte 2
+204 "eVvTzd--" 6 795bd3cddfbe <nil>
+205 "h+BckQ9\rMXXvwSSs/H2Y" 14 87e05c910f4c5d7bf0492b3f1f66 <nil>
+206 "HaNj2vCc9Qtiz" 9 1da363daf09cf50b62 illegal base64 data at input byte 12
+207 "e/gHxCmGc1gplvau9IgVjw==" 16 7bf807c4298673582996f6aef488158f <nil>
+208 "_JiXZW98g9_DdlY=" 11 fc9897656f7c83dfc37656 <nil>
+209 "9-i_Kv17B6ioqUE=" 11 f7e8bf2afd7b07a8a8a941 <nil>
+210 "-MpSvmw1\rqYW" 6 f8ca52be6c35 illegal base64 data at input byte 11
+211 "RiQsarWkWw==" 7 46242c6ab5a45b <nil>
+212 "jCZzLQAUSQUR4Sckndqxc70jZTQ" 20 8c26732d0014490511e127249ddab173bd236534 <nil>
+213 "phuy2AqcpK09RGM=" 11 a61bb2d80a9ca4ad3d4463 <nil>
+214 "tRk4ItSq2ZC91AW91zA==" 14 b5193822d4aad990bdd405bdd730 illegal base64 data at input byte 20
+215 "rGwKMlcadjKpADszQkbHWg==" 16 ac6c0a32571a7632a9003b334246c75a <nil>
+216 "d5l-1vdq5CGgleQwPXgyyjwlxjbA==" 0  illegal base64 data at input byte 3
+217 "5oY5eA6zwRSsb+3bDg" 13 e68639780eb3c114ac6feddb0e <nil>
+218 "Z-!3X" 0  illegal base64 data at input byte 1
+219 "" 0  <nil>
+220 "QaScG!4TEnL9O/JUamwQfFb4" 3 41a49c illegal base64 data at input byte 5
+221 "n\n1AGTZDSEn80" 9 9f50064d90d2127f34 <nil>
+222 "NyK63Gpq4dF6AG75ZobCk9nr2w" 19 3722badc6a6ae1d17a006ef96686c293d9ebdb <nil>
+223 "nUjaOg" 4 9d48da3a <nil>
+224 "Ne0WHQkhp2Q" 8 35ed161d0921a764 <nil>
+225 "ssX_xThm/wTEVYZg=" 0  illegal base64 data at input byte 3
+226 "CMiqrDsanQnPAGQ==" 11 08c8aaac3b1a9d09cf0064 illegal base64 data at input byte 16
+227 "o0gSazXr4ZKCtfg=!" 11 a348126b35ebe19282b5f8 illegal base64 data at input byte 16
+228 "A_vUCH_gSy3Rfuj1sGYzYmQ" 17 03fbd4087fe04b2dd17ee8f5b066336264 <nil>
+229 "bTPzWgPM5w" 7 6d33f35a03cce7 <nil>
+230 "JSj1nSjw" 6 2528f59d28f0 <nil>
+231 "NTcpbbxlm9Vs=" 9 3537296dbc659bd56c illegal base64 data at input byte 12
+232 "sERSyPqtfffqCL0u" 12 b04452c8faad7df7ea08bd2e <nil>
+233 "zr_KPHlZ6o9DswXizsMDZmbU" 18 cebfca3c7959ea8f43b305e2cec3036666d4 <nil>
+234 "znXbJCp5sqwK/WOn-5N64dpo" 12 ce75db242a79b2ac0afd63a7 illegal base64 data at input byte 16
+235 "PIaLUFE8t9g" 8 3c868b50513cb7d8 <nil>
+236 "AX83E3Ta6=w" 6 017f371374da illegal base64 data at input byte 9
+237 "Xg9RstA" 5 5e0f51b2d0 <nil>
+238 "AiC43z2mx8ck" 9 0220b8df3da6c7c724 <nil>
+239 "MVTuLVhI0-ZgPm8pVrk" 14 3154ee2d5848d3e6603e6f2956b9 <nil>
+240 "uwMT" 3 bb0313 <nil>
+241 "UZC4!8jWLYrIY7CUZNfWqYQ" 3 5190b8 illegal base64 data at input byte 4
+242 "XiiDzXkW9R/Ynm8z9nmwXNWQ" 18 5e2883cd7916f51fd89e6f33f679b05cd590 <nil>
+243 "YArZA" 3 600ad9 illegal base64 data at input byte 4
+244 "Nf13ki2Od1wtMY!wgevRb71CQ" 9 35fd77922d8e775c2d illegal base64 data at input byte 14
+245 "EqB8KRpLzsQZTvE1q+DILUgA+" 12 12a07c291a4bcec4194ef135 illegal base64 data at input byte 17
+246 "z6X2O8nO0SABaZk2AOVEpmB=ZVCg==" 17 cfa5f63bc9ced1200169993600e544a660 illegal base64 data at input byte 24
+247 "K9jwxoJwLrzk9wA" 11 2bd8f0c682702ebce4f700 <nil>
+248 "oCfBkx=d45=" 3 a027c1 illegal base64 data at input byte 6
+249 "K9tOy8dKDN\rw1Lmkbtige2UI=" 17 2bdb4ecbc74a0cdc352e691bb6281ed942 <nil>
+250 "pXz9jTz_KCfd" 9 a57cfd8d3cff2827dd <nil>
+251 "g/l8ZS\ndvN4=z" 6 83f97c65276f illegal base64 data at input byte 11
+252 "l2U6bqg4ajXn/xbx" 12 97653a6ea8386a35e7ff16f1 <nil>
+253 "PW16sAhLJFdF" 9 3d6d7ab0084b245745 <nil>
+254 "yps" 2 ca9b <nil>
+255 "aH0\r=" 2 687d <nil>
+256 "TZaSjCQcrlUC/54ZnaUYSgQV" 18 4d96928c241cae5502ff9e199da5184a0415 <nil>
+257 "gLy-gwyggKR7bzu93plGzeqnI" 18 80bcbe830ca080a47b6f3bbdde9946cdeaa7 illegal base64 data at input byte 24
+258 "xVaH" 3 c55687 <nil>
+259 "1Q" 1 d5 <nil>
+260 "cnz/dJPj6n5CZj=VS+A==" 9 727cff7493e3ea7e42 illegal base64 data at input byte 14
+261 "xLR2csS7dNM4CMh_ych03IFbUQ==" 19 c4b47672c4bb74d33808c87fc9c874dc815b51 <nil>
+262 "Y1upasbs-PuV" 9 635ba96ac6ecf8fb95 <nil>
+263 "YBsNNwQpw2uIp2aJXPDD" 15 601b0d370429c36b88a766895cf0c3 <nil>
+264 "suslosGQTYg" 8 b2eb25a2c1904d88 <nil>
+265 "a0+rM5AYfYAWDPyA=" 12 6b4fab3390187d80160cfc80 illegal base64 data at input byte 16
+266 "o_2gtD9yAB" 0  illegal base64 data at input byte 1
+267 "UmX5B9_X4RLQl6K6M1g" 14 5265f907dfd7e112d097a2ba3358 <nil>
+268 "qWIXc/tvj3J9" 3 a96217 illegal base64 data at input byte 5
+269 "dUTYoaaURtJJlu1bZNObkgM=" 17 7544d8a1a69446d24996ed5b64d39b9203 <nil>
+270 "m7a-+4!UXtcDmw==" 0  illegal base64 data at input byte 3
+271 "MK5kRvRBPYZXAb4" 11 30ae6446f4413d865701be <nil>
+272 "\nu8-" 0  illegal base64 data at input byte 3
+273 "mqyaminHuIyeuf35Gw" 13 9aac9a9a29c7b88c9eb9fdf91b <nil>
+274 "t6SO5JJ6UwsbDhQhndF4Qw==" 16 b7a48ee4927a530b1b0e14219dd17843 <nil>
+275 "3VkPUcaNK2Mk+r8Xi8zyw" 15 dd590f51c68d2b6324fabf178bccf2 illegal base64 data at input byte 20
+276 "35KxVomRwWNmV9BtzA==" 13 df92b1568991c1636657d06dcc <nil>
+277 "0n7-y" 3 d27efe illegal base64 data at input byte 4
+278 "y3g=" 2 cb78 <nil>
+279 "GMWn5uM4B8/n5ZdDtkiJ0Q==" 16 18c5a7e6e33807cfe7e59743b64889d1 <nil>
+280 "deYzYMg=_" 5 75e63360c8 illegal base64 data at input byte 8
+281 "lT33g786Hbz26MpHNUq2p" 15 953df783bf3a1dbcf6e8ca47354ab6 illegal base64 data at input byte 20
+282 "9pFpNAoKZlNSBy-xuy42Bw" 16 f69169340a0a665352072fb1bb2e3607 <nil>
+283 "qFE+F2qQavCoLxsFBsz1qfZw" 18 a8513e176a906af0a82f1b0506ccf5a9f670 <nil>
+284 "" 0  <nil>
+285 "9Ms=" 2 f4cb <nil>
+286 "z2vSF_Ly!" 6 cf6bd217f2f2 illegal base64 data at input byte 8
+287 "uUClfxznXBELL2Hg" 12 b940a57f1ce75c110b2f61e0 <nil>
+288 "F7nznKw=" 5 17b9f39cac <nil>
+289 "qTew/" 3 a937b0 illegal base64 data at input byte 4
+290 "QdNC\r8CxzpXt3G-dl_6WruwOqg==" 18 41d342f02c73a57b771be765ffa5abbb03aa illegal base64 data at input byte 26
+291 "VxER4nqoJK3Y" 9 571111e27aa824add8 <nil>
+292 "kttxuMDVQQf8" 9 92db71b8c0d54107fc <nil>
+293 "pw==" 1 a7 <nil>
+294 "OudiuJejG!S2nAnPHF9/n" 6 3ae762b897a3 illegal base64 data at input byte 9
+295 "pP-G" 0  illegal base64 data at input byte 2
+296 "\rh0YjGmHFJhTGQG-gikm34SIB" 18 8746231a61c52614c6406fa08a49b7e12201 <nil>
+297 "+O1/Dw+PD/AQ" 9 f8ed7f0f0f8f0ff010 <nil>
+298 "0x3k-PmATzdIEkYso=" 3 d31de4 illegal base64 data at input byte 4
+299 "bg/=0" 0  illegal base64 data at input byte 3
+0x0 false 0xfffd 0xfffd 0xfffd 1 [1 0]
+0x61 false 0xfffd 0xfffd 0xfffd 1 [1 97]
+0xd7ff false 0xfffd 0xfffd 0xfffd 1 [1 55295]
+0xd800 true 0xfffd 0xfffd 0xfffd -1 [1 65533]
+0xdbff true 0xfffd 0xfffd 0xfffd -1 [1 65533]
+0xdc00 true 0xfffd 0xfffd 0xfffd -1 [1 65533]
+0xdfff true 0xfffd 0xfffd 0xfffd -1 [1 65533]
+0xe000 false 0xfffd 0xfffd 0xfffd 1 [1 57344]
+0xfffd false 0xfffd 0xfffd 0xfffd 1 [1 65533]
+0xffff false 0xfffd 0xfffd 0xfffd 1 [1 65535]
+0x10000 false 0xd800 0xdc00 0x10000 2 [1 55296 56320]
+0x1f600 false 0xd83d 0xde00 0x1f600 2 [1 55357 56832]
+0x10ffff false 0xdbff 0xdfff 0x10ffff 2 [1 56319 57343]
+0x110000 false 0xfffd 0xfffd 0xfffd -1 [1 65533]
+-0x1 false 0xfffd 0xfffd 0xfffd -1 [1 65533]
+0xfffd 0xfffd 0xfffd
+[97 233 55357 56832 56319 57343] [65533 65533 65533 122] 6 true
+aé😀􏿿 [65533] [65533 97 65533 1114111] false 0
+main.Celsius true false false false false false 21C <nil>
+*main.Celsius true true false false false false 0C <nil>
+main.Blob false false true false true true
+*main.Blob false false true true true true
+int false false false false false false
+<nil> 37 true
+[3 120 121 122] <nil> <nil> xyz bad blob
+[238 3 120 121 122] <nil> t:eHl6 <nil>
+*main.Celsius true
+[1 2 9] [1 2 9] true
+[1 2 9] [1 2 9 4] true 4
+true 0 true
+grow negative recovered: cannot be negative
+short alphabet recovered: encoding alphabet is not 64-bytes long
+newline alphabet recovered: encoding alphabet contains newline character
+duplicate alphabet recovered: encoding alphabet includes duplicate symbols
+padding newline recovered: invalid padding
+padding range recovered: invalid padding
+padding negative recovered: invalid padding
+padding in alphabet recovered: padding contained in alphabet
+short dst recovered: runtime error: index out of range [3] with length 3
+short decode dst recovered: runtime error: index out of range [2] with length 2
+nil encoding recovered: runtime error: invalid memory address or nil pointer dereference
+b2s true
