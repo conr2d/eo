@@ -8,8 +8,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_definitions(BOOST_ASIO_HAS_STD_INVOKE_RESULT)
 
-# boost::asio::any_completion_handler, used by sync::WaitGroup, needs Boost 1.81.
-find_package(Boost 1.81 REQUIRED)
+# boost::asio::any_completion_handler, which channels and sync::WaitGroup use, needs Boost 1.81. CI
+# tests 1.83, Ubuntu 24.04's, and the latest release, so older versions are not accepted.
+find_package(Boost 1.83 REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 

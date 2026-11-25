@@ -2186,7 +2186,7 @@ Values buffered before `close` are still received, as in Go. A send on a closed 
 
 #### Channels not covered yet
 
-- `len(ch)`, the number of buffered values, which the Boost.Asio channel does not expose;
+- `len(ch)`, the number of buffered values;
 - printing a channel with `fmt`, holding one in an interface, and `%T` of a channel type;
 - a channel of channels with a direction, such as `chan<- <-chan int`, whose `%T` would differ; the operations on it are covered.
 

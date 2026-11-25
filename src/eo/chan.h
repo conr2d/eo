@@ -675,19 +675,13 @@ public:
 } // namespace eo
 
 namespace std {
-#if __has_include(<experimental/coroutine>)
-namespace experimental {
-#endif
-  template<typename T>
-  struct coroutine_traits<eo::send_t<T>> {
-    typedef coroutine_traits<boost::asio::awaitable<void>>::promise_type promise_type;
-  };
+template<typename T>
+struct coroutine_traits<eo::send_t<T>> {
+  typedef coroutine_traits<boost::asio::awaitable<void>>::promise_type promise_type;
+};
 
-  template<typename T>
-  struct coroutine_traits<eo::recv_t<T>> {
-    typedef typename coroutine_traits<boost::asio::awaitable<T>>::promise_type promise_type;
-  };
-#if __has_include(<experimental/coroutine>)
-} // namespace experimental
-#endif
+template<typename T>
+struct coroutine_traits<eo::recv_t<T>> {
+  typedef typename coroutine_traits<boost::asio::awaitable<T>>::promise_type promise_type;
+};
 } // namespace std

@@ -15,7 +15,7 @@ Eo is under active development and its APIs are not stable. The [translation-rea
 ## Requirements
 
 - C++23 on a 64-bit platform, with GCC or Clang, which accept `-fwrapv`
-- Boost.Asio with coroutine, experimental channel, and awaitable-operator support
+- Boost 1.83 or newer, of which Eo uses Asio, PFR, and Multiprecision, all header-only. CI tests 1.83, the version Ubuntu 24.04 ships, and 1.92, the latest release. Eo uses no experimental Asio facility: its channels and `select` are its own, built on `awaitable`, `co_spawn`, and `async_initiate`.
 - fmt
 - CMake 3.25+
 
@@ -102,7 +102,7 @@ func<> eo_main() {
 
 ### Select statement
 
-Select is currently implemented with Boost.Asio awaitable composition.
+Select follows Go's `selectgo`: it checks its cases in a random order, and otherwise queues a waiter on every channel under one token, so exactly one case completes.
 
 ```go
 // Go
