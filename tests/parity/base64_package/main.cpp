@@ -83,6 +83,30 @@ auto failWriter::Write(ptr<failWriter> w, slice<uint8_t> p) -> std::tuple<int64_
   return bytes::Buffer::Write(ptr(w, &w->buf), p);
 }
 
+// A reader that fails with errBroken after its data.
+struct brokenReader {
+  static constexpr std::string_view _eo_name = "main.brokenReader";
+
+  std::string data{};
+
+  auto operator==(const brokenReader&) const -> bool = default;
+
+  static auto Read(ptr<brokenReader> b, slice<uint8_t> p) -> std::tuple<int64_t, error>;
+
+  using _eo_methods = eo::methods<eo::method<&brokenReader::Read, "Read">>;
+};
+
+error errBroken{};
+
+auto brokenReader::Read(ptr<brokenReader> b, slice<uint8_t> p) -> std::tuple<int64_t, error> {
+  if (b->data == ""s) {
+    return {0, errBroken};
+  }
+  auto n = eo::copy(p, b->data);
+  b->data = eo::substr(b->data, n);
+  return {n, nullptr};
+}
+
 struct Celsius : eo::defined<Celsius, int64_t> {
   using defined::defined;
   static constexpr std::string_view _eo_name = "main.Celsius";
@@ -318,6 +342,16 @@ void streams() {
   auto _eo_call_5 = w2.Close();
   auto _eo_call_6 = bytes::Buffer::String(ptr(fw2, &fw2->buf));
   fmt::Println(_eo_call_5, _eo_call_6);
+  auto raw = base64::NewDecoder(base64::RawStdEncoding, strings::NewReader("Zm9"s));
+  auto [n0, err0] = raw.Read(nullptr);
+  auto small = eo::make_slice<uint8_t>(2);
+  auto [n1, err1] = raw.Read(small);
+  fmt::Println(n0, err0, n1, err1, eo::string_from_bytes(eo::subslice(small, 0, n1)));
+  auto br = base64::NewDecoder(base64::StdEncoding, New<brokenReader>(brokenReader{"Zm9vYmFy"s}));
+  slice<uint8_t> got{};
+  std::tie(got, err) = io::ReadAll(br);
+  auto [n2, err2] = br.Read(eo::make_slice<uint8_t>(4));
+  fmt::Printf("%q %v %d %v\n"s, got, err, n2, err2);
   fmt::Printf("%T %T\n"s, w, base64::NewDecoder(base64::StdEncoding, strings::NewReader(""s)));
 }
 
@@ -458,6 +492,7 @@ void grow() {
 
 func<> eo_init() {
   errFull = errors::New("full"s);
+  errBroken = errors::New("broken"s);
   co_return;
 }
 

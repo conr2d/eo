@@ -78,6 +78,8 @@ true VGhlIHF1aWNrIGJyb3du
 0 full 
 0 full full
 full YWJj
+0 <nil> 2 <nil> fo
+"foobar" broken 0 broken
 *base64.encoder *base64.decoder
 0 "" 0  <nil>
 1 "X9V5TV6F3DXfABDD=F8" 12 5fd5794d5e85dc35df0010c3 illegal base64 data at input byte 16

@@ -60,6 +60,22 @@ func (w *failWriter) Write(p []byte) (int, error) {
 	return w.buf.Write(p)
 }
 
+// A reader that fails with errBroken after its data.
+type brokenReader struct {
+	data string
+}
+
+var errBroken = errors.New("broken")
+
+func (b *brokenReader) Read(p []byte) (int, error) {
+	if b.data == "" {
+		return 0, errBroken
+	}
+	n := copy(p, b.data)
+	b.data = b.data[n:]
+	return n, nil
+}
+
 type Celsius int
 
 func (c Celsius) MarshalText() ([]byte, error) {
@@ -214,6 +230,15 @@ func streams() {
 	w2 := base64.NewEncoder(base64.StdEncoding, fw2)
 	w2.Write([]byte("abcd"))
 	fmt.Println(w2.Close(), fw2.buf.String())
+	raw := base64.NewDecoder(base64.RawStdEncoding, strings.NewReader("Zm9"))
+	n0, err0 := raw.Read(nil)
+	small := make([]byte, 2)
+	n1, err1 := raw.Read(small)
+	fmt.Println(n0, err0, n1, err1, string(small[:n1]))
+	br := base64.NewDecoder(base64.StdEncoding, &brokenReader{"Zm9vYmFy"})
+	got, err := io.ReadAll(br)
+	n2, err2 := br.Read(make([]byte, 4))
+	fmt.Printf("%q %v %d %v\n", got, err, n2, err2)
 	fmt.Printf("%T %T\n", w, base64.NewDecoder(base64.StdEncoding, strings.NewReader("")))
 }
 

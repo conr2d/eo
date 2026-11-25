@@ -13,6 +13,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 
 // Go's encoding/base64, ported from Go 1.26's base64.go. Encoding is written as a translated type:
 // its methods are static members whose first parameter is the receiver, a ptr<Encoding> except for
@@ -95,7 +96,7 @@ struct Encoding {
   auto operator==(const Encoding&) const -> bool = default;
 
   static auto WithPadding(Encoding _eo_param_enc, int32_t padding) -> ptr<Encoding> {
-    auto enc = New<Encoding>(_eo_param_enc);
+    auto enc = New<Encoding>(std::move(_eo_param_enc));
     if (padding < NoPadding || padding == '\r' || padding == '\n' || padding > 0xff) {
       panic(std::string{"invalid padding"});
     } else if (padding != NoPadding && eo::at(enc->decodeMap, static_cast<uint8_t>(padding)) != detail::invalidIndex) {
@@ -106,7 +107,7 @@ struct Encoding {
   }
 
   static auto Strict(Encoding _eo_param_enc) -> ptr<Encoding> {
-    auto enc = New<Encoding>(_eo_param_enc);
+    auto enc = New<Encoding>(std::move(_eo_param_enc));
     enc->strict = true;
     return enc;
   }
@@ -482,7 +483,9 @@ namespace detail {
     std::array<uint8_t, 1024> buf{};
     int64_t nbuf{};
     slice<uint8_t> out{};
-    std::array<uint8_t, 1024 / 4 * 3> outbuf{};
+    // Go's [1024 / 4 * 3]byte. out is a slice of it, so it is a separate array: a slice of an array
+    // field would make the decoder own itself, a cycle that is never freed.
+    slice<uint8_t> outbuf{};
 
     auto operator==(const decoder&) const -> bool = default;
 
@@ -513,10 +516,9 @@ namespace detail {
       if (d->nbuf < 4) {
         if (d->enc->padChar == NoPadding && d->nbuf > 0) {
           int64_t nw{};
-          std::tie(nw, d->err) =
-            Encoding::Decode(d->enc, eo::subslice(ptr(d, &d->outbuf), 0), eo::subslice(ptr(d, &d->buf), 0, d->nbuf));
+          std::tie(nw, d->err) = Encoding::Decode(d->enc, d->outbuf, eo::subslice(ptr(d, &d->buf), 0, d->nbuf));
           d->nbuf = 0;
-          d->out = eo::subslice(ptr(d, &d->outbuf), 0, nw);
+          d->out = eo::subslice(d->outbuf, 0, nw);
           n = eo::copy(p, d->out);
           d->out = eo::subslice(d->out, n);
           if (n > 0 || (eo::len(p) == 0 && eo::len(d->out) > 0)) {
@@ -536,9 +538,8 @@ namespace detail {
       auto nr = d->nbuf / 4 * 4;
       auto nw = d->nbuf / 4 * 3;
       if (nw > eo::len(p)) {
-        std::tie(nw, d->err) =
-          Encoding::Decode(d->enc, eo::subslice(ptr(d, &d->outbuf), 0), eo::subslice(ptr(d, &d->buf), 0, nr));
-        d->out = eo::subslice(ptr(d, &d->outbuf), 0, nw);
+        std::tie(nw, d->err) = Encoding::Decode(d->enc, d->outbuf, eo::subslice(ptr(d, &d->buf), 0, nr));
+        d->out = eo::subslice(d->outbuf, 0, nw);
         n = eo::copy(p, d->out);
         d->out = eo::subslice(d->out, n);
       } else {
@@ -590,7 +591,8 @@ inline auto NewEncoder(ptr<Encoding> enc, io::Writer w) -> io::WriteCloser {
 
 inline auto NewDecoder(ptr<Encoding> enc, io::Reader r) -> io::Reader {
   return io::Reader(New<detail::decoder>(detail::decoder{.enc = enc,
-    .r = io::Reader(New<detail::newlineFilteringReader>(detail::newlineFilteringReader{r}))}));
+    .r = io::Reader(New<detail::newlineFilteringReader>(detail::newlineFilteringReader{r})),
+    .outbuf = eo::make_slice<uint8_t>(1024 / 4 * 3)}));
 }
 
 } // namespace eo::base64
