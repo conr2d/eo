@@ -2077,6 +2077,12 @@ They compute their results as Go's `letter.go` and `graphic.go` do, from tables 
 
 - the category and script tables and the functions that use them, such as `IsLetter`, `IsDigit`, `IsUpper`, `IsPrint`, and `In`, and `SpecialCase`.
 
+### The unicode/utf8 package
+
+Go's `unicode/utf8` maps to the namespace `utf8` from `<eo/unicode/utf8.h>`. It covers every function and constant of the package: `RuneError`, `RuneSelf`, `MaxRune`, and `UTFMax`; `FullRune`, `DecodeRune`, `DecodeLastRune`, `RuneCount`, and `Valid` with their `InString` and `String` forms; `EncodeRune`, `AppendRune`, `RuneLen`, `RuneStart`, and `ValidRune`.
+
+A `rune` is `int32_t` and an `int` result is `int64_t`, so `r, size := utf8.DecodeRune(b)` is `auto [r, size] = utf8::DecodeRune(b);`. The functions are ported from Go 1.26's `utf8.go`, with its tables, so an invalid or truncated encoding decodes to `RuneError` with the size Go gives, a surrogate or a value above `MaxRune` encodes as `RuneError`, and `RuneLen` of either is `-1`. `EncodeRune` panics with `runtime error: index out of range` when its slice is too short for the encoding, and writes nothing then, as Go's does. `Valid` checks one byte at a time where Go checks a word of ASCII at a time, which gives the same results.
+
 ### The math/bits package
 
 Go's `math/bits` maps to the namespace `bits` from `<eo/math/bits.h>`. It covers:
@@ -2152,6 +2158,45 @@ They are ported from Go 1.26's `buffer.go` and `reader.go`:
 - The errors of `UnreadByte`, `UnreadRune`, `ReadAt`, and `Seek` have Go's messages, such as `bytes.Reader.Seek: negative position` and `strings.Reader.UnreadByte: at beginning of string`.
 - A `Buffer` grows as Go's does, but Go rounds each new capacity up to an allocation size class, and Eo does not. The values of `Cap` and `Available`, and the length of `AvailableBuffer`, after the buffer has grown are outside this mapping, as is whether a `Bytes` result still aliases the buffer after a write that grows it.
 - Copying a `Buffer` copies its fields, so the copy shares the backing array, as in Go, where `go vet` reports the copy.
+
+### The bufio package
+
+Go's `bufio` maps to the namespace `bufio` from `<eo/bufio.h>`. It covers the whole package:
+
+- the types `Reader`, `Writer`, `ReadWriter`, and `Scanner`, with all their methods, and `NewReader`, `NewReaderSize`, `NewWriter`, `NewWriterSize`, `NewReadWriter`, and `NewScanner`;
+- `SplitFunc` and the split functions `ScanLines`, `ScanWords`, `ScanRunes`, and `ScanBytes`;
+- the errors `ErrInvalidUnreadByte`, `ErrInvalidUnreadRune`, `ErrBufferFull`, `ErrNegativeCount`, `ErrTooLong`, `ErrNegativeAdvance`, `ErrAdvanceTooFar`, `ErrBadReadCount`, and `ErrFinalToken`, and the constant `MaxScanTokenSize`.
+
+The types are written as translated types, as in [Buffers and readers](#buffers-and-readers): each method is a static member whose first parameter is the receiver. A `ptr<bufio::Reader>` is an `io::Reader`, `io::ByteScanner`, `io::RuneScanner`, and `io::WriterTo`, and a `ptr<bufio::Writer>` an `io::Writer`, `io::ByteWriter`, `io::StringWriter`, and `io::ReaderFrom`, as in Go:
+
+```go
+br := bufio.NewReader(r)
+b, err := br.Peek(1)
+w := bufio.NewWriter(&out)
+fmt.Fprintf(w, "%d\n", len(b))
+w.Flush()
+```
+
+```cpp
+auto br = bufio::NewReader(r);
+auto [b, err] = bufio::Reader::Peek(br, 1);
+auto w = bufio::NewWriter(out);
+fmt::Fprintf(w, "%d\n"s, eo::len(b));
+bufio::Writer::Flush(w);
+```
+
+`ReadWriter` embeds `*Reader` and `*Writer`, so its fields are `Reader` and `Writer`, and `rw.ReadString('\n')` is `bufio::Reader::ReadString(rw->Reader, 10)`, as in [Embedded fields](#embedded-fields). Its method table has the forwarders of the promoted methods, without `Buffered`, `Reset`, and `Size`, which both embedded types declare, so Go leaves them out of its method set. `SplitFunc` is an alias of its function type, `fn<std::tuple<int64_t, slice<uint8_t>, error>(slice<uint8_t>, bool)>`, so a function literal or one of the split functions is passed to `Split` as it is. `Scanner` holds a function value, so it has no `operator==`, as a Go struct with a func field is not comparable.
+
+They are ported from Go 1.26's `bufio.go` and `scan.go`:
+
+- `Peek`, `ReadSlice`, `ReadLine`, `Bytes`, and the token that a split function returns alias the buffer until the next read, as in Go.
+- `NewReaderSize` and `NewWriterSize` return their argument when it is a `*Reader` or `*Writer` whose buffer is large enough, and `Reset` of a reader or writer to itself does nothing.
+- A `Reader` reads straight into a `Read` buffer at least as large as its own, and a `Writer` writes straight from a `Write` buffer larger than its free space when it holds nothing. `WriteString` then uses the underlying `io.StringWriter`, and `ReadFrom` the underlying `io.ReaderFrom`.
+- The panics have Go's messages, such as `bufio: tried to fill full buffer`, `Split called after Scan`, and `bufio.Scan: too many empty tokens without progressing`, and a `Read` that reports a negative count panics with `bufio: reader returned negative count from Read`.
+
+#### The bufio package not covered yet
+
+- `%T` of a `SplitFunc` value, which prints its function type, where Go prints `bufio.SplitFunc`.
 
 ### Goroutine
 
@@ -2704,6 +2749,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [Errors not covered yet](#errors-not-covered-yet) and [Formatted printing not covered yet](#formatted-printing-not-covered-yet);
 - the forms in [The math/big package not covered yet](#the-mathbig-package-not-covered-yet);
 - the forms in [The strings and bytes packages not covered yet](#the-strings-and-bytes-packages-not-covered-yet) and [The unicode package not covered yet](#the-unicode-package-not-covered-yet);
+- the forms in [The io package not covered yet](#the-io-package-not-covered-yet) and [The bufio package not covered yet](#the-bufio-package-not-covered-yet);
 - the forms in [The strconv package not covered yet](#the-strconv-package-not-covered-yet), [The encoding/hex package not covered yet](#the-encodinghex-package-not-covered-yet), and [The encoding/binary package not covered yet](#the-encodingbinary-package-not-covered-yet);
 - the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);

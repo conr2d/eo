@@ -1,0 +1,138 @@
+"" U+FFFD 0 U+FFFD 0 U+FFFD 0 U+FFFD 0 false false 0 0 true true
+"a" U+0061 1 U+0061 1 U+0061 1 U+0061 1 true true 1 1 true true
+"é" U+00E9 2 U+00E9 2 U+00E9 2 U+00E9 2 true true 1 1 true true
+"€" U+20AC 3 U+20AC 3 U+20AC 3 U+20AC 3 true true 1 1 true true
+"𝄞" U+1D11E 4 U+1D11E 4 U+1D11E 4 U+1D11E 4 true true 1 1 true true
+"\xff" U+FFFD 1 U+FFFD 1 U+FFFD 1 U+FFFD 1 true true 1 1 false false
+"\xc0\x80" U+FFFD 1 U+FFFD 1 U+FFFD 1 U+FFFD 1 true true 2 2 false false
+"\xed\xa0\x80" U+FFFD 1 U+FFFD 1 U+FFFD 1 U+FFFD 1 true true 3 3 false false
+"\xf4\x90\x80\x80" U+FFFD 1 U+FFFD 1 U+FFFD 1 U+FFFD 1 true true 4 4 false false
+"\xe2\x82" U+FFFD 1 U+FFFD 1 U+FFFD 1 U+FFFD 1 false false 2 2 false false
+"\xf0\x9d\x84" U+FFFD 1 U+FFFD 1 U+FFFD 1 U+FFFD 1 false false 3 3 false false
+"a€𝄞\xff" U+0061 1 U+0061 1 U+FFFD 1 U+FFFD 1 true true 4 4 false false
+-1 -1 false 3 [239 191 189] [120 239 191 189]
+0 1 true 1 [0] [120 0]
+127 1 true 1 [127] [120 127]
+128 2 true 2 [194 128] [120 194 128]
+2047 2 true 2 [223 191] [120 223 191]
+2048 3 true 3 [224 160 128] [120 224 160 128]
+55295 3 true 3 [237 159 191] [120 237 159 191]
+55296 -1 false 3 [239 191 189] [120 239 191 189]
+57343 -1 false 3 [239 191 189] [120 239 191 189]
+57344 3 true 3 [238 128 128] [120 238 128 128]
+65535 3 true 3 [239 191 191] [120 239 191 191]
+65536 4 true 4 [240 144 128 128] [120 240 144 128 128]
+1114111 4 true 4 [244 143 191 191] [120 244 143 191 191]
+1114112 -1 false 3 [239 191 189] [120 239 191 189]
+false true true 65533 128 1114111 4
+EncodeRune short recovered: runtime error: index out of range [2] with length 2
+[1 2]
+[97] [239 191 189]
+[1] <nil> 1
+1 <nil> 0
+payload EOF true
+16
+0123456789abcdef bufio: buffer full
+true bufio: negative count
+0 bufio: negative count
+0 <nil>
+20 <nil> 12
+k <nil> <nil> bufio: invalid use of UnreadByte
+k
+11 lmnopqrstuv <nil>
+4 wxyz <nil>
+0 EOF
+0 EOF
+[] EOF
+true false 64
+'h' 1 'é' 2 'l' 1 'l' 1 'o' 1 ',' 1 ' ' 1 '世' 3 '界' 3 '�' 1 '!' 1 rune end: EOF
+
+bufio: invalid use of UnreadRune <nil>
+a 1 <nil> bufio: invalid use of UnreadRune
+a 1
+<nil>
+a 1
+"short" false <nil>
+"windows" false <nil>
+"this line is lon" true <nil>
+"ger than sixteen" true <nil>
+" bytes" false <nil>
+"split\rxxxxxxxxxx" true <nil>
+"xxxxx" false <nil>
+"last" false <nil>
+"" false EOF
+"abc," <nil>
+"defghijklmnopqrs" bufio: buffer full
+"tuvwxyz," <nil>
+"," <nil>
+"tail" EOF
+51 56789; <nil>
+"next;" <nil>
+"end" EOF
+false 0 EOF
+15 <nil> write to buffer
+21 <nil> hrough a plain writer true
+18 <nil> into a reader from
+0 multiple Read calls return no data or error true
+30 big read goes straight through <nil> <nil>
+104 <nil>
+4096
+zero <nil>
+true true true false
+*bufio.Reader
+8 8 0
+5 3 0
+18 <nil> 0 abcdefghijklmnopqrstu
+<nil> abcdefghijklmnopqrstu 0
+<nil>
+3 <nil> 4
+4 <nil> 4 abcdefghijklmnopqrstu!€1234
+"abcdefghijklmnopqrstu!€1234𝄞"
+2
+3 <nil> 0
+true
+0 8
+3
+35 <nil> 8 3
+a long string that skips the buffer 9
+29 <nil> straight into a string writer 0
+7 <nil> abcdefgh 2
+<nil> <nil>
+1 <nil>
+4 <nil>
+0 <nil>
+limited: full 4 ab
+0 limited: full limited: full limited: full 4 ab
+18 <nil> xyread from a reader 0
+xyread from a reader
+13 <nil> 1
+one at a time
+true false 4096 4096
+4096
+true true true true
+"in\n" <nil>
+out 3 0
+3 put <nil>
+false true
+"one" "two" "" "three" <nil>
+"the" "quick" "brown" "fox" "jumps" <nil>
+"a" "€" "�" "𝄞" "�" "�" <nil>
+[120] [121] [122] <nil>
+"a" "b" "stopped" <nil> false
+"short" bufio.Scanner: token too long true
+false bufio.Scanner: SplitFunc returns negative advance count
+false bufio.Scanner: SplitFunc returns advance count beyond input
+false split failed
+Split after Scan recovered: Split called after Scan
+Buffer after Scan recovered: Buffer called after Scan
+false <nil> true
+false multiple Read calls return no data or error true
+false bufio.Scanner: Read returned impossible count
+empty tokens recovered: bufio.Scan: too many empty tokens without progressing
+100
+0 true <nil>
+3 "cr" <nil>
+3 true <nil>
+0 true <nil>
+65536 bufio: buffer full bufio: negative count bufio: invalid use of UnreadByte bufio: invalid use of UnreadRune
+bufio.Scanner: SplitFunc returns negative advance count bufio.Scanner: SplitFunc returns advance count beyond input bufio.Scanner: Read returned impossible count final token
