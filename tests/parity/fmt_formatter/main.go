@@ -103,6 +103,13 @@ type wrap struct {
 	list []named
 }
 
+func attempt(name string, f func()) {
+	defer func() {
+		fmt.Println(name, "recovered:", recover())
+	}()
+	f()
+}
+
 func main() {
 	h := Hash{0xde, 0xad, 0xbe, 0xef}
 	fmt.Printf("%v|%s|%x|%X|%#x|%#X|%q|%d|%e\n", h, h, h, h, h, h, h, h, h)
@@ -178,4 +185,10 @@ func main() {
 	fmt.Println(n, werr)
 	n, werr = fmt.Printf("%s %d\n", "printf", 3)
 	fmt.Println(n, werr)
+
+	// A nil writer panics when the text is written.
+	attempt("Fprint", func() { fmt.Fprint(nil, c) })
+	attempt("Fprintln", func() { fmt.Fprintln(nil, "x") })
+	attempt("Fprintf", func() { fmt.Fprintf(nil, "%d", c) })
+	fmt.Println(c.n)
 }

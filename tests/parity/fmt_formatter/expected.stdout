@@ -58,3 +58,7 @@ println 1 2
 12 <nil>
 printf 3
 9 <nil>
+Fprint recovered: runtime error: invalid memory address or nil pointer dereference
+Fprintln recovered: runtime error: invalid memory address or nil pointer dereference
+Fprintf recovered: runtime error: invalid memory address or nil pointer dereference
+5

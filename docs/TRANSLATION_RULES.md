@@ -1838,7 +1838,7 @@ These behave as in Go:
 Go's `fmt.Print`, `fmt.Println`, `fmt.Printf`, `fmt.Fprint`, `fmt.Fprintln`, `fmt.Fprintf`, `fmt.Sprint`, `fmt.Sprintln`, `fmt.Sprintf`, `fmt.Append`, `fmt.Appendln`, `fmt.Appendf`, and `fmt.Errorf` are function objects of the same names in `fmt::`, from `<eo/fmt.h>`, so `fmt.Println(f())` is `std::apply(fmt::Println, f())` (see [Calls with the results of another call](#calls-with-the-results-of-another-call)). Their operands are C++ arguments, not a `slice<any>`: `fmt.Printf("%d %s\n", n, s)` is `fmt::Printf("%d %s\n"s, n, s)`. A `nil` operand is `nullptr`, and a numeric constant operand takes its default type, as in [Untyped constant arguments](#untyped-constant-arguments).
 
 - `fmt::Print`, `fmt::Println`, and `fmt::Printf` write to `stdout`. `fmt::Fprint`, `fmt::Fprintln`, and `fmt::Fprintf` write to an `io::Writer`, such as a `fmt::State`, a `ptr<strings::Builder>`, or a `ptr<bytes::Buffer>`, with one `Write` of the whole text, or to a `std::FILE*`: `fmt.Fprintln(os.Stderr, x)` is `fmt::Fprintln(stderr, x)`, and `os.Stdout` is `stdout` there. Each call to a `std::FILE*` writes its whole text and flushes it, as Go writes to the unbuffered `os.Stdout`.
-- Each of these returns `std::tuple<int64_t, error>`, Go's `(n int, err error)`: the result of `Write`, or the length of the text and `nullptr` for a `std::FILE*`. `n, err := fmt.Fprintf(w, "%d", x)` is `auto [n, err] = fmt::Fprintf(w, "%d"s, x);`, and a call whose results are not used is a statement.
+- The six `Print` and `Fprint` functions return `std::tuple<int64_t, error>`, Go's `(n int, err error)`: the result of `Write`, or the length of the text and `nullptr` for a `std::FILE*`. A `nil` writer, `nullptr`, formats the text and then panics with Go's nil dereference error, as Go's call of `Write` does. `n, err := fmt.Fprintf(w, "%d", x)` is `auto [n, err] = fmt::Fprintf(w, "%d"s, x);`, and a call whose results are not used is a statement.
 - `fmt::Append`, `fmt::Appendln`, and `fmt::Appendf` take a `slice<uint8_t>` and return it with the text appended, as `eo::append_slice` does. `fmt.Append(nil)` stays nil.
 
 All of them print an operand as Go's fmt does, with these verbs:
@@ -1875,6 +1875,7 @@ Eo reads the field names for `%+v` and `%#v` from the compiler. Boost.PFR gives 
 - the `Sscan` family, and a `fmt.State` that is not the one `Format` gets, such as one that a program implements;
 - `os.Stdout` and `os.Stderr` other than as the writer of `fmt.Fprint`, `fmt.Fprintln`, and `fmt.Fprintf`, such as an `io.Writer` variable that holds one;
 - `%v` of a `fmt.State`, which prints Go's whole `pp` struct;
+- an error in writing to a `std::FILE*`, such as a closed pipe, which Go returns as `err` and Eo does not report;
 - a `...any` argument passed on with `args...`, as in `fmt.Sprintf(format, args...)`;
 - `%q` and `%#U` of an unassigned code point or a format character not listed above, which Go escapes, or prints without the character for `%#U`, and Eo prints as it is;
 - `%T` of an `int64` value, which prints `int` ([#107](https://github.com/conr2d/eo/issues/107)).

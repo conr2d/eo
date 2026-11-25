@@ -180,6 +180,11 @@ namespace detail {
     auto operator()(eo::io::Writer w, T... args) const -> std::tuple<int64_t, eo::error> {
       return write_writer(w, eo::detail::sprint(false, args...));
     }
+    // A nil writer, which Go panics on after formatting, when it calls Write.
+    template<typename... T>
+    auto operator()(std::nullptr_t, T... args) const -> std::tuple<int64_t, eo::error> {
+      return (*this)(eo::io::Writer{}, std::move(args)...);
+    }
   };
 
   struct fprintln_fn {
@@ -191,6 +196,11 @@ namespace detail {
     auto operator()(eo::io::Writer w, T... args) const -> std::tuple<int64_t, eo::error> {
       return write_writer(w, eo::detail::sprint(true, args...));
     }
+    // A nil writer, which Go panics on after formatting, when it calls Write.
+    template<typename... T>
+    auto operator()(std::nullptr_t, T... args) const -> std::tuple<int64_t, eo::error> {
+      return (*this)(eo::io::Writer{}, std::move(args)...);
+    }
   };
 
   struct fprintf_fn {
@@ -201,6 +211,10 @@ namespace detail {
     template<typename... T>
     auto operator()(eo::io::Writer w, const std::string& format, T... args) const -> std::tuple<int64_t, eo::error> {
       return write_writer(w, eo::detail::sprintf(format, args...));
+    }
+    template<typename... T>
+    auto operator()(std::nullptr_t, const std::string& format, T... args) const -> std::tuple<int64_t, eo::error> {
+      return (*this)(eo::io::Writer{}, format, std::move(args)...);
     }
   };
 

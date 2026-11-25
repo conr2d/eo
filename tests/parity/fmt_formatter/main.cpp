@@ -194,6 +194,17 @@ void fe::Format(fe e, fmt::State s, int32_t verb) {
   fmt::Fprintf(s, "fe<%c %d>"s, verb, e.code);
 }
 
+void attempt(std::string name, fn<void()> f) {
+  eo_defer_scope;
+  try {
+    eo_defer([&] { fmt::Println(name, "recovered:"s, recover()); });
+    f();
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
+}
+
 auto named::String(named n) -> std::string {
   return "named:"s + n.s;
 }
@@ -306,5 +317,11 @@ func<> eo_main() {
   fmt::Println(n, werr);
   std::tie(n, werr) = fmt::Printf("%s %d\n"s, "printf"s, int64_t{3});
   fmt::Println(n, werr);
+
+  // A nil writer panics when the text is written.
+  attempt("Fprint"s, [=]() mutable { fmt::Fprint(nullptr, c); });
+  attempt("Fprintln"s, [=]() mutable { fmt::Fprintln(nullptr, "x"s); });
+  attempt("Fprintf"s, [=]() mutable { fmt::Fprintf(nullptr, "%d"s, c); });
+  fmt::Println(c->n);
   co_return;
 }
