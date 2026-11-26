@@ -21,6 +21,9 @@ namespace eo::detail {
 
 // Each check compares inline, so that a check whose operands are constants or already known folds
 // away, and formats its message out of line, in a cold function that the caller only calls to panic.
+// An error function requires that at least one bound fails: it tests the bounds again in Go's order
+// and reports the last one without testing it. Its tests and the condition of its check list the
+// same bounds, so a bound added to one must be added to the other.
 
 template<go_integer I, go_integer N>
 [[noreturn, gnu::cold, gnu::noinline]] void index_error(I i, N length) {
