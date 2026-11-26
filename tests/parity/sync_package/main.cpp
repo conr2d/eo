@@ -121,6 +121,25 @@ void interfaceKeys() {
     auto ok = eo::map_get_ok(nilMap, int64_t{1}).second;
     fmt::Println(ok);
   });
+  auto empty = map<any, int64_t>::of({});
+  attempt("empty map index"s, [=]() mutable { static_cast<void>(eo::map_get(empty, slice<int64_t>::of({1}))); });
+  auto emptied = map<any, int64_t>::of({{int64_t{1}, 1}});
+  eo::delete_(emptied, int64_t{1});
+  attempt("emptied map delete"s, [=]() mutable { eo::delete_(emptied, map<int64_t, int64_t>::of({})); });
+  attempt("emptied map assign"s, [=]() mutable { eo::map_entry(emptied, slice<int64_t>::of({})) = 1; });
+
+  auto x = New<int64_t>(5);
+  auto pm = map<any, int64_t>::of({{x, 1}});
+  fmt::Println(eo::map_get(pm, x), eo::map_get(pm, New<int64_t>()));
+  auto arr = map<std::array<any, 2>, int64_t>::of({{std::array<any, 2>{int64_t{1}, "a"s}, 1}});
+  fmt::Println(eo::map_get(arr, std::array<any, 2>{int64_t{1}, "a"s}),
+    eo::map_get(arr, std::array<any, 2>{"a"s, int64_t{1}}));
+  auto nk = map<Key, int64_t>::of({});
+  eo::map_entry(nk, Key{"n"s, nan}) = 1;
+  eo::map_entry(nk, Key{"n"s, nan}) = 1;
+  eo::map_entry(nk, Key{"z"s, double{0.0}}) = 1;
+  eo::map_entry(nk, Key{"z"s, negZero}) = 2;
+  fmt::Println(eo::len(nk), eo::map_get(nk, Key{"n"s, nan}), eo::map_get(nk, Key{"z"s, double{0.0}}), nk);
 }
 
 void syncMap() {
@@ -219,6 +238,8 @@ func<> syncMapGoroutines() {
   fmt::Println("keys"s, n);
 }
 
+sync::Pool bufPool{};
+
 struct buffer {
   static constexpr std::string_view _eo_name = "main.buffer";
 
@@ -246,6 +267,11 @@ void pool() {
   auto _eo_call_0 = empty->Get();
   auto _eo_call_1 = empty->Get();
   fmt::Println(_eo_call_0, _eo_call_1);
+  fmt::Println(bufPool.Get());
+  bufPool.Put("used"s);
+  auto _eo_call_2 = bufPool.Get();
+  auto _eo_call_3 = bufPool.Get();
+  fmt::Println(_eo_call_2, _eo_call_3);
 }
 
 int64_t counter{};
@@ -337,8 +363,36 @@ void onceFuncs() {
   attempt("values second"s, [=]() mutable { zs(); });
 }
 
+func<> onceGoroutines() {
+  auto calls = New<int64_t>(0);
+  auto shared = sync::OnceValue([=]() mutable -> int64_t {
+    (*calls)++;
+    return 7;
+  });
+  auto results = eo::make_slice<int64_t>(8);
+  auto wg = New<sync::WaitGroup>();
+  for (auto g = int64_t{0}; g < 8; g++) {
+    wg->Add(1);
+    go([=]() mutable -> func<> {
+      eo_defer_scope;
+      try {
+        auto _eo_defer_receiver_0 = wg;
+        eo_defer([=] { _eo_defer_receiver_0->Done(); });
+        eo::at(results, g) = shared();
+        eo_defer_run;
+      } catch (...) {
+        eo_defer_panic;
+      }
+      co_return;
+    });
+  }
+  co_await wg->Wait();
+  fmt::Println(*calls, results);
+}
+
 func<> eo_init() {
   errA = errors::New("a"s);
+  bufPool = sync::Pool{.New = [=]() mutable -> any { return "fresh"s; }};
   co_return;
 }
 
@@ -349,5 +403,6 @@ func<> eo_main() {
   pool();
   co_await once();
   onceFuncs();
+  co_await onceGoroutines();
   co_return;
 }

@@ -88,6 +88,24 @@ func interfaceKeys() {
 	attempt("nil map delete", func() { delete(nilMap, []int{}) })
 	attempt("struct field", func() { keys[Key{"x", []int{}}] = 1 })
 	attempt("nil map ok", func() { _, ok := nilMap[1]; fmt.Println(ok) })
+	empty := map[any]int{}
+	attempt("empty map index", func() { _ = empty[[]int{1}] })
+	emptied := map[any]int{1: 1}
+	delete(emptied, 1)
+	attempt("emptied map delete", func() { delete(emptied, map[int]int{}) })
+	attempt("emptied map assign", func() { emptied[[]int{}] = 1 })
+
+	x := 5
+	pm := map[any]int{&x: 1}
+	fmt.Println(pm[&x], pm[new(int)])
+	arr := map[[2]any]int{{1, "a"}: 1}
+	fmt.Println(arr[[2]any{1, "a"}], arr[[2]any{"a", 1}])
+	nk := map[Key]int{}
+	nk[Key{"n", nan}] = 1
+	nk[Key{"n", nan}] = 1
+	nk[Key{"z", 0.0}] = 1
+	nk[Key{"z", negZero}] = 2
+	fmt.Println(len(nk), nk[Key{"n", nan}], nk[Key{"z", 0.0}], nk)
 }
 
 func syncMap() {
@@ -193,9 +211,14 @@ func pool() {
 	fmt.Println(empty.Get())
 	empty.Put("x")
 	fmt.Println(empty.Get(), empty.Get())
+	fmt.Println(bufPool.Get())
+	bufPool.Put("used")
+	fmt.Println(bufPool.Get(), bufPool.Get())
 }
 
 var counter int
+
+var bufPool = sync.Pool{New: func() any { return "fresh" }}
 
 func once() {
 	var o sync.Once
@@ -257,6 +280,25 @@ func onceFuncs() {
 	attempt("values second", func() { zs() })
 }
 
+func onceGoroutines() {
+	calls := 0
+	shared := sync.OnceValue(func() int {
+		calls++
+		return 7
+	})
+	results := make([]int, 8)
+	var wg sync.WaitGroup
+	for g := 0; g < 8; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[g] = shared()
+		}()
+	}
+	wg.Wait()
+	fmt.Println(calls, results)
+}
+
 func main() {
 	interfaceKeys()
 	syncMap()
@@ -264,4 +306,5 @@ func main() {
 	pool()
 	once()
 	onceFuncs()
+	onceGoroutines()
 }

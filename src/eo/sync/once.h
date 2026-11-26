@@ -11,20 +11,37 @@
 #include <mutex>
 #include <optional>
 #include <tuple>
+#include <type_traits>
 #include <utility>
+#include <variant>
 
 namespace eo::sync {
 
+namespace detail {
+
+  // Whether a call returns a coroutine, an awaitable that Once would drop without running.
+  template<typename T>
+  inline constexpr bool is_coroutine_result = false;
+
+  template<typename T, typename E>
+  inline constexpr bool is_coroutine_result<boost::asio::awaitable<T, E>> = true;
+
+  template<typename F>
+  concept plain_function = !is_coroutine_result<std::invoke_result_t<F&>>;
+
+} // namespace detail
+
 // Go's sync.Once. Do calls f only on the first call of any goroutine, and the other calls return
 // after that call of f has returned. If f panics, Do considers it returned, and later calls do not
-// call f. f is a function that is not a coroutine, so a goroutine that waits for another's call of f
-// blocks its worker thread until f returns.
+// call f. f is a function that is not a coroutine, and a coroutine does not compile, so a goroutine
+// that waits for another's call of f blocks its worker thread only until f returns.
 struct Once {
   Once() = default;
   Once(const Once&) = delete;
   auto operator=(const Once&) -> Once& = delete;
 
   template<typename F>
+    requires detail::plain_function<F>
   void Do(F&& f) {
     if (done_.load(std::memory_order_acquire)) {
       return;
@@ -99,7 +116,7 @@ namespace detail {
 
 // Go's sync.OnceFunc: a function that calls f only the first time it is called, and returns or
 // panics as f did on every call.
-template<typename F>
+template<detail::plain_function F>
 auto OnceFunc(F f) -> fn<void()> {
   auto d = std::make_shared<std::pair<detail::once_state<std::monostate>, fn<void()>>>();
   d->second = std::move(f);
@@ -108,7 +125,7 @@ auto OnceFunc(F f) -> fn<void()> {
 
 // Go's sync.OnceValue: a function that calls f only the first time it is called, and returns its
 // result, or panics with its panic, on every call.
-template<typename F>
+template<detail::plain_function F>
 auto OnceValue(F f) -> fn<std::invoke_result_t<F&>()> {
   using R = std::invoke_result_t<F&>;
   auto d = std::make_shared<std::pair<detail::once_state<R>, fn<R()>>>();
@@ -117,7 +134,7 @@ auto OnceValue(F f) -> fn<std::invoke_result_t<F&>()> {
 }
 
 // Go's sync.OnceValues, for a function with two results, which are a std::tuple.
-template<typename F>
+template<detail::plain_function F>
 auto OnceValues(F f) -> fn<std::invoke_result_t<F&>()> {
   return OnceValue(std::move(f));
 }

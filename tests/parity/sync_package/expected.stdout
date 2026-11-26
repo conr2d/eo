@@ -15,6 +15,12 @@ nil map delete recovered: hash of unhashable type: []int
 struct field recovered: runtime error: hash of unhashable type []int
 false
 nil map ok recovered: <nil>
+empty map index recovered: hash of unhashable type: []int
+emptied map delete recovered: hash of unhashable type: map[int]int
+emptied map assign recovered: runtime error: hash of unhashable type []int
+1 0
+1 0
+3 0 2 map[{n NaN}:1 {n NaN}:1 {z -0}:2]
 <nil> false
 1 true
 1 true
@@ -38,6 +44,8 @@ keys 25
 true x 2
 <nil>
 x <nil>
+fresh
+used fresh
 1
 once panic recovered: boom
 done
@@ -54,3 +62,4 @@ true
 4 a 4 a 4
 values first recovered: runtime error: index out of range [1] with length 0
 values second recovered: runtime error: index out of range [1] with length 0
+1 [7 7 7 7 7 7 7 7]
