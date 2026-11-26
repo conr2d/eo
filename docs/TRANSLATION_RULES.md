@@ -646,7 +646,9 @@ The helpers are function objects, called qualified, with the same collision rule
 
 `eo::map_entry` is for a map index on the left of an assignment, an op-assignment, `++`, or `--`. It returns a reference to the value in the table, inserting the key with the zero value first when it is absent, so `m[k] += 1` on a missing key stores 1. Assigning to an entry of a nil map panics with Go's `assignment to entry in nil map`, whose value is a `runtime.plainError`. An op-assignment that needs a helper for its operator takes the entry as its operand: `m[k] /= d` is `eo::div_assign(eo::map_entry(m, k), d)`. C++ evaluates the right side of an assignment before the left, so `m[k] = len(m)` reads the length before the entry is inserted, as Go does. A map inside another map is indexed as a value first: `m[a][b] = v` is `eo::map_entry(eo::map_get(m, a), b) = v`. A call in a map operand follows [Evaluation order](#evaluation-order), like a call in an operand of any other helper.
 
-A key type must be a bool, an integer or float type, a string, a pointer, `eo::empty_struct`, or an array or struct whose elements or fields are such types. Other key types do not compile. Keys compare as Go compares them: pointers by address, arrays element by element, and structs field by field. A float key follows Go too. `-0.0` and `0.0` are the same key, and assigning with one of them stores it as the key, so the map prints the sign of the last assignment. Every assignment with a NaN key adds a new entry, which no lookup, assignment, or `delete` can reach, and which only `clear` removes.
+A key type must be a bool, an integer or float type, a string, a pointer, a channel, an interface, `eo::empty_struct`, or an array or struct whose elements or fields are such types. Other key types do not compile. Keys compare as Go compares them: pointers and channels by address, interfaces by dynamic type and then by value, arrays element by element, and structs field by field. A float key follows Go too. `-0.0` and `0.0` are the same key, and assigning with one of them stores it as the key, so the map prints the sign of the last assignment. Every assignment with a NaN key adds a new entry, which no lookup, assignment, or `delete` can reach, and which only `clear` removes.
+
+An interface key, or an interface in an array or struct key, hashes its dynamic type and value, so `map[any]int` keeps `1`, `int8(1)`, and `"1"` apart, as Go does, and a float, a NaN, or `-0.0` in an interface behaves as a float key does. A dynamic value of a type that cannot be a key, such as a slice, a map, or a struct with such a field, panics as Go's hash of it does, with a `runtime.errorString`: `m[k]`, `m[k] = v`, and `delete(m, k)` with `k` holding a `[]int` panic with `runtime error: hash of unhashable type []int`. A lookup or a `delete` in a nil or empty map does not hash its key, and Go checks the key instead with another error, whose message has a colon and no prefix, `hash of unhashable type: []int`. Its value is a runtime error of the type `maps.unhashableTypeError`, and Eo raises the same. Interface keys print in Go's order too: nil first, then by dynamic type, and then by value. Go orders the dynamic types by the addresses of their type descriptors, and Eo by the addresses of its own, so keys of different dynamic types can print in another order than Go's. Keys of one dynamic type print in Go's order.
 
 A map compares only with `nil`. A struct with a map field is not comparable, and comparing two interface values that hold maps panics with `runtime error: comparing uncomparable type map[string]int`, as in Go. Concurrent writes to a map, or a write concurrent with a read, are a data race in Eo, as for any other variable, and a program that has one is outside the mapping. Go detects some of them with the fatal error `concurrent map writes`, and Eo does not.
 
@@ -658,7 +660,8 @@ Go's `maps` package maps to the namespace `maps` from `<eo/maps.h>`, whose funct
 
 #### Maps not covered yet
 
-- interface and channel key types;
+- keys that hold a value of a function type or a channel type in an interface, since neither can be held in an interface yet (see [Function values not covered yet](#function-values-not-covered-yet) and [Channels not covered yet](#channels-not-covered-yet));
+- keys of the dynamic types `int` and `int64` in one map, which Eo cannot tell apart ([#107](https://github.com/conr2d/eo/issues/107));
 - the `maps` functions that take or return an iterator, `All`, `Keys`, `Values`, `Insert`, and `Collect`, which wait on range over functions ([#98](https://github.com/conr2d/eo/issues/98)).
 
 ### Structs
@@ -1744,7 +1747,6 @@ Go calls these methods only for exported struct fields, as a value that `reflect
 
 - methods translated as coroutines, whose signatures differ from the interface's ([#108](https://github.com/conr2d/eo/issues/108));
 - method values and method expressions of interfaces, and `go` and `defer` launches of interface method calls ([#67](https://github.com/conr2d/eo/issues/67));
-- interface values as map keys (see [Maps not covered yet](#maps-not-covered-yet));
 - generic interfaces and type constraints, such as `comparable` and `~int | ~string`;
 - interface types declared inside a function, local struct types held in an interface, and methods with unexported names of interfaces from other packages;
 - comparing interface values that hold a struct with a `sync.Mutex` or another Eo library type without `==`, which Go compares and Eo reports as uncomparable;
@@ -2287,7 +2289,7 @@ Go's `reflect` maps to the namespace `reflect` from `<eo/reflect.h>`, ported fro
 - `Value`, with the methods `Kind`, `Type`, `IsValid`, `CanAddr`, `CanSet`, `CanInterface`, `Interface`, `IsNil`, `IsZero`, `Elem`, `Addr`, `NumField`, `Field`, `FieldByIndex`, `Len`, `Cap`, `Index`, `Bool`, `Int`, `Uint`, `Float`, `String`, `Bytes`, `Set`, `SetBool`, `SetInt`, `SetUint`, `SetFloat`, `SetString`, `SetBytes`, `SetZero`, `SetLen`, `Grow`, `MapIndex`, `MapKeys`, `MapRange`, `SetMapIndex`, `NumMethod`, `OverflowInt`, `OverflowUint`, and `OverflowFloat`, and `MapIter`, with `Next`, `Key`, and `Value`;
 - the functions `TypeOf`, `TypeFor`, `PointerTo`, `PtrTo`, `ValueOf`, `New`, `Zero`, `Indirect`, `MakeSlice`, `MakeMap`, `MakeMapWithSize`, `Copy`, and `TypeAssert`, and `ValueError`, which the `Value` methods panic with.
 
-`Value`, `StructField`, `StructTag`, `ValueError`, and `MapIter` are written as translated types, as in [Buffers and readers](#buffers-and-readers): each method is a static member whose first parameter is the receiver, so `v.Field(0).Int()` is `reflect::Value::Int(reflect::Value::Field(v, 0))`, and `MapRange` returns a `ptr<reflect::MapIter>`. Go's `Type` is an interface that only the runtime's type implements, so it maps to one class, `reflect::Type`, whose methods are called as members, as a translated interface's are: `t.Elem().Kind()` is `t.Elem().Kind()`. A nil `Type` is `nullptr`, two `Type`s are `==` when they are the same type, and a `Type` prints by its `String` method. The generic functions take their type argument as a template argument: `reflect.TypeFor[error]()` is `reflect::TypeFor<error>()`, and `x, ok := reflect.TypeAssert[int](v)` is `auto [x, ok] = reflect::TypeAssert<int64_t>(v);`.
+`Value`, `StructField`, `StructTag`, `ValueError`, and `MapIter` are written as translated types, as in [Buffers and readers](#buffers-and-readers): each method is a static member whose first parameter is the receiver, so `v.Field(0).Int()` is `reflect::Value::Int(reflect::Value::Field(v, 0))`, and `MapRange` returns a `ptr<reflect::MapIter>`. Go's `Type` is an interface that only the runtime's type implements, so it maps to one class, `reflect::Type`, whose methods are called as members, as a translated interface's are: `t.Elem().Kind()` is `t.Elem().Kind()`. A nil `Type` is `nullptr`, two `Type`s are `==` when they are the same type, and a `Type` prints by its `String` method. A `Type` can be a map key, directly or in an interface, as Go's `*rtype` can, so `encoding/json`'s `sync.Map` caches keyed by `reflect.Type` work. The generic functions take their type argument as a template argument: `reflect.TypeFor[error]()` is `reflect::TypeFor<error>()`, and `x, ok := reflect.TypeAssert[int](v)` is `auto [x, ok] = reflect::TypeAssert<int64_t>(v);`.
 
 ```go
 v := reflect.ValueOf(&p).Elem() // p is a Point
@@ -2569,6 +2571,8 @@ The panics that Eo raises for Go's run-time errors have Go's value types:
 | an index or a slice bound out of range | `runtime.boundsError` | `runtime error: index out of range [3] with length 0` |
 | a failed type assertion or interface conversion | `*runtime.TypeAssertionError` | `interface conversion: interface {} is string, not int` |
 | a close of a nil or closed channel, a send on a closed channel, and `make(chan T, n)` with a size out of range | `runtime.plainError` | `close of nil channel` |
+| a map key that holds a value of a type that cannot be a key, hashed | `runtime.errorString` | `runtime error: hash of unhashable type []int` |
+| the same key in a lookup or a `delete` in a nil or empty map | `maps.unhashableTypeError` | `hash of unhashable type: []int` |
 | `panic(nil)` | `*runtime.PanicNilError` | `panic called with nil argument` |
 
 Each of these is an `error` and a `runtime.Error`, which is `runtime::Error_` (see [Types named like one of their methods](#types-named-like-one-of-their-methods)), so `r.(runtime.Error)` is `eo::type_assert_ok<runtime::Error_>(r)`. The values keep Go's message, not Go's fields. The library panics with a Go string where Go does: `sync: negative WaitGroup counter`, `cannot create context from nil parent`, and `invalid argument to Intn`. Any other C++ exception that leaves a translated call is also a panic, and `recover()` returns it as an `error` whose dynamic type is `eo.cppException` and whose message is its `what()`.
@@ -2622,7 +2626,7 @@ Two call sites do not `co_await`:
 
 Do not translate a Go lock to `std::mutex` or `std::shared_mutex`. Their `lock()` blocks the OS thread, and a translation can then deadlock where Go does not: with `EOMAXPROCS=1`, or whenever the holder is suspended at a `co_await` while it holds the lock.
 
-`sync.Once` and `sync.Cond` have no mapping yet. `Once.Do` blocks while another goroutine runs the function, and `Cond.Wait` blocks until a signal, so `std::call_once` and `std::condition_variable` would block the worker. A translation that uses either is unsupported (see [#76](https://github.com/conr2d/eo/issues/76)).
+`sync.Cond` has no mapping yet. `Cond.Wait` blocks until a signal, so `std::condition_variable` would block the worker. A translation that uses it is unsupported (see [#76](https://github.com/conr2d/eo/issues/76)). `sync.Once` maps as described in [Once](#once), for a function that is not a coroutine.
 
 Do not use `eo::invoke` in a translation. It blocks the calling OS thread until a coroutine finishes, and it exists for C++ code outside the runtime, such as tests.
 
@@ -2692,6 +2696,28 @@ The following are not frozen:
 - `RLocker`, and passing a lock as a `sync.Locker`, have no mapping;
 - `sync::Mutex`, `sync::RWMutex`, and `sync::WaitGroup` cannot be copied or moved. A Go program that copies one, which `go vet` reports, is unsupported.
 
+#### Once
+
+`sync.Once`, `sync.OnceFunc`, `sync.OnceValue`, and `sync.OnceValues` map to `sync::Once`, `sync::OnceFunc`, `sync::OnceValue`, and `sync::OnceValues` from `<eo/sync.h>`:
+
+| Go | C++ |
+| --- | --- |
+| `var once sync.Once` | `sync::Once once;` |
+| `once.Do(f)` | `once.Do(f);` |
+| `g := sync.OnceFunc(f)` | `auto g = sync::OnceFunc(f);` |
+| `v := sync.OnceValue(f)` | `auto v = sync::OnceValue(f);` |
+| `vs := sync.OnceValues(f)` | `auto vs = sync::OnceValues(f);` |
+
+`f` is a function that is not a coroutine: a function literal, a named function, or a function value. `Do` calls it on the first call only, and later calls return after that call of `f` has returned, as in Go. A panic in `f` propagates, and `Do` counts as done, so later calls do not call `f`. The functions that `OnceFunc`, `OnceValue`, and `OnceValues` return are `fn<void()>`, `fn<T()>`, and `fn<std::tuple<T1, T2>()>`, so `x, err := vs()` is `auto [x, err] = vs();`. They call `f` on their first call, and then return its results, or panic with a new panic of `f`'s panic value, on every call, as Go's do.
+
+A call of `Do` that finds another goroutine running `f` waits for it on a C++ mutex, which blocks its worker thread. Unlike a Go lock, this wait cannot deadlock: `f` is not a coroutine, so it runs to its end without suspending and without waiting for any goroutine, and with `EOMAXPROCS=1` no other goroutine runs while it does. A translation never blocks a thread on the runtime otherwise, as `eo::invoke` would, which [Blocking operations](#blocking-operations) forbids. A coroutine `f` does not compile. The same holds for the functions that `OnceFunc`, `OnceValue`, and `OnceValues` return, so they stay plain functions, as Go's are, and their callers do not become coroutines. A `Once` is boxed when goroutines share it, as a WaitGroup is: `auto once = New<sync::Once>();` and `once->Do(f);`. It cannot be copied or moved.
+
+#### Map and Pool
+
+`sync.Map` maps to `sync::Map` from `<eo/sync.h>`, a `map[any]any` with the methods `Load`, `Store`, `LoadOrStore`, `LoadAndDelete`, `Delete`, `Swap`, `CompareAndSwap`, `CompareAndDelete`, `Range`, and `Clear`, called as members: `v, ok := m.Load(k)` is `auto [v, ok] = m.Load(k);`, and `m.Range(func(k, v any) bool { ... })` takes the lambda of [Function literals](#function-literals). It holds an Eo map with interface keys (see [Maps](#maps)) under a C++ mutex, where Go's is a concurrent hash trie, so it gives Go's results but not Go's scaling. Its methods hold the mutex only inside the map and never while they run user code: `Range` calls its function on a copy of the entries taken when it starts, so the function may call any method of the `Map`, and it sees no entry stored after `Range` started, which Go allows. Every method hashes its key, as Go's do, so a key of a type that cannot be a key panics with `runtime error: hash of unhashable type T`, even in an empty `Map`. `CompareAndSwap` and `CompareAndDelete` compare the values with `==` of two interfaces, which panics for an uncomparable dynamic type. A `Map` cannot be copied or moved. A NaN key, which Go's `Map` deadlocks on when it is stored a second time, is outside the mapping.
+
+`sync.Pool` maps to `sync::Pool`, an aggregate with the field `New`, an `fn<any()>`, and the members `Get` and `Put`: `p := sync.Pool{New: func() any { return new(T) }}` is `auto p = sync::Pool{.New = [=]() mutable -> any { return New<T>(); }};`, and `p.Get().(*T)` is `eo::type_assert<ptr<T>>(p.Get())`. `Get` returns the value put last, or the result of `New`, or nil when `New` is nil, and `Put` of nil does nothing. Go may drop pooled values at any garbage collection, so a program that depends on which value `Get` returns is outside the mapping. A `Pool` can be copied and assigned, which copies its values, so a package-level `var p = sync.Pool{New: f}` follows [Package-level variables](#package-level-variables) as any other dynamic initializer does.
+
 ### Package-level variables
 
 Go initializes package-level variables in dependency order and then runs the `init` functions, all in the main goroutine before `main`. C++ runs the dynamic initializers of namespace-scope variables before `main` too, but in declaration order, and outside the Eo runtime, where a goroutine, a blocking operation, or a panic cannot work. So a package-level variable is declared at namespace scope with nothing that C++ has to run in order, and its initializer runs in a generated function, `eo_init`, which the runtime calls in the main goroutine before `eo_main`.
@@ -2700,7 +2726,7 @@ Go initializes package-level variables in dependency order and then runs the `in
 
 Each package-level variable is one C++ declaration at namespace scope, in source order, and a `var` group or a declaration of several names is one declaration per name. The storage lasts for the whole program, so a package-level variable is never [boxed](#boxed-variables), `&x` is `ref(x)` (see [Pointer type](#pointer-type)), and function literals use it without capturing it (see [Function literals](#function-literals)).
 
-- A variable without an initializer, or with a constant initializer (one for which `go/types` records a constant value), is declared as the same `var` declaration in a function body is, without boxing: `var count int` is `int64_t count{};`, `var limit = 3` is `auto limit = int64_t{3};`, and `var name = "eo"` is `auto name = "eo"s;` (see [Untyped constants](#untyped-constants)). `var mu sync.Mutex`, `var rw sync.RWMutex`, and `var wg sync.WaitGroup` are `sync::Mutex mu;`, `sync::RWMutex rw;`, and `sync::WaitGroup wg;`. Such an initializer reads no variable and has no effect, so running it before `main` is the same as running it in Go's order. A struct composite literal with no elements, `T{}`, is the zero value and counts as no initializer, so `var mu = sync.Mutex{}` is `sync::Mutex mu;` too: C++ cannot assign a `sync::Mutex`. A slice or map literal is not the zero value, because it is never nil.
+- A variable without an initializer, or with a constant initializer (one for which `go/types` records a constant value), is declared as the same `var` declaration in a function body is, without boxing: `var count int` is `int64_t count{};`, `var limit = 3` is `auto limit = int64_t{3};`, and `var name = "eo"` is `auto name = "eo"s;` (see [Untyped constants](#untyped-constants)). `var mu sync.Mutex`, `var rw sync.RWMutex`, `var wg sync.WaitGroup`, `var once sync.Once`, and `var cache sync.Map` are `sync::Mutex mu;`, `sync::RWMutex rw;`, `sync::WaitGroup wg;`, `sync::Once once;`, and `sync::Map cache;`. Such an initializer reads no variable and has no effect, so running it before `main` is the same as running it in Go's order. A struct composite literal with no elements, `T{}`, is the zero value and counts as no initializer, so `var mu = sync.Mutex{}` is `sync::Mutex mu;` too: C++ cannot assign a `sync::Mutex`. A slice or map literal is not the zero value, because it is never nil.
 - Any other initializer is a *dynamic initializer*. Its variable is declared with the zero value of its type, written out, as `T x{};`, or `slice<T> s;`, `map<K, V> m;`, and `chan<T> ch;` for the types whose tables give that form. Its initializer is an assignment in `eo_init`. `var ErrEmpty = errors.New("empty")` is `error ErrEmpty{};`, `var twice = func(n int) int { return n * 2 }` is `fn<int64_t(int64_t)> twice{};`, and `var p = &count` is `ptr<int64_t> p{};`.
 - The blank identifier `_` declares nothing.
 
@@ -2760,7 +2786,7 @@ func<> eo_init() {
 
 #### Package-level variables not covered yet
 
-- a dynamic initializer of a struct type that holds a `sync.Mutex`, `sync.RWMutex`, or `sync.WaitGroup`, as in `var c = Cache{items: make(map[string]int)}`. C++ cannot assign such a struct, and a lock as a struct field is not frozen (see [Mutex](#mutex));
+- a dynamic initializer of a struct type that holds a `sync.Mutex`, `sync.RWMutex`, `sync.WaitGroup`, `sync.Once`, or `sync.Map`, as in `var c = Cache{items: make(map[string]int)}`. C++ cannot assign such a struct, and a lock as a struct field is not frozen (see [Mutex](#mutex));
 - an initializer or `init` function that blocks forever: Go reports a deadlock and exits with status 2, and Eo hangs, as it does when every goroutine blocks during `main`.
 
 ### Packages

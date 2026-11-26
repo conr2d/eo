@@ -152,6 +152,25 @@ namespace runtime {
     using _eo_methods = methods<method<&plainError::Error, "Error">, method<&plainError::RuntimeError, "RuntimeError">>;
   };
 
+  // Go's internal/runtime/maps.unhashableTypeError, with which a lookup or a delete in a nil or empty
+  // map panics when its key holds a value whose type cannot be a key. A map with entries hashes the
+  // key instead, which panics with a runtime.errorString.
+  struct unhashableTypeError {
+    static constexpr std::string_view _eo_name = "maps.unhashableTypeError";
+
+    std::string typ;
+
+    auto operator==(const unhashableTypeError&) const -> bool = default;
+
+    static auto Error(unhashableTypeError e) -> std::string {
+      return "hash of unhashable type: " + e.typ;
+    }
+    static void RuntimeError(unhashableTypeError) {}
+
+    using _eo_methods =
+      methods<method<&unhashableTypeError::Error, "Error">, method<&unhashableTypeError::RuntimeError, "RuntimeError">>;
+  };
+
   // *runtime.TypeAssertionError and *runtime.PanicNilError are in <eo/ptr.h>.
   struct TypeAssertionError;
   struct PanicNilError;
@@ -240,8 +259,9 @@ inline auto recover() -> any {
 
 } // namespace eo
 
-// The definitions of panic_nil, of the printing that Panic uses, and of rtype_of, which every type
-// descriptor names.
+// The definitions of panic_nil, of the printing that Panic uses, and of rtype_of and the map key
+// operations, which every type descriptor names.
+#include <eo/key.h>
 #include <eo/print.h>
 #include <eo/ptr.h>
 #include <eo/rtype.h>
