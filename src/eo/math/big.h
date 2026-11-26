@@ -704,7 +704,54 @@ struct Int {
     write_multiple(s, " ", right);
   }
 
-  using _eo_methods = eo::methods<eo::method<&Int::String, "String">, eo::method<&Int::Format, "Format">>;
+  // Go's AppendText, MarshalText, UnmarshalText, MarshalJSON, and UnmarshalJSON, ported from
+  // math/big/intmarsh.go, so that encoding/json and other users of encoding.TextMarshaler see a
+  // *big.Int as Go's does. UnmarshalText parses with base 0, as SetString(s, 0) does.
+  static auto AppendText(ptr<Int> x, slice<uint8_t> b) -> std::tuple<slice<uint8_t>, error> {
+    return {eo::append_slice(std::move(b), Text(x, 10)), nullptr};
+  }
+
+  static auto MarshalText(ptr<Int> x) -> std::tuple<slice<uint8_t>, error> {
+    return AppendText(x, nullptr);
+  }
+
+  static auto UnmarshalText(ptr<Int> z, slice<uint8_t> text) -> error {
+    if (!std::get<1>(SetString(z, eo::string_from_bytes(text), 0))) {
+      return fmt::Errorf(std::string("math/big: cannot unmarshal %q into a *big.Int"), text);
+    }
+    return nullptr;
+  }
+
+  static auto MarshalJSON(ptr<Int> x) -> std::tuple<slice<uint8_t>, error> {
+    if (x == nullptr) {
+      return {eo::bytes_from_string(std::string("null")), nullptr};
+    }
+    return {eo::bytes_from_string(Text(x, 10)), nullptr};
+  }
+
+  static auto UnmarshalJSON(ptr<Int> z, slice<uint8_t> text) -> error {
+    // Ignore null, like in the main JSON package.
+    if (eo::string_from_bytes(text) == "null") {
+      return nullptr;
+    }
+    return UnmarshalText(z, text);
+  }
+
+  using _eo_methods = eo::methods<eo::method<&Int::String, "String">,
+    eo::method<&Int::Format, "Format">,
+    eo::method<&Int::AppendText, "AppendText">,
+    eo::method<&Int::MarshalText, "MarshalText">,
+    eo::method<&Int::UnmarshalText, "UnmarshalText">,
+    eo::method<&Int::MarshalJSON, "MarshalJSON">,
+    eo::method<&Int::UnmarshalJSON, "UnmarshalJSON">>;
+
+  // Go's big.Int is struct { neg bool; abs nat }, so reflect reports its kind as Struct, without its
+  // unexported fields (see eo::opaque_struct). It is the zero value when it is 0, as an Int that no
+  // operation has set is, and as its abs, which Eo does not keep, would be nil.
+  static constexpr bool _eo_opaque_struct = true;
+  static auto _eo_is_zero(const Int& x) -> bool {
+    return x.value_ == 0;
+  }
 
   // A big.Int that is not a pointer has no Format or String method, so Go prints it as its struct,
   // {neg abs}, with the verb applied to the sign and to each word.

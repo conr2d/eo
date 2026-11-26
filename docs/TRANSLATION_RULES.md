@@ -2103,9 +2103,17 @@ A `*big.Int` is a `fmt.Formatter`, and `big::Int::Format` is Go's `Int.Format`, 
 
 A `*big.Int` is a Go type for interfaces, compared by its pointer, and `String` is in its method table, so `x.(fmt.Stringer)` succeeds. A `big.Int` value is not comparable, because Go's holds a slice.
 
+`AppendText`, `MarshalText`, `UnmarshalText`, `MarshalJSON`, and `UnmarshalJSON` are ported from `math/big/intmarsh.go` and are in the method table, so `encoding/json` encodes a `*big.Int` as a JSON number and decodes one with `UnmarshalJSON`, as Go does:
+
+- `UnmarshalText` parses with base 0, as `SetString(s, 0)` does, and fails with `math/big: cannot unmarshal "12x" into a *big.Int`;
+- `UnmarshalJSON` ignores `null`;
+- `MarshalJSON` of a nil `*big.Int` gives `null`, and `MarshalText` of one gives `<nil>`.
+
+A `big.Int` value that `encoding/json` cannot address has none of these methods, so it encodes as a struct without exported fields, `{}`, as in Go (see [The reflect package not covered yet](#the-reflect-package-not-covered-yet)).
+
 #### The math/big package not covered yet
 
-- `big.Float`, `big.Rat`, and the functions and methods not listed above, such as `GCD`, `Sqrt`, `ProbablyPrime`, `Float64`, `Append`, `Scan`, and the `encoding` and `json` marshaling methods;
+- `big.Float`, `big.Rat`, and the functions and methods not listed above, such as `GCD`, `Sqrt`, `ProbablyPrime`, `Float64`, `Append`, `Scan`, `GobEncode`, and `GobDecode`;
 - method values and method expressions of `big.Int` methods, and methods other than `String` in an interface;
 - `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
 - `%#v` of a `big.Int` value of 0 that an operation has set, which Go prints `big.nat{}` and Eo `big.nat(nil)`;
@@ -2531,7 +2539,8 @@ Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_
 - `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
 - `Bytes` and `SetBytes` of a slice or array whose element is a defined byte type;
 - a struct type declared inside a function, which has no field table;
-- the struct types of the packages that Eo maps, such as `big.Int`, and the defined types over them, such as `type Amount big.Int`. Their kind is `Invalid`, they have no fields, and `IsZero` reports false;
+- the fields of `big.Int` and of the defined types over it, such as `type Amount big.Int`. Their kind is `Struct`, as in Go, so `encoding/json` encodes a `big.Int` without its pointer methods as `{}`, and go-ethereum's `rlp` decides how to encode a nil `*big.Int` field. But `NumField` is 0, where Go reports the unexported fields `neg` and `abs`. `IsZero` reports whether the value is 0, while Go also requires `abs` to be nil: an `Int` that arithmetic sets to 0 after it held a larger value has a non-nil `abs` in Go, so Go's `IsZero` reports false for it;
+- the other struct types of the packages that Eo maps, such as `bytes.Buffer`, and the defined types over them. Their kind is `Invalid`, they have no fields, and `IsZero` reports false;
 - printing a `Value` inside another value, which Go prints by the `Value`'s own fields. A `Value` operand prints the value it holds, as in Go.
 
 ### Goroutine

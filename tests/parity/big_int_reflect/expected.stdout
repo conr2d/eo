@@ -1,0 +1,14 @@
+struct true struct struct
+true false false
+true struct
+{"Value":{},"Ptr":7,"Name":"r"} <nil>
+{"a":{}} <nil>
+math/big: cannot unmarshal "\"0x1f\"" into a *big.Int 0 <nil> 
+<nil> <nil>
+math/big: cannot unmarshal "{\"x\":1}" into a *big.Int
+5 <nil>
+<nil> <nil>
+null <nil>
+n=-12 <nil>
+<nil> 12 <nil> 12 math/big: cannot unmarshal "12x" into a *big.Int
+<nil> <nil> -77

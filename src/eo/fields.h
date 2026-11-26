@@ -6,6 +6,7 @@
 
 #include <boost/pfr.hpp>
 
+#include <concepts>
 #include <cstddef>
 #include <string_view>
 #include <type_traits>
@@ -21,6 +22,16 @@ namespace eo::detail {
 // for Go values.
 template<typename T>
 concept go_struct = std::is_class_v<T> && std::is_aggregate_v<T> && !is_std_array<T>;
+
+// A struct of a package that Eo maps onto a C++ class whose fields are not Go's, such as big.Int,
+// which Go declares as struct { neg bool; abs nat }. Its kind is Struct, as in Go, but reflect sees
+// none of its fields, all of which are unexported in Go. The class declares _eo_opaque_struct, and
+// _eo_is_zero(v), which reports whether v is the zero value, as Go's reflect.Value.IsZero does.
+template<typename T>
+concept opaque_struct = std::is_class_v<T> && requires(const T& v) {
+  { T::_eo_opaque_struct } -> std::convertible_to<bool>;
+  { T::_eo_is_zero(v) } -> std::same_as<bool>;
+};
 
 // The name of field I of the translated struct T, as %+v and %#v print it. Boost.PFR gives field
 // names only from Boost 1.84, so Eo reads them as PFR does: from the name of a function whose template
