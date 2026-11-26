@@ -70,7 +70,7 @@ template<typename T>
 consteval auto is_composite_type() -> bool {
   if constexpr (defined_type<T>) {
     using U = typename T::_eo_underlying;
-    return is_slice<U> || is_map<U> || is_std_array<U>;
+    return go_struct<U> || struct_underlying<U> || is_slice<U> || is_map<U> || is_std_array<U>;
   } else {
     return go_struct<T> || is_slice<T> || is_map<T> || is_std_array<T>;
   }

@@ -151,6 +151,9 @@ func<> eo_main() {
   fmt::Println(p);
 
   fmt::Printf("%#v %v %+v\n"s, v, slice<Vec>::of({v, Vec(Point{3, 4})}), Holder{v, pair});
+  auto w = New<Vec>(v);
+  auto q = New<Pair>(pair);
+  fmt::Printf("%v %+v %#v\n"s, w, q, w);
   auto seen = map<Vec, std::string>::of({{v, "v"s}});
   fmt::Println(eo::map_get(seen, Vec(p)), eo::map_get(seen, Vec(Point{11, 2})), eo::len(seen));
   if (auto _eo_type_switch = any(pair); eo::holds<Point>(_eo_type_switch)) {

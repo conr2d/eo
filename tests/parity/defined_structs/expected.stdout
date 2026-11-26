@@ -6,6 +6,7 @@ false true true
 {2 11} (2, 11) {2 11}
 (7, 1)
 main.Vec{X:11, Y:2} [{11 2} {3 4}] {V:{X:11 Y:2} P:{X:2 Y:11}}
+&{11 2} &{X:2 Y:11} &main.Vec{X:11, Y:2}
  v 1
 pair {2 11}
 true true

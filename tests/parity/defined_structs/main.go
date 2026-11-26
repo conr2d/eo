@@ -83,6 +83,9 @@ func main() {
 	fmt.Println(p)
 
 	fmt.Printf("%#v %v %+v\n", v, []Vec{v, {3, 4}}, Holder{v, pair})
+	w := v
+	q := pair
+	fmt.Printf("%v %+v %#v\n", &w, &q, &w)
 	seen := map[Vec]string{v: "v"}
 	fmt.Println(seen[Vec(p)], seen[Vec{11, 2}], len(seen))
 	switch x := any(pair).(type) {

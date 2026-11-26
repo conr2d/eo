@@ -247,7 +247,9 @@ namespace detail {
 // Go's conversion (*T)(p) of a pointer whose base type S has the same underlying type as T: a pointer
 // to the same variable, as a T, which keeps the target of p alive. A defined type adds no data to its
 // underlying type, so T and S have the same layout, and Eo builds with -fno-strict-aliasing, so that
-// accesses through both pointers see each other. A nil p converts to nil.
+// accesses through both pointers see each other. The C++ object model does not allow either cast:
+// the target is not a T, so this relies on GCC and Clang treating a cast between layout-identical
+// types with no virtual functions as the same address. A nil p converts to nil.
 template<typename T, typename S>
   requires std::same_as<detail::go_underlying_t<std::remove_cv_t<T>>, detail::go_underlying_t<S>>
 auto ptr_cast(const ptr<S>& p) noexcept -> ptr<T> {

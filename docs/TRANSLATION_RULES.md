@@ -929,7 +929,7 @@ struct Amount : eo::defined<Amount, big::Int> {
 | a composite literal `B{...}` | `B(e)`, where `e` is the literal of `A`, as in `Vec(Point{1, 2})` and `Alias(Tagged{.Name = "eo"s})` |
 | `b == c` of two `B` values | `b == c`, by the `operator==` of `A` |
 
-`A` converts to `B` only explicitly, as in Go. `fmt` prints a `B` by its own methods, and otherwise by the fields of `A`, without the methods of `A`: a `Vec` prints as `{1 2}` where a `Point` prints by its `String` method, and `%T` and `%#v` name `main.Vec`. A struct of a package that Eo maps prints as Go prints its unexported fields, so an `Amount` value prints as `{true [4096]}`. Interfaces, type assertions, map keys, `reflect`, and `encoding/json` see `B` as a type of its own with the fields and tags of `A`.
+`A` converts to `B` only explicitly, as in Go. `fmt` prints a `B` by its own methods, and otherwise by the fields of `A`, without the methods of `A`: a `Vec` prints as `{1 2}` where a `Point` prints by its `String` method, and `%T` and `%#v` name `main.Vec`. A pointer to a `B` prints as `&` followed by its fields, as `&{1 2}`. A struct of a package that Eo maps prints as Go prints its unexported fields, so an `Amount` value prints as `{true [4096]}`. Interfaces, type assertions, map keys, `reflect`, and `encoding/json` see `B` as a type of its own with the fields and tags of `A`, when `A` is a translated struct.
 
 #### Operators of defined types
 
@@ -973,6 +973,7 @@ auto ok = d == Monday && c > Celsius{30.0};
 
 - defined pointer and channel types, and generic defined types;
 - a defined struct type `type B A` where `A` has embedded fields, whose promoted methods Go gives `B` too;
+- `%#v` of a defined type over a struct of a package that Eo maps, such as `type Amount big.Int`, which names the struct, `big.Int{...}`, where Go names `main.Amount`. `reflect` sees such a type as it sees the struct (see [The reflect package not covered yet](#the-reflect-package-not-covered-yet));
 - defined types declared inside a function;
 - `range` over a value of a defined integer type.
 
@@ -2456,6 +2457,7 @@ Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_
 - `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
 - `Bytes` and `SetBytes` of a slice or array whose element is a defined byte type;
 - a struct type declared inside a function, which has no field table;
+- the struct types of the packages that Eo maps, such as `big.Int`, and the defined types over them, such as `type Amount big.Int`. Their kind is `Invalid`, they have no fields, and `IsZero` reports false;
 - printing a `Value` inside another value, which Go prints by the `Value`'s own fields. A `Value` operand prints the value it holds, as in Go.
 
 ### Goroutine
