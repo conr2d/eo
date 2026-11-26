@@ -9,14 +9,31 @@
 #include <type_traits>
 #include <utility>
 
-// Go's defined types whose underlying type is not a struct, such as `type Celsius float64`. A
-// translated defined type D derives from defined<D, U>, U being the translated underlying type, so D
-// is a type of its own, which can declare methods and a Go type name, as a translated struct does.
+// Go's defined types, such as `type Celsius float64`, whose underlying type is not a struct
+// literal. A translated defined type D derives from defined<D, U>, U being the translated underlying
+// type, so D is a type of its own, which can declare methods and a Go type name, as a translated
+// struct does. For `type B A` with a struct type A, U is A, which stands for A's struct type.
 
 namespace eo {
 
 template<typename D, typename U>
 struct defined;
+
+template<typename... M>
+struct methods;
+
+namespace detail {
+
+  // A class type that a defined type derives from, and among those a struct type: a translated
+  // struct or a struct of a package that Eo maps, which C++ tells from the other classes by its Go
+  // name. Concepts, so that the constraints of the two specializations below subsume.
+  template<typename U>
+  concept class_underlying = std::is_class_v<U>;
+
+  template<typename U>
+  concept struct_underlying = class_underlying<U> && requires { U::_eo_name; };
+
+} // namespace detail
 
 namespace detail {
 
@@ -223,9 +240,8 @@ struct defined<D, U> {
 // derives from it, so the helpers of U take it as they take U. A value of an unnamed array, slice,
 // map, or function type U converts to D implicitly, as Go assigns it to a defined type with the same
 // underlying type. A string, which is a defined type in Go, converts only explicitly, and so does
-// another defined type with the same underlying type, which this constructor does not take.
-template<typename D, typename U>
-  requires std::is_class_v<U>
+// another defined type with the same underlying type.
+template<typename D, detail::class_underlying U>
 struct defined<D, U> : U {
   using _eo_underlying = U;
 
@@ -237,12 +253,33 @@ struct defined<D, U> : U {
     requires std::same_as<std::remove_cvref_t<V>, U>
   explicit(std::same_as<U, std::string>) defined(V&& u): U(std::forward<V>(u)) {}
 
+  template<typename V>
+    requires detail::defined_type<V> && std::same_as<typename V::_eo_underlying, U> && (!std::same_as<V, D>)
+  explicit defined(const V& v): U(static_cast<const U&>(v)) {}
+
   // Go's + of strings keeps the defined type.
   friend auto operator+(const D& a, const D& b) -> D
     requires std::same_as<U, std::string>
   {
     return D(static_cast<const U&>(a) + static_cast<const U&>(b));
   }
+};
+
+// A defined type over a struct type. D derives from the struct, so its fields are D's, and the
+// struct converts to D only explicitly, as in Go. D does not have the struct's
+// methods, as a Go defined type does not, so defined lists none, and D lists its own methods, if it
+// has any, in its own _eo_methods.
+template<typename D, detail::struct_underlying U>
+struct defined<D, U> : U {
+  using _eo_underlying = U;
+  using _eo_methods = methods<>;
+
+  using U::U;
+
+  defined() = default;
+
+  explicit defined(const U& u): U(u) {}
+  explicit defined(U&& u): U(std::move(u)) {}
 };
 
 } // namespace eo

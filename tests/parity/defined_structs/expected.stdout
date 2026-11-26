@@ -1,0 +1,23 @@
+(1, 2) {1 2} (1, 2) 1
+{1 2} {X:1 Y:2} main.Vec main.Point
+false true true
+{11 2} (11, 2) (11, 2)
+(1, 7) {1 7}
+{2 11} (2, 11) {2 11}
+(7, 1)
+main.Vec{X:11, Y:2} [{11 2} {3 4}] {V:{X:11 Y:2} P:{X:2 Y:11}}
+ v 1
+pair {2 11}
+true true
+{"name":"eo"} <nil>
+{go 3} <nil> {go 3}
+amount 255 amount 255
+amount 4096
+-4096 amount -4096
+{true [4096]} {true [4096]}
+-1000
+0 0 <nil>
+{"v":"-1000"} <nil>
+37.6 37.6 *main.Celsius
+[9 2] [9 2] true
+[9 8]
