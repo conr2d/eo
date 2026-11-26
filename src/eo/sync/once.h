@@ -19,15 +19,9 @@ namespace eo::sync {
 
 namespace detail {
 
-  // Whether a call returns a coroutine, an awaitable that Once would drop without running.
-  template<typename T>
-  inline constexpr bool is_coroutine_result = false;
-
-  template<typename T, typename E>
-  inline constexpr bool is_coroutine_result<boost::asio::awaitable<T, E>> = true;
-
+  // A function that does not return an awaitable, which Once would drop without running.
   template<typename F>
-  concept plain_function = !is_coroutine_result<std::invoke_result_t<F&>>;
+  concept plain_function = !eo::detail::is_awaitable_v<std::invoke_result_t<F&>>;
 
 } // namespace detail
 
@@ -40,8 +34,7 @@ struct Once {
   Once(const Once&) = delete;
   auto operator=(const Once&) -> Once& = delete;
 
-  template<typename F>
-    requires detail::plain_function<F>
+  template<detail::plain_function F>
   void Do(F&& f) {
     if (done_.load(std::memory_order_acquire)) {
       return;

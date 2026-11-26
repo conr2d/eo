@@ -35,6 +35,19 @@ struct Celsius : eo::defined<Celsius, double> {
   static constexpr std::string_view _eo_name = "main.Celsius";
 };
 
+struct buffer {
+  static constexpr std::string_view _eo_name = "main.buffer";
+
+  int64_t id{};
+  strings::Builder b{};
+};
+
+error errA{};
+
+int64_t counter{};
+
+sync::Pool bufPool{};
+
 void attempt(std::string name, fn<void()> f) {
   eo_defer_scope;
   try {
@@ -45,8 +58,6 @@ void attempt(std::string name, fn<void()> f) {
     eo_defer_panic;
   }
 }
-
-error errA{};
 
 void interfaceKeys() {
   auto m = map<any, int64_t>::of({});
@@ -238,15 +249,6 @@ func<> syncMapGoroutines() {
   fmt::Println("keys"s, n);
 }
 
-sync::Pool bufPool{};
-
-struct buffer {
-  static constexpr std::string_view _eo_name = "main.buffer";
-
-  int64_t id{};
-  strings::Builder b{};
-};
-
 void pool() {
   auto made = New<int64_t>(0);
   auto p = New<sync::Pool>(sync::Pool{.New = [=]() mutable -> any {
@@ -273,8 +275,6 @@ void pool() {
   auto _eo_call_3 = bufPool.Get();
   fmt::Println(_eo_call_2, _eo_call_3);
 }
-
-int64_t counter{};
 
 func<> once() {
   auto o = New<sync::Once>();
