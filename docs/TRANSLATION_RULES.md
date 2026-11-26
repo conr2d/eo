@@ -2914,6 +2914,34 @@ A call of `Do` that finds another goroutine running `f` waits for it on a C++ mu
 
 `sync.Pool` maps to `sync::Pool`, an aggregate with the field `New`, an `fn<any()>`, and the members `Get` and `Put`: `p := sync.Pool{New: func() any { return new(T) }}` is `auto p = sync::Pool{.New = [=]() mutable -> any { return New<T>(); }};`, and `p.Get().(*T)` is `eo::type_assert<ptr<T>>(p.Get())`. `Get` returns the value put last, or the result of `New`, or nil when `New` is nil, and `Put` of nil does nothing. Go may drop pooled values at any garbage collection, so a program that depends on which value `Get` returns is outside the mapping. A `Pool` can be copied and assigned, which copies its values, so a package-level `var p = sync.Pool{New: f}` follows [Package-level variables](#package-level-variables) as any other dynamic initializer does.
 
+#### Atomic values
+
+Go's `sync/atomic` maps to the namespace `atomic` from `<eo/sync/atomic.h>`. It covers the typed values and the functions on integers:
+
+- the types `Bool`, `Int32`, `Int64`, `Uint32`, `Uint64`, `Uintptr`, `Pointer[T]`, which is `atomic::Pointer<T>`, and `Value`;
+- `AddT`, `AndT`, `OrT`, `CompareAndSwapT`, `LoadT`, `StoreT`, and `SwapT` for `T` of `Int32`, `Int64`, `Uint32`, `Uint64`, and `Uintptr`.
+
+A method is called as a member, as for `sync::Mutex`: `n.Add(1)` of an `atomic.Int64` variable `n` is `n.Add(1)`, `s.hits.Add(1)` of a `*stats` `s` is `s->hits.Add(1)`, and a variable that escapes is boxed as any other, `auto v = New<atomic::Value>();` with `v->Store(x)`. A function takes the address as a `ptr`: `atomic.AddInt64(&n, 2)` is `atomic::AddInt64(ref(n), 2)`, or `atomic::AddInt64(n, 2)` for a boxed `n`. A nil address panics with `runtime error: invalid memory address or nil pointer dereference`, as Go's does.
+
+The results are Go's:
+
+- `Add` returns the new value, wrapping as Go's arithmetic does.
+- `Swap`, `And`, and `Or` return the old value.
+- `CompareAndSwap` reports whether it stored.
+- Every operation is sequentially consistent, as Go's are.
+
+`Pointer<T>` holds a `ptr<T>`, and its `CompareAndSwap` compares pointers, not their targets. A `ptr` owns its target, so `Pointer` and `Value` hold their value under a C++ mutex, not in one atomic word. They give Go's results but are not lock-free.
+
+`Value` holds an `any`. `Load` returns nil until the first store, and `Store`, `Swap`, and `CompareAndSwap` panic with Go's messages:
+
+- `sync/atomic: store of nil value into Value`, `sync/atomic: swap of nil value into Value`, and `sync/atomic: compare and swap of nil value into Value`;
+- `sync/atomic: store of inconsistently typed value into Value` when the dynamic type differs from the first value's, with `swap of` and `compare and swap of` in place of `store of` for the other two methods;
+- `sync/atomic: compare and swap of inconsistently typed values` when `old` is not nil and its type differs from `new`'s.
+
+`CompareAndSwap` compares the stored value with `old` with `==` of two interfaces, which panics with `runtime error: comparing uncomparable type map[string]int` for an uncomparable type, as Go's does.
+
+The typed values cannot be copied or moved, as for `sync::Mutex`, which matches Go's rule that they are not copied after first use, a rule that `go vet` checks. A struct that holds one is therefore not copyable either. Go still lets such a struct be compared with `==` and printed with `fmt`. Neither is covered: the struct declares no `operator==`. The functions on `unsafe.Pointer`, such as `LoadPointer` and `CompareAndSwapPointer`, are not covered either.
+
 ### Package-level variables
 
 Go initializes package-level variables in dependency order and then runs the `init` functions, all in the main goroutine before `main`. C++ runs the dynamic initializers of namespace-scope variables before `main` too, but in declaration order, and outside the Eo runtime, where a goroutine, a blocking operation, or a panic cannot work. So a package-level variable is declared at namespace scope with nothing that C++ has to run in order, and its initializer runs in a generated function, `eo_init`, which the runtime calls in the main goroutine before `eo_main`.
