@@ -757,6 +757,76 @@ void maps() {
   fmt::Println(_eo_call_26, _eo_call_27);
 }
 
+void comparisons() {
+  auto t8 = reflect::TypeFor<int8_t>();
+  auto _eo_call_0 = t8.OverflowInt(127);
+  auto _eo_call_1 = t8.OverflowInt(128);
+  auto _eo_call_2 = t8.OverflowInt(-129);
+  auto _eo_call_3 = reflect::TypeFor<uint32_t>();
+  auto _eo_call_4 = _eo_call_3.OverflowUint(uint64_t{4294967296u});
+  auto _eo_call_5 = reflect::TypeFor<float>();
+  auto _eo_call_6 = _eo_call_5.OverflowFloat(1e39);
+  auto _eo_call_7 = reflect::TypeFor<double>();
+  auto _eo_call_8 = _eo_call_7.OverflowFloat(1e300);
+  fmt::Println(_eo_call_0, _eo_call_1, _eo_call_2, _eo_call_4, _eo_call_6, _eo_call_8);
+
+  auto p = New<Point>(Point{1, 2});
+  auto q = New<Point>(Point{1, 2});
+  auto a = New<any>(p);
+  auto _eo_call_9 = reflect::ValueOf(p);
+  auto _eo_call_10 = reflect::ValueOf(p);
+  auto _eo_call_11 = reflect::Value::Equal(_eo_call_9, _eo_call_10);
+  auto _eo_call_12 = reflect::ValueOf(p);
+  auto _eo_call_13 = reflect::ValueOf(q);
+  auto _eo_call_14 = reflect::Value::Equal(_eo_call_12, _eo_call_13);
+  auto _eo_call_15 = reflect::ValueOf(*p);
+  auto _eo_call_16 = reflect::ValueOf(*q);
+  auto _eo_call_17 = reflect::Value::Equal(_eo_call_15, _eo_call_16);
+  auto _eo_call_18 = reflect::ValueOf(a);
+  auto _eo_call_19 = reflect::Value::Elem(_eo_call_18);
+  auto _eo_call_20 = reflect::ValueOf(p);
+  auto _eo_call_21 = reflect::Value::Equal(_eo_call_19, _eo_call_20);
+  fmt::Println(_eo_call_11, _eo_call_14, _eo_call_17, _eo_call_21);
+  auto _eo_call_22 = reflect::ValueOf(std::array<int64_t, 2>{1, 2});
+  auto _eo_call_23 = reflect::ValueOf(std::array<int64_t, 2>{1, 2});
+  auto _eo_call_24 = reflect::Value::Equal(_eo_call_22, _eo_call_23);
+  auto _eo_call_25 = reflect::ValueOf(int64_t{1});
+  auto _eo_call_26 = reflect::ValueOf("1"s);
+  auto _eo_call_27 = reflect::Value::Equal(_eo_call_25, _eo_call_26);
+  auto _eo_call_28 = reflect::Value::Equal(reflect::Value{}, reflect::Value{});
+  auto _eo_call_29 = reflect::ValueOf(int64_t{1});
+  auto _eo_call_30 = reflect::Value::Equal(_eo_call_29, reflect::Value{});
+  fmt::Println(_eo_call_24, _eo_call_27, _eo_call_28, _eo_call_30);
+
+  auto s = slice<int64_t>::of({1, 2, 3});
+  auto m = map<std::string, int64_t>::of({{"a"s, 1}});
+  auto m2 = m;
+  auto _eo_call_31 = reflect::ValueOf(s);
+  auto _eo_call_32 = reflect::Value::Pointer(_eo_call_31);
+  auto _eo_call_33 = reflect::ValueOf(eo::subslice(s, 0, 2));
+  auto _eo_call_34 = reflect::Value::Pointer(_eo_call_33);
+  auto _eo_call_35 = reflect::ValueOf(s);
+  auto _eo_call_36 = reflect::Value::Pointer(_eo_call_35);
+  auto _eo_call_37 = reflect::ValueOf(eo::subslice(s, 1));
+  auto _eo_call_38 = reflect::Value::Pointer(_eo_call_37);
+  fmt::Println(_eo_call_32 == _eo_call_34, _eo_call_36 == _eo_call_38);
+  auto _eo_call_39 = reflect::ValueOf(m);
+  auto _eo_call_40 = reflect::Value::Pointer(_eo_call_39);
+  auto _eo_call_41 = reflect::ValueOf(m2);
+  auto _eo_call_42 = reflect::Value::Pointer(_eo_call_41);
+  auto _eo_call_43 = reflect::ValueOf(m);
+  auto _eo_call_44 = reflect::Value::Pointer(_eo_call_43);
+  auto _eo_call_45 = reflect::ValueOf(map<std::string, int64_t>::of({}));
+  auto _eo_call_46 = reflect::Value::Pointer(_eo_call_45);
+  auto _eo_call_47 = reflect::ValueOf(p);
+  auto _eo_call_48 = reflect::Value::Pointer(_eo_call_47);
+  auto _eo_call_49 = reflect::ValueOf(q);
+  auto _eo_call_50 = reflect::Value::Pointer(_eo_call_49);
+  auto _eo_call_51 = reflect::ValueOf(ptr<int64_t>{});
+  auto _eo_call_52 = reflect::Value::Pointer(_eo_call_51);
+  fmt::Println(_eo_call_40 == _eo_call_42, _eo_call_44 == _eo_call_46, _eo_call_48 == _eo_call_50, _eo_call_52);
+}
+
 void attempt(std::string name, fn<void()> f) {
   eo_defer_scope;
   try {
@@ -864,6 +934,15 @@ void panics() {
     auto _eo_call_15 = reflect::ValueOf(Outer{});
     reflect::Value::FieldByIndex(_eo_call_15, slice<int64_t>::of({0, 1}));
   });
+  attempt("Equal of slices"s, [=]() mutable {
+    auto _eo_call_16 = reflect::ValueOf(slice<int64_t>::of({}));
+    auto _eo_call_17 = reflect::ValueOf(slice<int64_t>::of({}));
+    reflect::Value::Equal(_eo_call_16, _eo_call_17);
+  });
+  attempt("Pointer of int"s, [=]() mutable { reflect::Value::Pointer(reflect::ValueOf(int64_t{1})); });
+  attempt("OverflowInt of string"s, [=]() mutable { reflect::TypeFor<std::string>().OverflowInt(1); });
+  attempt("OverflowUint of int"s, [=]() mutable { reflect::TypeFor<int64_t>().OverflowUint(1); });
+  attempt("OverflowFloat of int"s, [=]() mutable { reflect::TypeFor<int64_t>().OverflowFloat(1); });
 }
 
 func<> eo_main() {
@@ -875,6 +954,7 @@ func<> eo_main() {
   slicesAndArrays();
   embedded();
   maps();
+  comparisons();
   panics();
   co_return;
 }

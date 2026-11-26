@@ -306,6 +306,37 @@ struct Type {
     }
   }
 
+  auto OverflowFloat(double x) const -> bool {
+    switch (t()->kind) {
+    case eo::detail::rk_float32: {
+      auto a = x < 0 ? -x : x;
+      return FLT_MAX < a && a <= DBL_MAX;
+    }
+    case eo::detail::rk_float64:
+      return false;
+    default:
+      eo::panic("reflect: OverflowFloat of non-float type " + String());
+    }
+  }
+
+  auto OverflowInt(int64_t x) const -> bool {
+    if (t()->kind < eo::detail::rk_int || t()->kind > eo::detail::rk_int64) {
+      eo::panic("reflect: OverflowInt of non-int type " + String());
+    }
+    auto bits = Bits();
+    auto trunc = static_cast<int64_t>(static_cast<uint64_t>(x) << (64 - bits)) >> (64 - bits);
+    return x != trunc;
+  }
+
+  auto OverflowUint(uint64_t x) const -> bool {
+    if (t()->kind < eo::detail::rk_uint || t()->kind > eo::detail::rk_uintptr) {
+      eo::panic("reflect: OverflowUint of non-uint type " + String());
+    }
+    auto bits = Bits();
+    auto trunc = (x << (64 - bits)) >> (64 - bits);
+    return x != trunc;
+  }
+
   // Calling a method of a nil Type panics, as calling a method of a nil interface value does.
   auto t() const -> const eo::detail::rtype* {
     if (_eo_t == nullptr) {
@@ -893,6 +924,70 @@ struct Value {
       return false;
     default:
       detail::panic_value_error("reflect.Value.OverflowFloat", kind(v));
+    }
+  }
+
+  // Go's Value.Equal, from Go 1.26's value.go.
+  static auto Equal(Value v, Value u) -> bool {
+    if (kind(v) == eo::detail::rk_interface) {
+      v = Elem(v);
+    }
+    if (kind(u) == eo::detail::rk_interface) {
+      u = Elem(u);
+    }
+    if (!IsValid(v) || !IsValid(u)) {
+      return IsValid(v) == IsValid(u);
+    }
+    if (kind(v) != kind(u) || v._eo_typ != u._eo_typ) {
+      return false;
+    }
+    switch (kind(v)) {
+    case eo::detail::rk_array: {
+      auto vl = Len(v);
+      if (vl == 0) {
+        if (v._eo_typ->elem()->equal == nullptr) {
+          break;
+        }
+        return true;
+      }
+      for (auto i = int64_t{0}; i < vl; i++) {
+        if (!Equal(Index(v, i), Index(u, i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    case eo::detail::rk_struct: {
+      auto nf = NumField(v);
+      for (auto i = int64_t{0}; i < nf; i++) {
+        if (!Equal(Field(v, i), Field(u, i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    case eo::detail::rk_func:
+    case eo::detail::rk_map:
+    case eo::detail::rk_slice:
+      break;
+    default:
+      return v._eo_typ->equal(v._eo_ptr.get(), u._eo_ptr.get());
+    }
+    eo::panic("reflect.Value.Equal: values of type " + v._eo_typ->string() + " are not comparable");
+  }
+
+  // Go's Value.Pointer, for a pointer, a slice, or a map: the address of the target, of the first
+  // element, or of the table, as a uintptr_t. A map's address is its table's, so a map and its copies
+  // report the same one, as in Go.
+  static auto Pointer(Value v) -> uintptr_t {
+    switch (kind(v)) {
+    case eo::detail::rk_pointer:
+      return reinterpret_cast<uintptr_t>(v._eo_typ->load(v._eo_ptr.get()).get());
+    case eo::detail::rk_slice:
+    case eo::detail::rk_map:
+      return reinterpret_cast<uintptr_t>(v._eo_typ->pointer(v._eo_ptr.get()));
+    default:
+      detail::panic_value_error("reflect.Value.Pointer", kind(v));
     }
   }
 

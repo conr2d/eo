@@ -120,6 +120,11 @@ map[b:2 c:3]
 map[1:one] 1 0
 false 0
 7 false
+false true true true true false
+true false true true
+true false true false
+true false
+true false false 0
 Int of string recovered: reflect: call of reflect.Value.Int on string Value
 Type of zero recovered: reflect: call of reflect.Value.Type on zero Value
 SetInt unaddressable recovered: reflect: reflect.Value.SetInt using unaddressable value
@@ -158,3 +163,8 @@ Float of int recovered: reflect: call of reflect.Value.Float on int Value
 SetString of int recovered: reflect: call of reflect.Value.SetString on int Value
 TypeAssert zero recovered: reflect: call of reflect.TypeAssert on zero Value
 FieldByIndex nil embedded recovered: reflect: indirection through nil pointer to embedded struct
+Equal of slices recovered: reflect.Value.Equal: values of type []int are not comparable
+Pointer of int recovered: reflect: call of reflect.Value.Pointer on int Value
+OverflowInt of string recovered: reflect: OverflowInt of non-int type string
+OverflowUint of int recovered: reflect: OverflowUint of non-uint type int
+OverflowFloat of int recovered: reflect: OverflowFloat of non-float type int

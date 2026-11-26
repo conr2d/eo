@@ -176,6 +176,9 @@ namespace detail {
     auto (*load)(const void*) -> std::shared_ptr<void> = nullptr;
     void (*store)(void*, std::shared_ptr<void>) = nullptr;
 
+    // Slices and maps: the address of the first element or of the table, which Value.Pointer reports.
+    auto (*pointer)(const void*) -> const void* = nullptr;
+
     // Slices.
     auto (*slice_len)(const void*) -> int64_t = nullptr;
     auto (*slice_cap)(const void*) -> int64_t = nullptr;
@@ -576,6 +579,7 @@ namespace detail {
       using E = typename R::value_type;
       r.elem = rtype_ref{&rtype_of<E>};
       r.is_nil = [](const void* p) { return *rep_of<T>(p) == nullptr; };
+      r.pointer = [](const void* p) -> const void* { return rep_of<T>(p)->data(); };
       r.slice_len = [](const void* p) { return rep_of<T>(p)->size(); };
       r.slice_cap = [](const void* p) { return rep_of<T>(p)->capacity(); };
       r.slice_at = [](const void* p, int64_t i) -> std::shared_ptr<void> {
@@ -611,6 +615,7 @@ namespace detail {
       r.elem = rtype_ref{&rtype_of<V>};
       r.key = rtype_ref{&rtype_of<K>};
       r.is_nil = [](const void* p) { return *rep_of<T>(p) == nullptr; };
+      r.pointer = [](const void* p) -> const void* { return rep_of<T>(p)->table(); };
       r.map_len = [](const void* p) { return rep_of<T>(p)->size(); };
       r.map_make = [](void* p, int64_t hint) {
         auto m = R::make();
