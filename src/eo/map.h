@@ -3,6 +3,7 @@
 //
 #pragma once
 #include <eo/array.h>
+#include <eo/key.h>
 #include <eo/ptr.h>
 
 #include <boost/pfr.hpp>
@@ -22,87 +23,6 @@
 namespace eo {
 
 namespace detail {
-
-  // Whether a key of type K can be unequal to itself, as a float NaN is, or a struct with a NaN field.
-  template<typename K>
-  consteval auto has_float_key() -> bool {
-    if constexpr (defined_type<K>) {
-      return has_float_key<typename K::_eo_underlying>();
-    } else if constexpr (std::is_floating_point_v<K>) {
-      return true;
-    } else if constexpr (is_std_array<K>) {
-      return has_float_key<typename K::value_type>();
-    } else if constexpr (go_struct<K> && !std::is_same_v<K, empty_struct>) {
-      return []<std::size_t... I>(std::index_sequence<I...>) {
-        return (has_float_key<boost::pfr::tuple_element_t<I, K>>() || ...);
-      }(std::make_index_sequence<boost::pfr::tuple_size_v<K>>{});
-    } else {
-      return false;
-    }
-  }
-
-  // Go's hash of a map key: equal keys hash alike. 0.0 and -0.0 are equal, so -0.0 hashes as 0.0,
-  // which the standard library's float hash does not promise.
-  template<typename K>
-  auto hash_key(const K& k) -> std::size_t {
-    if constexpr (defined_type<K>) {
-      return hash_key(underlying(k));
-    } else if constexpr (std::is_floating_point_v<K>) {
-      return std::hash<K>{}(k == K{0} ? K{0} : k);
-    } else if constexpr (std::is_arithmetic_v<K> || std::is_same_v<K, std::string>) {
-      return std::hash<K>{}(k);
-    } else if constexpr (is_ptr<K>) {
-      return std::hash<const void*>{}(static_cast<const void*>(k.get()));
-    } else if constexpr (std::is_same_v<K, empty_struct>) {
-      return 0;
-    } else if constexpr (is_std_array<K>) {
-      auto h = std::size_t{0};
-      for (const auto& element : k) {
-        h ^= hash_key(element) + 0x9e3779b97f4a7c15 + (h << 6) + (h >> 2);
-      }
-      return h;
-    } else if constexpr (go_struct<K>) {
-      auto h = std::size_t{0};
-      boost::pfr::for_each_field(k,
-        [&](const auto& field) { h ^= hash_key(field) + 0x9e3779b97f4a7c15 + (h << 6) + (h >> 2); });
-      return h;
-    } else {
-      static_assert(sizeof(K) == 0,
-        "a map key must be a bool, number, string, pointer, or an array or struct of such types; other key "
-        "types are not covered yet");
-    }
-  }
-
-  template<typename K>
-  struct key_hash {
-    auto operator()(const K& k) const -> std::size_t {
-      return hash_key(k);
-    }
-  };
-
-  // Whether two equal keys differ in their bits, as 0.0 and -0.0 do. Go's map assignment stores the
-  // new key in that case.
-  template<typename K>
-  auto key_bits_differ(const K& a, const K& b) -> bool {
-    if constexpr (defined_type<K>) {
-      return key_bits_differ(underlying(a), underlying(b));
-    } else if constexpr (std::is_floating_point_v<K>) {
-      return std::signbit(a) != std::signbit(b);
-    } else if constexpr (is_std_array<K> && has_float_key<K>()) {
-      for (std::size_t i = 0; i < a.size(); ++i) {
-        if (key_bits_differ(a[i], b[i])) {
-          return true;
-        }
-      }
-      return false;
-    } else if constexpr (go_struct<K> && has_float_key<K>()) {
-      return [&]<std::size_t... I>(std::index_sequence<I...>) {
-        return (key_bits_differ(boost::pfr::get<I>(a), boost::pfr::get<I>(b)) || ...);
-      }(std::make_index_sequence<boost::pfr::tuple_size_v<K>>{});
-    } else {
-      return false;
-    }
-  }
 
   // The storage that the copies of one Go map share. A key that is unequal to itself, such as NaN,
   // can be stored but never found, deleted, or assigned again, so each such entry is kept apart in
@@ -128,15 +48,6 @@ namespace detail {
       }
     }
   };
-
-  template<typename K>
-  auto is_nan_key(const K& k) -> bool {
-    if constexpr (has_float_key<K>()) {
-      return !(k == k);
-    } else {
-      return false;
-    }
-  }
 
 } // namespace detail
 
@@ -203,7 +114,11 @@ public:
 
   // The value of key k, or nullptr when k is absent.
   auto find(const K& k) const -> V* {
-    if (table_ == nullptr || detail::is_nan_key(k)) {
+    if (table_ == nullptr || table_->size() == 0) {
+      detail::check_key_of_empty_map(k);
+      return nullptr;
+    }
+    if (detail::is_nan_key(k)) {
       return nullptr;
     }
     auto it = table_->entries.find(k);
@@ -278,7 +193,12 @@ namespace detail {
     // delete(m, k): removes k, if present. A nil map has nothing to remove.
     template<typename K, typename V>
     void operator()(const map<K, V>& m, const std::type_identity_t<K>& k) const {
-      if (auto* t = m.table(); t != nullptr && !is_nan_key(k)) {
+      auto* t = m.table();
+      if (t == nullptr || t->size() == 0) {
+        check_key_of_empty_map(k);
+        return;
+      }
+      if (!is_nan_key(k)) {
         t->entries.erase(k);
       }
     }

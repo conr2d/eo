@@ -206,6 +206,11 @@ struct Type {
     return a._eo_t == nullptr;
   }
 
+  // A Type's identity, by which it is a map key, as Go's *rtype is a pointer.
+  auto _eo_key() const noexcept -> const void* {
+    return _eo_t;
+  }
+
   auto Kind() const -> reflect::Kind {
     return reflect::Kind{t()->kind};
   }

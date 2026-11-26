@@ -39,6 +39,9 @@ class slice;
 template<typename K, typename V>
 class map;
 
+template<typename T>
+class chan;
+
 // A method name, as a template argument.
 template<std::size_t N>
 struct method_name {
@@ -80,6 +83,22 @@ namespace detail {
   // The shared pointer inside a ptr, from <eo/ptr.h>.
   struct ptr_access;
 
+  // The map key operations of a dynamic type, from <eo/key.h>, so that an interface value can be a
+  // map key: its hash, which panics with Go's error for a type that cannot be a key, the name of the
+  // first type in the value that cannot be a key, whether two equal keys differ in their bits, and
+  // fmt's order of keys.
+  template<typename D>
+  auto key_hash_dynamic(const void* value) -> std::size_t;
+
+  template<typename D>
+  auto key_check_dynamic(const void* value) -> std::string;
+
+  template<typename D>
+  auto key_bits_differ_dynamic(const void* a, const void* b) -> bool;
+
+  template<typename D>
+  auto key_compare_dynamic(const void* a, const void* b) -> int;
+
   // Go's fmt printer state, and the printing of one operand with a verb, from <eo/fmt.h>. `depth` is
   // 0 for an operand of Println or Printf, which prints a pointer to a struct, slice, or map as &
   // followed by its target.
@@ -103,6 +122,12 @@ namespace detail {
 
   template<typename T>
   inline constexpr bool is_ptr<ptr<T>> = true;
+
+  template<typename T>
+  inline constexpr bool is_chan_type = false;
+
+  template<typename E>
+  inline constexpr bool is_chan_type<chan<E>> = true;
 
   template<typename T>
   struct pointee {
@@ -302,7 +327,8 @@ namespace detail {
 
   // The descriptor of a dynamic type: its Go name, whether its kind is string, its equality, which
   // is null for an uncomparable type, its printing with a verb, its value as a * width or precision,
-  // its method set, and its information for reflect. Its address identifies the type.
+  // its method set, its information for reflect, and its map key operations. Its address identifies
+  // the type.
   struct type_descriptor {
     auto (*name)() -> std::string;
     bool string_kind;
@@ -312,6 +338,10 @@ namespace detail {
     std::span<const entry_base* const> methods;
     auto (*reflect)() -> const rtype*;
     const void* registration;
+    auto (*key_hash)(const void*) -> std::size_t;
+    auto (*key_check)(const void*) -> std::string;
+    auto (*key_bits_differ)(const void*, const void*) -> bool;
+    auto (*key_compare)(const void*, const void*) -> int;
   };
 
   // Go's comparable types. std::array declares == for every element type, so an array is comparable
@@ -382,6 +412,10 @@ namespace detail {
     method_set<D>::entries,
     &rtype_of<D>,
     descriptor_registration<D>(),
+    &key_hash_dynamic<D>,
+    &key_check_dynamic<D>,
+    &key_bits_differ_dynamic<D>,
+    &key_compare_dynamic<D>,
   };
 
   template<typename T>

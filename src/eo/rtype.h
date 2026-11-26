@@ -256,12 +256,6 @@ namespace detail {
   inline constexpr bool is_fn_type<fn<S>> = true;
 
   template<typename T>
-  inline constexpr bool is_chan_type = false;
-
-  template<typename E>
-  inline constexpr bool is_chan_type<chan<E>> = true;
-
-  template<typename T>
   struct chan_element;
 
   template<typename E>

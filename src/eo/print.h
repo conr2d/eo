@@ -82,8 +82,11 @@ template<typename T>
 inline constexpr bool is_composite = is_composite_type<T>();
 
 // Go's internal/fmtsort order of map keys, which fmt prints a map in: numbers by value, with NaN
-// before every other float, strings by bytes, false before true, pointers by address, arrays element
-// by element, and structs field by field. Returns a negative number, zero, or a positive number.
+// before every other float, strings by bytes, false before true, pointers and channels by address,
+// arrays element by element, and structs field by field. An interface puts nil first, then orders
+// by dynamic type, and then by value. Go orders the types by the addresses of their descriptors, and
+// so does Eo, so keys of different dynamic types can print in another order than Go's. Returns a
+// negative number, zero, or a positive number.
 template<typename K>
 auto compare_keys(const K& a, const K& b) -> int {
   if constexpr (defined_type<K>) {
@@ -98,8 +101,27 @@ auto compare_keys(const K& a, const K& b) -> int {
   } else if constexpr (std::is_same_v<K, std::string>) {
     auto c = a.compare(b);
     return c < 0 ? -1 : (c > 0 ? 1 : 0);
-  } else if constexpr (is_ptr<K>) {
-    return std::less<const void*>{}(a.get(), b.get()) ? -1 : (a.get() == b.get() ? 0 : 1);
+  } else if constexpr (is_ptr<K> || is_chan_type<K> || requires { a._eo_key(); }) {
+    auto address = [](const K& k) -> const void* {
+      if constexpr (is_ptr<K>) {
+        return k.get();
+      } else if constexpr (is_chan_type<K>) {
+        return k.shared_impl().get();
+      } else {
+        return k._eo_key();
+      }
+    };
+    auto x = address(a);
+    auto y = address(b);
+    return std::less<const void*>{}(x, y) ? -1 : (x == y ? 0 : 1);
+  } else if constexpr (std::is_base_of_v<interface_base, K>) {
+    if (a._eo_type == nullptr || b._eo_type == nullptr) {
+      return a._eo_type == b._eo_type ? 0 : (a._eo_type == nullptr ? -1 : 1);
+    }
+    if (a._eo_type != b._eo_type) {
+      return std::less<const void*>{}(a._eo_type, b._eo_type) ? -1 : 1;
+    }
+    return a._eo_type->key_compare(a._eo_value.get(), b._eo_value.get());
   } else if constexpr (std::is_same_v<K, empty_struct>) {
     return 0;
   } else if constexpr (is_std_array<K>) {
