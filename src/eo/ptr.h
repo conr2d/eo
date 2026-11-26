@@ -264,6 +264,21 @@ auto ptr_cast(const ptr<S>& p) noexcept -> ptr<T> {
   }
 }
 
+// Go's conversion (*T)(unsafe.Pointer(p)) of a pointer p of type *S, in the first pattern that the
+// unsafe package allows: T is no larger than S, and both share a layout, such as a [200]byte viewed as
+// a [25]uint64. The result points to the target of p and keeps it alive, as ptr_cast's does, and a nil
+// p converts to nil. Only types without pointers are accepted, as the bytes of a ptr, a slice, or a
+// string are not Go's. As in Go, the target must be aligned for T; the cast does not check it.
+template<typename T, typename S>
+  requires std::is_trivially_copyable_v<std::remove_cv_t<T>> && std::is_trivially_copyable_v<S>
+auto unsafe_ptr_cast(const ptr<S>& p) noexcept -> ptr<T> {
+  static_assert(sizeof(T) <= sizeof(S), "unsafe_ptr_cast: T is larger than the target of p");
+  if (p == nullptr) {
+    return nullptr;
+  }
+  return ptr<T>(p, reinterpret_cast<T*>(p.get()));
+}
+
 namespace detail {
 
   // The shared pointer that a ptr holds, for reflect, which handles pointers with their types erased.

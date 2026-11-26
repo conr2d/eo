@@ -1,0 +1,18 @@
+1 0 0 1
+7 9 7
+1 0 1 0
+1 1 0 1
+[1 2 3]
+[7 8 9]
+copy recovered: subtle: slices have different lengths
+3 [15 240 240 0 0]
+0
+6 [6 10 10 14 14 10 7 8 9 10 11 12]
+short recovered: subtle.XORBytes: dst too short
+overlap recovered: subtle.XORBytes: invalid overlap
+true
+a430d84680aabd0b 8 1
+11831194018420276491
+a430d84680aabd0b aa779a65e7023cd2e7 <nil>
+cbf29ce484222325 8 1
+true false

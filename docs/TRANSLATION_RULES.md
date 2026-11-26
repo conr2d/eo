@@ -886,6 +886,7 @@ A defined type is thus a C++ type of its own, so `fmt`, interfaces, type asserti
 | a composite literal `T{...}` of an array type | `T(e)`, where `e` is the literal of `U` (see [Arrays](#arrays)), as in `Hash(std::array<uint8_t, 32>{1, 2})` |
 | `T(s)`, where `T` is an array type and `s` a slice | `eo::array_from_slice<T>(s)` |
 | `(*T)(p)`, a conversion between pointer types | `eo::ptr_cast<T>(p)` (see [Pointer conversions](#pointer-conversions)) |
+| `(*T)(unsafe.Pointer(p))` | `eo::unsafe_ptr_cast<T>(p)` (see [Pointer conversions](#pointer-conversions)) |
 
 #### Defined struct types
 
@@ -1352,6 +1353,15 @@ Go converts a pointer `p` of type `*S` to `*T` when `S` and `T` have the same un
 
 `eo::ptr_cast` accepts only types whose translated underlying types are the same, as [Defined types](#defined-types) gives them: `U` for a defined type over `U`, and the type itself otherwise. A defined type adds no data to `U`, so both types have the same layout. C++'s type-based aliasing rules would let the compiler assume that a `T` and an `S` never share storage, so the `eo` CMake target passes `-fno-strict-aliasing` as a public compile option, as it passes `-fwrapv`. Translated code compiled without it is outside the mapping.
 
+`(*T)(unsafe.Pointer(p))`, where `p` is a `*S`, is `eo::unsafe_ptr_cast<T>(p)`, for the first pattern that the `unsafe` package allows: `T` is no larger than `S`, and the two share a memory layout, as a `[200]byte` viewed as a `[25]uint64` does. The result points to the target of `p` and keeps it alive, and a nil `p` converts to nil:
+
+| Go | C++ |
+| --- | --- |
+| `(*[25]uint64)(unsafe.Pointer(&d.a))`, where `d` is a `*state` | `eo::unsafe_ptr_cast<std::array<uint64_t, 25>>(ptr(d, &d->a))` |
+| `*(*uint64)(unsafe.Pointer(&f))`, where `f` is not boxed | `*eo::unsafe_ptr_cast<uint64_t>(ref(f))` |
+
+`eo::unsafe_ptr_cast` accepts only trivially copyable types, which have no pointers, slices, strings, maps, or interfaces: their C++ representation is not Go's, so viewing their bytes as another type is outside the mapping. A `T` larger than `S` does not compile. The bytes of an integer depend on the byte order of the target, as in Go. The target must be aligned for `T`, which Go requires too and does not check without `-d=checkptr`; Eo does not check it either. `-fno-strict-aliasing` makes the accesses through both pointers see each other, as for `eo::ptr_cast`.
+
 #### Escape facts
 
 Build the package being translated with the Go toolchain that its module selects, and keep the compiler's escape report:
@@ -1510,7 +1520,7 @@ Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay m
 #### Not covered yet
 
 - printing a pointer with `fmt` inside another value, which shows an address;
-- conversions through `unsafe.Pointer` or `uintptr`.
+- conversions through `unsafe.Pointer` other than `(*T)(unsafe.Pointer(p))`, conversions to and from `uintptr`, and the other names of `unsafe`, such as `unsafe.Slice` and `unsafe.Sizeof`.
 
 Method values and method expressions are described in [Function values](#function-values).
 
@@ -2295,6 +2305,22 @@ Go's `math/bits` maps to the namespace `bits` from `<eo/math/bits.h>`. It covers
 - the constant `UintSize`, which is 64.
 
 Go's `uint` is `uint64_t`, and its `int` results are `int64_t`. Two results are a `std::tuple`, so `sum, carry := bits.Add64(x, y, 0)` is `auto [sum, carry] = bits::Add64(x, y, 0);`. A negative `RotateLeft` count rotates right. `Div` and `Rem` panic with `runtime error: integer divide by zero` for a zero divisor, as Go's do. `Div` also panics with `runtime error: integer overflow` when the quotient does not fit, and `Rem` does not.
+
+### The hash package
+
+Go's `hash` maps to the namespace `hash` from `<eo/hash.h>`. It covers every interface of the package: `Hash`, `Hash32`, `Hash64`, `Cloner`, and `XOF`. They are [interface values](#interface-values), whose methods are called as members, as in `h.Sum(nullptr)`, and an embedded interface is spelled out as its methods, so a `hash::Hash` converts to an `io::Writer`. `Size` and `BlockSize` return `int64_t`, and `Clone` returns `std::tuple<hash::Cloner, error>`. A translated type implements one by declaring the methods in its method set.
+
+### The crypto/subtle package
+
+Go's `crypto/subtle` maps to the namespace `subtle` from `<eo/crypto/subtle.h>`. It covers every function of the package: `ConstantTimeCompare`, `ConstantTimeSelect`, `ConstantTimeByteEq`, `ConstantTimeEq`, `ConstantTimeCopy`, `ConstantTimeLessOrEq`, `XORBytes`, and `WithDataIndependentTiming`. Their `int`s are `int64_t`.
+
+The functions are ported from Go 1.26:
+
+- `ConstantTimeCopy` panics with `subtle: slices have different lengths`.
+- `XORBytes` panics with `subtle.XORBytes: dst too short` when `dst` is shorter than the shorter input, and with `subtle.XORBytes: invalid overlap` when `dst` shares memory with an input other than at the same start.
+- `WithDataIndependentTiming` calls `f`. Go also turns on the CPU's data-independent timing mode around the call on arm64, and Eo does not.
+
+The results are Go's, but Go compiles the comparisons to code without branches, and C++ does not promise that, so the timing is outside the mapping.
 
 ### The io package
 
