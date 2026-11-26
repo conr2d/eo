@@ -887,6 +887,7 @@ A defined type is thus a C++ type of its own, so `fmt`, interfaces, type asserti
 | `T(s)`, where `T` is an array type and `s` a slice | `eo::array_from_slice<T>(s)` |
 | `(*T)(p)`, a conversion between pointer types | `eo::ptr_cast<T>(p)` (see [Pointer conversions](#pointer-conversions)) |
 | `(*T)(unsafe.Pointer(p))` | `eo::unsafe_ptr_cast<T>(p)` (see [Pointer conversions](#pointer-conversions)) |
+| `*(*[]T)(unsafe.Pointer(&s))` of a slice `s` | `eo::unsafe_slice_cast<T>(s)` (see [Pointer conversions](#pointer-conversions)) |
 
 #### Defined struct types
 
@@ -1362,6 +1363,17 @@ Go converts a pointer `p` of type `*S` to `*T` when `S` and `T` have the same un
 
 `eo::unsafe_ptr_cast` accepts only trivially copyable types, which have no pointers, slices, strings, maps, or interfaces: their C++ representation is not Go's, so viewing their bytes as another type is outside the mapping. A `T` larger than `S` does not compile. The bytes of an integer depend on the byte order of the target, as in Go. The target must be aligned for `T`, which Go requires too and does not check without `-d=checkptr`; Eo does not check it either. `-fno-strict-aliasing` makes the accesses through both pointers see each other, as for `eo::ptr_cast`.
 
+`*(*[]T)(unsafe.Pointer(&s))`, where `s` is a slice of type `[]S`, reads the header of `s` as the header of a `[]T`, and is `eo::unsafe_slice_cast<T>(s)`, whether `s` is boxed or not. The result starts at the first element of `s` and keeps its backing array alive. Its length and capacity are those of `s`, counted in elements of `T` rather than of `S`, as in Go, so `len` of a `[]uintptr` read from a 24-byte `[]byte` is 24. A nil `s` gives a nil slice:
+
+| Go | C++ |
+| --- | --- |
+| `dw := *(*[]uintptr)(unsafe.Pointer(&dst))`, where `dst` is a `[]byte` | `auto dw = eo::unsafe_slice_cast<uintptr_t>(dst);` |
+| `*(*[]byte)(unsafe.Pointer(&u))`, where `u` is a `[]uint64` | `eo::unsafe_slice_cast<uint8_t>(u)` |
+
+`eo::unsafe_slice_cast` accepts only trivially copyable element types, as `eo::unsafe_ptr_cast` does. Eo checks an index against the length of the result, as Go does, and neither checks that the element lies within the backing array of `s`: reaching beyond it is outside the mapping in both. C++ also requires each element that the result reaches to be aligned for `T`. Go does not: it allows an unaligned element of a type without pointers, even under `-d=checkptr`, and go-ethereum's `bitutil` reads unaligned words on amd64. A translated program that reaches an unaligned element is outside the mapping. A backing array that `make` or a composite literal allocates starts aligned for any integer type in practice, and an element at an offset that is a multiple of `sizeof(T)` from that start is then aligned too. Writing through the pointer, as in `*(*[]T)(unsafe.Pointer(&s)) = t`, is not covered.
+
+`unsafe.Sizeof`, `unsafe.Alignof`, and `unsafe.Offsetof` are constants, and so are `runtime.GOOS` and `runtime.GOARCH`. The type checker folds a constant expression that contains them, as for any constant (see [Constant declarations](#constant-declarations)), so `const wordSize = int(unsafe.Sizeof(uintptr(0)))` is `constexpr int64_t wordSize = 8;`. The values are those of the Go target that the escape facts are built for, which must be the C++ target too.
+
 #### Escape facts
 
 Build the package being translated with the Go toolchain that its module selects, and keep the compiler's escape report:
@@ -1520,7 +1532,7 @@ Methods of Eo library types, such as `sync::Mutex` and `sync::WaitGroup`, stay m
 #### Not covered yet
 
 - printing a pointer with `fmt` inside another value, which shows an address;
-- conversions through `unsafe.Pointer` other than `(*T)(unsafe.Pointer(p))`, conversions to and from `uintptr`, and the other names of `unsafe`, such as `unsafe.Slice` and `unsafe.Sizeof`.
+- conversions through `unsafe.Pointer` other than `(*T)(unsafe.Pointer(p))` and `*(*[]T)(unsafe.Pointer(&s))`, conversions to and from `uintptr`, and the functions of `unsafe` that are not constants, such as `unsafe.Slice`, `unsafe.String`, and `unsafe.Add`.
 
 Method values and method expressions are described in [Function values](#function-values).
 

@@ -30,7 +30,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Switch statements | [Switch statements](./TRANSLATION_RULES.md#switch-statements) | `switch_values`, `switch_case_order`, `switch_jumps` |
 | Range loops | [Range loops](./TRANSLATION_RULES.md#range-loops) | `range_loop`, `range_variable_address`, `channel_range` |
 | Labeled statements and `goto` | [Labeled statements](./TRANSLATION_RULES.md#labeled-statements) | `labels` |
-| Pointers and escaping variables | [Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables) | `escape_return_pointer`, `field_address`, `closure_capture_by_ref`, `loop_variable_address`, `unsafe_pointers` |
+| Pointers and escaping variables | [Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables) | `escape_return_pointer`, `field_address`, `closure_capture_by_ref`, `loop_variable_address`, `unsafe_pointers`, `unsafe_slices` |
 | Function values and methods | [Function values](./TRANSLATION_RULES.md#function-values) | `func_values`, `func_coroutines`, `value_receiver_escape` |
 | Interfaces, type assertions, type switches | [Interfaces](./TRANSLATION_RULES.md#interfaces) | `interface_values`, `interface_printing`, `type_assertion` |
 | Multiple results | [Multiple results](./TRANSLATION_RULES.md#multiple-results) | `multi_value_results`, `multi_value_defer` |
