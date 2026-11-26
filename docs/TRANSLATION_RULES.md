@@ -289,7 +289,7 @@ A constant name inside a struct definition or its methods follows [Package-level
 
 A defined type with a numeric underlying type prints as its underlying value unless it has an `Error` or `String` method (see [Printing defined types](#printing-defined-types)).
 
-Not covered yet: `complex64` and `complex128`, and the `math` package.
+Not covered yet: `complex64` and `complex128`. The `math` package is in [The math package](#the-math-package).
 
 ### Untyped constant arguments
 
@@ -577,11 +577,13 @@ The slice helpers are function objects with the same collision rule as the strin
 
 #### The slices package
 
-Go's `slices` package maps, in part, to the namespace `slices` from `<eo/slices.h>`, whose functions are called as Go calls them, like those of `maps` (see [Maps](#maps)): `slices.Clone(s)`, `slices.Delete(s, i, j)`, `slices.DeleteFunc(s, del)`, `slices.Index(s, v)`, `slices.IndexFunc(s, f)`, `slices.Contains(s, v)`, `slices.ContainsFunc(s, f)`, `slices.Grow(s, n)`, `slices.SortFunc(s, cmp)`, and `slices.SortStableFunc(s, cmp)` are `slices::Clone(s)`, `slices::Delete(s, i, j)`, and so on. A function literal argument is the lambda of [Function literals](#function-literals), passed directly, and a comparison function returns `int64_t`, as Go's returns `int`. Each function takes its slice as a `slice<E>`, and `slices::Clone`, `slices::Delete`, `slices::DeleteFunc`, and `slices::Grow` return one, so a slice of a [defined type](#defined-types) `T` passes as it is, and a result that Go gives the type `T` is converted, as the result of `eo::append` is: `names = slices.Delete(names, 0, 1)` is `names = Names(slices::Delete(names, 0, 1));`.
+Go's `slices` package maps, in part, to the namespace `slices` from `<eo/slices.h>`, whose functions are called as Go calls them, like those of `maps` (see [Maps](#maps)): `slices.Clone(s)`, `slices.Delete(s, i, j)`, `slices.DeleteFunc(s, del)`, `slices.Index(s, v)`, `slices.IndexFunc(s, f)`, `slices.Contains(s, v)`, `slices.ContainsFunc(s, f)`, `slices.Grow(s, n)`, `slices.Equal(s1, s2)`, `slices.EqualFunc(s1, s2, eq)`, `slices.Compare(s1, s2)`, `slices.CompareFunc(s1, s2, cmp)`, `slices.SortFunc(s, cmp)`, and `slices.SortStableFunc(s, cmp)` are `slices::Clone(s)`, `slices::Delete(s, i, j)`, and so on. A function literal argument is the lambda of [Function literals](#function-literals), passed directly, and a comparison function returns `int64_t`, as Go's returns `int`. Each function takes its slice as a `slice<E>`, and `slices::Clone`, `slices::Delete`, `slices::DeleteFunc`, and `slices::Grow` return one, so a slice of a [defined type](#defined-types) `T` passes as it is, and a result that Go gives the type `T` is converted, as the result of `eo::append` is: `names = slices.Delete(names, 0, 1)` is `names = Names(slices::Delete(names, 0, 1));`.
 
 The functions keep Go's aliasing and nil behavior. `slices::Clone` of nil is nil, and of an empty slice is an empty slice that is not nil. `slices::Delete` and `slices::DeleteFunc` move the kept elements within `s`, set the elements between the new length and the old one to the zero value, as Go does since Go 1.22, and return `s` shortened, so another slice of the same array sees both changes. `slices::Delete` panics as `s[i:j:len(s)]` does when its bounds are out of range, with the same runtime error. `slices::DeleteFunc` calls `del` once for each element, in order, and `slices::IndexFunc` and `slices::ContainsFunc` call `f` on the elements in order until it returns true.
 
 `slices::Grow` returns `s` itself when its capacity has room for `n` more elements, and otherwise a slice of the same length over a new array, as Go's `append(s[:cap(s)], make([]E, n)...)[:len(s)]` does. Its capacity is at least `len(s) + n`, and beyond that it follows `append`, which Go does not specify either. A negative `n` panics with Go's message, `cannot be negative`.
+
+`slices::Equal` compares the elements with `==`, so a nil slice equals an empty one and a NaN element equals nothing. `slices::Compare` compares them with `cmp::Compare`, so a NaN is less than any other number and equal to a NaN, and then a shorter slice is less than a longer one. `slices::EqualFunc` and `slices::CompareFunc` call their function on the pairs of elements in order until it decides, and the two slices may have different element types, as in Go.
 
 `slices::SortFunc` sorts with `std::sort`, so equal elements can end in another order than Go's, which Go leaves unspecified too, and a program whose output depends on the order of equal elements is outside this mapping. `slices::SortStableFunc` keeps equal elements in their order, as Go does. `cmp` must be a strict weak order, as Go requires for a sorted result: Go sorts some order for any other `cmp`, and C++ gives no such promise.
 
@@ -1903,6 +1905,31 @@ Eo reads the field names for `%+v` and `%#v` from the compiler. Boost.PFR gives 
 - `%q` and `%#U` of an unassigned code point or a format character not listed above, which Go escapes, or prints without the character for `%#U`, and Eo prints as it is;
 - `%T` of an `int64` value, which prints `int` ([#107](https://github.com/conr2d/eo/issues/107)).
 
+### The cmp package
+
+Go's `cmp` maps to the namespace `cmp` from `<eo/cmp.h>`. It covers the whole package: `cmp.Compare(x, y)` and `cmp.Less(x, y)` are `cmp::Compare(x, y)` and `cmp::Less(x, y)`, and `cmp.Ordered` is the C++ concept `cmp::Ordered`, which holds for the integer, floating-point, and string types and for defined types whose underlying type is one of them. `Compare` returns `int64_t`, as Go's returns `int`. A NaN is less than any other number and equal to a NaN, and `-0.0` equals `0.0`.
+
+The functions are generic, and C++ deduces the type argument from the first argument alone. So a first argument that is an untyped constant is written in the type that Go infers, as `T{L}`: `cmp.Compare(1, 2)` is `cmp::Compare(int64_t{1}, 2)`, and `cmp.Compare(uint8(200), 100)` is `cmp::Compare(uint8_t{200}, 100)`. `cmp.Or` is variadic, so its parameter is a slice: `cmp.Or(a, b, "x")` is `cmp::Or(slice<std::string>::of({a, b, "x"s}))`, and `cmp.Or[string]()` is `cmp::Or<std::string>(nullptr)`. It returns the first argument that is not the zero value, or the zero value.
+
+### The math package
+
+Go's `math` maps, in part, to the namespace `math` from `<eo/math.h>`. It covers the functions whose results IEEE 754 defines exactly, so that they match Go's to the bit:
+
+- `Abs`, `Copysign`, `Signbit`, `Inf`, `NaN`, `IsInf`, and `IsNaN`;
+- `Float64bits`, `Float64frombits`, `Float32bits`, and `Float32frombits`;
+- `Floor`, `Ceil`, `Trunc`, `Round`, `RoundToEven`, `Max`, `Min`, `Dim`, `Mod`, `Sqrt`, and `Nextafter`;
+- `Frexp`, `Ldexp`, and `Modf`;
+- the constants `E`, `Pi`, `Phi`, `Sqrt2`, `SqrtE`, `SqrtPi`, `SqrtPhi`, `Ln2`, `Log2E`, `Ln10`, and `Log10E`, the limits `MaxFloat32`, `SmallestNonzeroFloat32`, `MaxFloat64`, and `SmallestNonzeroFloat64`, and the integer limits from `MaxInt` and `MinInt` to `MaxUint64`.
+
+A `float64` is `double` and Go's `int` is `int64_t`, so `math.Inf(-1)` is `math::Inf(-1)`, and `frac, exp := math.Frexp(x)` is `auto [frac, exp] = math::Frexp(x);`. The functions keep Go's special cases. `NaN` returns Go's NaN, whose bits are `0x7ff8000000000001`. `Max` returns `+Inf` when either argument is `+Inf`, then NaN when either is NaN, and `+0` over `-0`, and `Min` mirrors it, which `std::fmax` and `std::fmin` do not. `Round` rounds half away from zero, and `RoundToEven` is ported from Go's bit operations, so it does not depend on the rounding mode. `Modf` of an infinity gives the infinity and NaN, and `Frexp` of `±0`, an infinity, or NaN gives the value and 0.
+
+Go's constants are untyped, so each is declared with its default type: `double` for the floating-point constants, and `int64_t` for the integer limits, except `MaxUint` and `MaxUint64`, which `int64_t` cannot hold and are `uint64_t`. A use follows [Untyped constants](#untyped-constants): a constant is written by name where it takes that type, as in `fmt.Println(math.MaxInt8)` and `n > math.MaxUint32` with an `int64` `n`, and as `T{L}` elsewhere: `int32(x) < math.MaxInt16` is `int32_t(x) < int32_t{32767}`, `uint64(math.MaxUint64)` is `uint64_t{18446744073709551615u}`, and `float32(math.MaxFloat32)` is `float{0x1.fffffep+127f}`.
+
+#### The math package not covered yet
+
+- the functions whose results a C++ library can give differently from Go's in the last place: `Exp`, `Exp2`, `Expm1`, `Log`, `Log2`, `Log10`, `Log1p`, `Logb`, `Ilogb`, `Pow`, `Pow10`, `Cbrt`, `Hypot`, the trigonometric and hyperbolic functions and their inverses, `Erf` and its relatives, `Gamma`, `Lgamma`, and the Bessel functions;
+- `Remainder`, `FMA`, `Nextafter32`, and the other functions not listed above.
+
 ### The math/big package
 
 Go's `math/big` maps, in part, to the namespace `big` from `<eo/math/big.h>`. It covers the type `big.Int` with the methods below, `big.NewInt`, and `big.Word`. An `Int` holds its value in a Boost.Multiprecision `cpp_int`.
@@ -1976,7 +2003,7 @@ Go's `strconv` maps, in part, to the namespace `strconv` from `<eo/strconv.h>`. 
 
 - `ParseInt`, `ParseUint`, `Atoi`, and `ParseBool`;
 - `Itoa`, `FormatInt`, `FormatUint`, and `FormatBool`;
-- `FormatFloat` and `AppendFloat`;
+- `ParseFloat`, `FormatFloat`, and `AppendFloat`;
 - `AppendInt`, `AppendUint`, `AppendBool`, and `AppendQuote`;
 - `Quote`, `QuoteToASCII`, `QuoteRune`, `QuoteRuneToASCII`, `CanBackquote`, `Unquote`, `UnquoteChar`, and `IsPrint`;
 - the error type `NumError` and the variables `ErrRange` and `ErrSyntax`;
@@ -1986,6 +2013,7 @@ The functions are ported from Go 1.26:
 
 - The parse functions take base prefixes and `_` separators only for base 0. A value out of range gives the largest value of its sign, with an error.
 - A failed parse returns a `*strconv.NumError` as its `error`. Its `Error` is Go's, as in `strconv.ParseInt: parsing "999": value out of range`, and it unwraps to `strconv::ErrRange`, `strconv::ErrSyntax`, or an error for an invalid base or bit size. So `errors::Is(err, strconv::ErrRange)` and `errors::As(err, p)` with a `ptr<strconv::NumError>` target work as in Go.
+- `ParseFloat` takes Go's syntax: decimal and hexadecimal numbers, `_` separators only after a base prefix, a hexadecimal mantissa only with a `p` exponent, and `inf`, `infinity`, and `nan` in any case, with a sign for the infinities. It checks the syntax with a port of Go's `readFloat`, and then rounds with `std::from_chars`, which rounds to the nearest value with ties to even, as Go does: to `float` for a bit size of 32, whose result is then a `double`, and to `double` for any other bit size. A number out of range gives an infinity of its sign and `strconv::ErrRange`. A number too small for the type rounds to zero of its sign, which Go does not report. Anything after the number gives 0 and `strconv::ErrSyntax`, with the whole string in the `NumError`.
 - `Unquote` and `UnquoteChar` return `strconv::ErrSyntax` itself.
 - `FormatInt`, `FormatUint`, `AppendInt`, and `AppendUint` panic with `strconv: illegal AppendInt/FormatInt base` for a base other than 2 through 36.
 - `FormatFloat` takes the formats `'b'`, `'e'`, `'E'`, `'f'`, `'g'`, `'G'`, `'x'`, and `'X'`, and a precision of -1 for the fewest digits that read back as the same value. Another format gives `%` followed by the format, and a bit size other than 32 or 64 panics with `strconv: illegal AppendFloat/FormatFloat bitSize`, as in Go.
@@ -1993,7 +2021,7 @@ The functions are ported from Go 1.26:
 
 #### The strconv package not covered yet
 
-- `ParseFloat`, the complex functions, `QuoteToGraphic`, `AppendQuoteRune`, the `Append` forms of the ASCII quoting functions, the graphic quoting functions, `QuotedPrefix`, and `IsGraphic`.
+- the complex functions, `QuoteToGraphic`, `AppendQuoteRune`, the `Append` forms of the ASCII quoting functions, the graphic quoting functions, `QuotedPrefix`, and `IsGraphic`.
 
 ### The encoding/hex package
 
@@ -2114,14 +2142,16 @@ The capacity of a new slice follows [Slices](#slices) and is outside this mappin
 
 Go's `unicode` maps, in part, to the namespace `unicode` from `<eo/unicode.h>`. It covers:
 
-- `ToUpper`, `ToLower`, `ToTitle`, `SimpleFold`, and `IsSpace`;
+- `ToUpper`, `ToLower`, `ToTitle`, and `SimpleFold`;
+- the predicates `IsSpace`, `IsControl`, `IsLetter`, `IsUpper`, `IsLower`, `IsTitle`, `IsMark`, `IsNumber`, `IsDigit`, `IsPunct`, `IsSymbol`, `IsGraphic`, and `IsPrint`;
 - the constants `MaxRune`, `ReplacementChar`, `MaxASCII`, and `MaxLatin1`.
 
-They compute their results as Go's `letter.go` and `graphic.go` do, from tables that `tools/unicode` generates from Go's own: `go run tools/unicode/main.go > src/eo/unicode/tables.h`. The tables are those of Unicode 15.0.0, which Go 1.26 uses. A parity case compares every code point's results with Go's.
+They compute their results as Go's `letter.go`, `graphic.go`, and `digit.go` do, from tables that `tools/unicode` generates from Go's own: `go run tools/unicode/main.go > src/eo/unicode/tables.h`. The category tables keep Go's ranges with their strides, and a Latin-1 code point is looked up in a table of its properties, as in Go. The tables are those of Unicode 15.0.0, which Go 1.26 uses. Parity cases compare every code point's results with Go's.
 
 #### The unicode package not covered yet
 
-- the category and script tables and the functions that use them, such as `IsLetter`, `IsDigit`, `IsUpper`, `IsPrint`, and `In`, and `SpecialCase`.
+- the `RangeTable` variables, such as `unicode.Letter` and `unicode.Han`, and the functions that take them, `Is`, `In`, `IsOneOf`, and the `Range16` and `Range32` types;
+- `SpecialCase` and the `CaseRanges` variable.
 
 ### The unicode/utf8 package
 

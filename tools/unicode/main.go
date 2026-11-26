@@ -1,5 +1,5 @@
-// Command unicode writes src/eo/unicode/tables.h, the case and white space tables of Go's unicode
-// package that Eo's strings and bytes need, from the Go toolchain that runs it:
+// Command unicode writes src/eo/unicode/tables.h, the case, white space, and category tables of Go's
+// unicode package, from the Go toolchain that runs it:
 //
 //	go run tools/unicode/main.go > src/eo/unicode/tables.h
 package main
@@ -7,6 +7,7 @@ package main
 import (
 	"fmt"
 	"runtime"
+	"strings"
 	"unicode"
 )
 
@@ -70,6 +71,78 @@ func main() {
 			fmt.Printf("  {0x%04X, 0x%04X},\n", start, r-1)
 			start = -1
 		}
+	}
+	fmt.Println("};")
+	fmt.Println()
+
+	// The category tables, as Go's RangeTable entries: R16 and then R32, each Lo, Hi, and Stride.
+	fmt.Println("struct stride_range {")
+	fmt.Println("  uint32_t lo;")
+	fmt.Println("  uint32_t hi;")
+	fmt.Println("  uint32_t stride;")
+	fmt.Println("};")
+	fmt.Println()
+	for _, t := range []struct {
+		name  string
+		table *unicode.RangeTable
+	}{
+		{"letter", unicode.Letter},
+		{"upper", unicode.Upper},
+		{"lower", unicode.Lower},
+		{"title", unicode.Title},
+		{"mark", unicode.Mark},
+		{"number", unicode.Number},
+		{"digit", unicode.Digit},
+		{"punct", unicode.Punct},
+		{"symbol", unicode.Symbol},
+		{"zs", unicode.Zs},
+	} {
+		fmt.Printf("inline constexpr stride_range %s[] = {\n", t.name)
+		for _, r := range t.table.R16 {
+			fmt.Printf("  {0x%04X, 0x%04X, %d},\n", r.Lo, r.Hi, r.Stride)
+		}
+		for _, r := range t.table.R32 {
+			fmt.Printf("  {0x%04X, 0x%04X, %d},\n", r.Lo, r.Hi, r.Stride)
+		}
+		fmt.Println("};")
+		fmt.Println()
+	}
+
+	// The properties of each Latin-1 code point, which Go's predicates look up instead of searching
+	// the tables: one bit per predicate.
+	fmt.Println("enum : uint16_t {")
+	predicates := []struct {
+		name string
+		is   func(rune) bool
+	}{
+		{"p_control", unicode.IsControl},
+		{"p_letter", unicode.IsLetter},
+		{"p_upper", unicode.IsUpper},
+		{"p_lower", unicode.IsLower},
+		{"p_title", unicode.IsTitle},
+		{"p_number", unicode.IsNumber},
+		{"p_punct", unicode.IsPunct},
+		{"p_symbol", unicode.IsSymbol},
+		{"p_graphic", unicode.IsGraphic},
+		{"p_print", unicode.IsPrint},
+	}
+	for i, p := range predicates {
+		fmt.Printf("  %s = 1 << %d,\n", p.name, i)
+	}
+	fmt.Println("};")
+	fmt.Println()
+	fmt.Println("inline constexpr uint16_t latin1_properties[256] = {")
+	for r := rune(0); r <= unicode.MaxLatin1; r++ {
+		var bits []string
+		for _, p := range predicates {
+			if p.is(r) {
+				bits = append(bits, p.name)
+			}
+		}
+		if len(bits) == 0 {
+			bits = []string{"0"}
+		}
+		fmt.Printf("  /* 0x%02X */ %s,\n", r, strings.Join(bits, " | "))
 	}
 	fmt.Println("};")
 	fmt.Println()

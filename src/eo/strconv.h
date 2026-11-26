@@ -8,12 +8,16 @@
 #include <eo/print.h>
 #include <eo/utf8.h>
 
+#include <algorithm>
+#include <bit>
+#include <charconv>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <tuple>
 
-// Go's strconv, in part: the integer and bool conversions, FormatFloat and AppendFloat, Quote,
+// Go's strconv, in part: the integer and bool conversions, ParseFloat, FormatFloat and AppendFloat, Quote,
 // QuoteToASCII, QuoteRune, QuoteRuneToASCII, CanBackquote, Unquote, and IsPrint, ported from Go 1.26's
 // strconv and internal/strconv.
 
@@ -278,6 +282,265 @@ inline auto ParseInt(std::string s, int64_t base, int64_t bitSize) -> std::tuple
 inline auto Atoi(std::string s) -> std::tuple<int64_t, error> {
   auto [x, f] = detail::parse_int(s, 10, 0);
   return {x, detail::num_error("Atoi", s, 0, 0, f)};
+}
+
+namespace detail {
+
+  // Go's special: a prefix of s that is "inf", "infinity", or "nan", ignoring case, with a sign for
+  // the infinities.
+  struct parsed_special {
+    double f;
+    std::size_t n;
+    bool ok;
+  };
+
+  inline auto common_prefix_len_ignore_case(std::string_view s, std::string_view prefix) -> std::size_t {
+    auto n = std::min(s.size(), prefix.size());
+    for (std::size_t i = 0; i < n; ++i) {
+      if (lower(s[i]) != prefix[i]) {
+        return i;
+      }
+    }
+    return n;
+  }
+
+  inline auto special(std::string_view s) -> parsed_special {
+    if (s.empty()) {
+      return {0, 0, false};
+    }
+    auto sign = 1;
+    std::size_t nsign = 0;
+    auto c = s[0];
+    if (c == '+' || c == '-') {
+      if (c == '-') {
+        sign = -1;
+      }
+      nsign = 1;
+      s.remove_prefix(1);
+    }
+    if (nsign == 1 || c == 'i' || c == 'I') {
+      auto n = common_prefix_len_ignore_case(s, "infinity");
+      // Anything longer than "inf" is ok, but without all of "infinity", only "inf" is consumed.
+      if (3 < n && n < 8) {
+        n = 3;
+      }
+      if (n == 3 || n == 8) {
+        return {sign > 0 ? std::numeric_limits<double>::infinity() : -std::numeric_limits<double>::infinity(),
+          nsign + n,
+          true};
+      }
+    } else if (c == 'n' || c == 'N') {
+      if (common_prefix_len_ignore_case(s, "nan") == 3) {
+        return {std::bit_cast<double>(uint64_t{0x7FF8000000000001}), 3, true};
+      }
+    }
+    return {0, 0, false};
+  }
+
+  // Go's readFloat, which checks the syntax of a decimal or hexadecimal floating-point number at the
+  // start of s. It returns the length of the number, and the leading digits and the exponent that
+  // Go rounds from, which here only tell an overflow from an underflow.
+  struct read_float_result {
+    uint64_t mantissa = 0;
+    int64_t exp = 0;
+    bool neg = false;
+    bool hex = false;
+    std::size_t n = 0;
+    bool ok = false;
+  };
+
+  inline auto read_float(std::string_view s) -> read_float_result {
+    auto r = read_float_result{};
+    auto underscores = false;
+    std::size_t i = 0;
+    if (i >= s.size()) {
+      return r;
+    }
+    if (s[i] == '+') {
+      ++i;
+    } else if (s[i] == '-') {
+      ++i;
+      r.neg = true;
+    }
+    auto base = uint64_t{10};
+    auto maxMantDigits = 19;
+    auto expChar = 'e';
+    if (i + 2 < s.size() && s[i] == '0' && lower(s[i + 1]) == 'x') {
+      base = 16;
+      maxMantDigits = 16;
+      i += 2;
+      expChar = 'p';
+      r.hex = true;
+    }
+    auto sawdot = false;
+    auto sawdigits = false;
+    int64_t nd = 0;
+    int64_t ndMant = 0;
+    int64_t dp = 0;
+    for (; i < s.size(); ++i) {
+      auto c = s[i];
+      if (c == '_') {
+        underscores = true;
+        continue;
+      }
+      if (c == '.') {
+        if (sawdot) {
+          break;
+        }
+        sawdot = true;
+        dp = nd;
+        continue;
+      }
+      if ('0' <= c && c <= '9') {
+        sawdigits = true;
+        if (c == '0' && nd == 0) {
+          // A leading zero.
+          --dp;
+          continue;
+        }
+        ++nd;
+        if (ndMant < maxMantDigits) {
+          r.mantissa = r.mantissa * base + static_cast<uint64_t>(c - '0');
+          ++ndMant;
+        }
+        continue;
+      }
+      if (base == 16 && 'a' <= lower(c) && lower(c) <= 'f') {
+        sawdigits = true;
+        ++nd;
+        if (ndMant < maxMantDigits) {
+          r.mantissa = r.mantissa * 16 + static_cast<uint64_t>(lower(c) - 'a' + 10);
+          ++ndMant;
+        }
+        continue;
+      }
+      break;
+    }
+    if (!sawdigits) {
+      r.n = i;
+      return r;
+    }
+    if (!sawdot) {
+      dp = nd;
+    }
+    if (base == 16) {
+      dp *= 4;
+      ndMant *= 4;
+    }
+    if (i < s.size() && lower(s[i]) == expChar) {
+      ++i;
+      if (i >= s.size()) {
+        r.n = i;
+        return r;
+      }
+      auto esign = 1;
+      if (s[i] == '+') {
+        ++i;
+      } else if (s[i] == '-') {
+        ++i;
+        esign = -1;
+      }
+      if (i >= s.size() || s[i] < '0' || s[i] > '9') {
+        r.n = i;
+        return r;
+      }
+      int64_t e = 0;
+      for (; i < s.size() && (('0' <= s[i] && s[i] <= '9') || s[i] == '_'); ++i) {
+        if (s[i] == '_') {
+          underscores = true;
+          continue;
+        }
+        if (e < 10000) {
+          e = e * 10 + (s[i] - '0');
+        }
+      }
+      dp += e * esign;
+    } else if (base == 16) {
+      // A hexadecimal mantissa must have a 'p' exponent.
+      r.n = i;
+      return r;
+    }
+    if (r.mantissa != 0) {
+      r.exp = dp - ndMant;
+    }
+    r.n = i;
+    if (underscores && !underscore_ok(s.substr(0, i))) {
+      return r;
+    }
+    r.ok = true;
+    return r;
+  }
+
+  // The value of a number that read_float accepted, correctly rounded to F with ties to even, as
+  // Go rounds: std::from_chars rounds so too. It reports whether the number overflows F, in which
+  // case the value is an infinity of its sign, as Go returns.
+  template<typename F>
+  auto float_value(std::string_view s, const read_float_result& r) -> std::tuple<double, bool> {
+    // std::from_chars takes no sign, no "0x" prefix, and no underscores.
+    auto digits = std::string{};
+    digits.reserve(r.n);
+    auto i = std::size_t{0};
+    if (s[i] == '+' || s[i] == '-') {
+      ++i;
+    }
+    if (r.hex) {
+      i += 2;
+    }
+    for (; i < r.n; ++i) {
+      if (s[i] != '_') {
+        digits.push_back(s[i]);
+      }
+    }
+    auto value = F{0};
+    auto format = r.hex ? std::chars_format::hex : std::chars_format::general;
+    auto [end, ec] = std::from_chars(digits.data(), digits.data() + digits.size(), value, format);
+    auto overflow = false;
+    if (ec == std::errc::result_out_of_range) {
+      // Out of range either way: the magnitude of the leading digits and the exponent tells which.
+      // An underflow rounds to zero, which Go does not report.
+      auto magnitude = r.exp;
+      for (auto m = r.mantissa; m != 0; m /= r.hex ? 2 : 10) {
+        ++magnitude;
+      }
+      overflow = magnitude > 0;
+      value = overflow ? std::numeric_limits<F>::infinity() : F{0};
+    }
+    auto f = static_cast<double>(value);
+    return {r.neg ? -f : f, overflow};
+  }
+
+  // Go's parseFloatPrefix: the value of the number at the start of s, its length, and whether it
+  // is malformed or out of range. A bit size other than 32 is 64.
+  inline auto parse_float_prefix(std::string_view s, int64_t bitSize) -> std::tuple<double, std::size_t, failure> {
+    if (auto sp = special(s); sp.ok) {
+      auto f = sp.f;
+      if (bitSize == 32) {
+        f = static_cast<double>(static_cast<float>(f));
+      }
+      return {f, sp.n, failure::none};
+    }
+    auto r = read_float(s);
+    if (!r.ok) {
+      return {0, r.n, failure::syntax};
+    }
+    auto [f, overflow] = bitSize == 32 ? float_value<float>(s, r) : float_value<double>(s, r);
+    return {f, r.n, overflow ? failure::range : failure::none};
+  }
+
+} // namespace detail
+
+// Go's strconv.ParseFloat: decimal and hexadecimal numbers in Go's syntax, with underscores only
+// after a base prefix, and "inf", "infinity", and "nan" in any case. A number out of range returns
+// an infinity and ErrRange.
+inline auto ParseFloat(std::string s, int64_t bitSize) -> std::tuple<double, error> {
+  auto [f, n, fail] = detail::parse_float_prefix(s, bitSize);
+  if (n != s.size()) {
+    return {0, detail::num_error("ParseFloat", s, 0, bitSize, detail::failure::syntax)};
+  }
+  if (fail == detail::failure::syntax) {
+    return {0, detail::num_error("ParseFloat", s, 0, bitSize, fail)};
+  }
+  return {f, detail::num_error("ParseFloat", s, 0, bitSize, fail)};
 }
 
 inline auto ParseBool(std::string str) -> std::tuple<bool, error> {
