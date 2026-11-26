@@ -2836,7 +2836,7 @@ Sharing a WaitGroup with goroutines follows [Pointers and escaping variables](#p
 
 | Go | C++ |
 | --- | --- |
-| `mu.Lock()` | `co_await mu.Lock();` |
+| `mu.Lock()` | `co_await mu.Lock();`, or `mu.BlockingLock();` (see [Locks that never suspend](#locks-that-never-suspend)) |
 | `mu.Unlock()` | `mu.Unlock();` |
 | `mu.TryLock()` | `mu.TryLock()` |
 | `rw.RLock()` | `co_await rw.RLock();` |
@@ -2894,10 +2894,11 @@ The following are not frozen:
 
 #### Locks that never suspend
 
-A `sync.Mutex` none of whose critical sections suspends is locked with `mu.BlockingLock()` instead, at every site that locks it, and `mu.Lock()` is then not a blocking operation: a function that locks it stays a plain function, as do its callers. A critical section runs from a `Lock` to the `Unlock` that releases it, or to the end of the function for a deferred `Unlock`. It suspends when it contains a blocking operation or a call to a function translated as a coroutine. `BlockingLock` applies only when the translator sees every site:
+A `sync.Mutex` none of whose critical sections suspends is locked with `mu.BlockingLock()` instead, at every site that locks it, and `mu.Lock()` is then not a blocking operation: a function that locks it stays a plain function, as do its callers. A critical section runs from a `Lock` to the `Unlock` that releases it, or to the end of the function for a deferred `Unlock`, and includes every function that it calls, transitively. `BlockingLock` applies only when the translator can see all of them:
 
-- every `Lock` of the mutex is in the package being translated, which holds for an unexported variable or an unexported field of a struct;
-- no critical section of it suspends.
+- every `Lock` of the mutex is in the package being translated: the mutex is an unexported variable or an unexported field, and the package never lets its address out, through a result, an exported field, a function value, or an interface;
+- no critical section contains a blocking operation or a call to a function translated as a coroutine;
+- every call in a critical section has a target that the translator knows statically. A call of an interface method or of a function value disqualifies the mutex, because its target may be a coroutine (see [Coroutine function values](#coroutine-function-values)). The methods of `reflect::Type`, `reflect::Value`, and other Eo library types count as known targets.
 
 go-ethereum's `rlp` type cache is such a lock. It builds encoders and decoders with `reflect` under its mutex, and without `BlockingLock` every caller of `rlp.EncodeToBytes` and `rlp.DecodeBytes` would become a coroutine:
 
@@ -2919,7 +2920,9 @@ auto typeCache::generate(ptr<typeCache> c, reflect::Type typ, rlpstruct::Tags ta
     ...
 ```
 
-`BlockingLock` waits for the lock on a C++ condition variable, which blocks the worker thread, as [Once](#once) waits for another goroutine's `f`. The wait cannot deadlock, for the same reason. The holder never suspends while it holds the lock, so it runs on another worker until it unlocks. With `EOMAXPROCS=1`, no other goroutine runs while it holds the lock, so no one waits. `TryLock` and `Unlock` are unchanged.
+`BlockingLock` waits for the lock on a C++ condition variable, which blocks the worker thread, as [Once](#once) waits for another goroutine's `f`. Under the conditions above, the wait cannot deadlock, for the same reason. The holder never suspends while it holds the lock, so it runs on another worker until it unlocks. With `EOMAXPROCS=1`, no other goroutine runs while it holds the lock, so no one waits. `TryLock` and `Unlock` are unchanged. The waiters in `BlockingLock` get the lock in no particular order, and `TryLock` or a new `BlockingLock` may take it first. Go does not order them either.
+
+Unlike `Once`, whose function cannot compile as a coroutine, `BlockingLock` has no check of its own: the conditions span every site of the mutex, so the translator alone enforces them. A mutex locked with `BlockingLock` while one of its critical sections suspends is not merely outside the mapping. A thread waiting in `BlockingLock` holds a worker while the holder waits to be resumed, so the program can deadlock, and with `EOMAXPROCS=1` it stops every goroutine.
 
 A mutex that one site locks with `BlockingLock` and another with `co_await mu.Lock()` is outside the mapping. `Unlock` hands the lock directly to a goroutine waiting in `Lock`, which may not be running yet. Meanwhile, threads waiting in `BlockingLock` could hold every worker, so that goroutine would never run. `RWMutex` has no such form yet.
 

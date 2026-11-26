@@ -44,7 +44,9 @@ struct Mutex {
   // function stays a plain function. The holder never suspends while it holds the lock, so it runs
   // on another worker until it unlocks, and with one worker no other goroutine runs while it holds
   // the lock. A Mutex that is also locked with Lock is outside this use: Unlock can hand the lock to
-  // a goroutine that is not running yet, while threads in BlockingLock hold every worker.
+  // a goroutine that is not running yet, while threads in BlockingLock hold every worker. The
+  // waiters here get the lock in no particular order, and TryLock or a new BlockingLock may take it
+  // first, which Go allows.
   void BlockingLock() {
     auto lock = std::unique_lock{mutex};
     ++blocked;
@@ -64,6 +66,7 @@ struct Mutex {
 
   void Unlock() {
     auto next = std::optional<detail::waiter>{};
+    auto wake = false;
     {
       auto lock = std::lock_guard{mutex};
       if (!locked) {
@@ -71,14 +74,15 @@ struct Mutex {
       }
       if (waiters.empty()) {
         locked = false;
-        if (blocked > 0) {
-          released.notify_one();
-        }
+        wake = blocked > 0;
       } else {
         // Stays locked: ownership passes to the waiter.
         next = std::move(waiters.front());
         waiters.pop_front();
       }
+    }
+    if (wake) {
+      released.notify_one();
     }
     if (next) {
       detail::resume(std::move(*next));

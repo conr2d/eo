@@ -278,10 +278,12 @@ void test_blocking_lock_waits_for_holder() {
     mu.BlockingLock();
     acquired = true;
   });
-  while (probe::blocked(mu) == 0) {
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+  while (probe::blocked(mu) == 0 && !acquired && std::chrono::steady_clock::now() < deadline) {
     std::this_thread::yield();
   }
   check(!acquired, "BlockingLock took a held Mutex");
+  check(probe::blocked(mu) == 1, "BlockingLock did not wait for the Mutex");
   mu.Unlock();
   t.join();
   check(acquired, "BlockingLock did not take the Mutex after Unlock");
