@@ -499,13 +499,17 @@ namespace detail {
     auto overflow = false;
     if (ec == std::errc::result_out_of_range) {
       // Out of range either way: the magnitude of the leading digits and the exponent tells which.
-      // An underflow rounds to zero, which Go does not report.
+      // An underflow rounds to zero, which Go does not report. The value is left as from_chars left
+      // it: unchanged at zero, as the standard says, or the rounded value, where a library stores
+      // it as strtod does.
       auto magnitude = r.exp;
       for (auto m = r.mantissa; m != 0; m /= r.hex ? 2 : 10) {
         ++magnitude;
       }
       overflow = magnitude > 0;
-      value = overflow ? std::numeric_limits<F>::infinity() : F{0};
+      if (overflow) {
+        value = std::numeric_limits<F>::infinity();
+      }
     }
     auto f = static_cast<double>(value);
     return {r.neg ? -f : f, overflow};
