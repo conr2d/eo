@@ -87,6 +87,18 @@ type Config struct {
 	Zero    Inner    `json:"zero,omitzero"`
 }
 
+type PtrMarshal struct {
+	N int
+}
+
+func (p *PtrMarshal) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Itoa(p.N * 100)), nil
+}
+
+type Holder struct {
+	P PtrMarshal
+}
+
 type Bad struct{}
 
 func (Bad) MarshalJSON() ([]byte, error) {
@@ -140,6 +152,12 @@ func marshalling() {
 	fmt.Println(string(b), err)
 
 	b, err = json.MarshalIndent(Inner{A: 1, B: "b"}, ">", "  ")
+	fmt.Println(string(b), err)
+
+	h := Holder{P: PtrMarshal{N: 4}}
+	b, err = json.Marshal(h)
+	fmt.Println(string(b), err)
+	b, err = json.Marshal(&h)
 	fmt.Println(string(b), err)
 
 	for _, v := range []any{
@@ -196,6 +214,9 @@ func unmarshalling() {
 	p := &Inner{A: 1}
 	err = json.Unmarshal([]byte(`null`), &p)
 	fmt.Println(p == nil, err)
+	kept := Inner{A: 5, B: "keep"}
+	err = json.Unmarshal([]byte(`{"a":null,"b":null}`), &kept)
+	fmt.Println(kept, err)
 	var x any = &Inner{}
 	err = json.Unmarshal([]byte(`{"a":3}`), &x)
 	fmt.Println(*x.(*Inner), err)

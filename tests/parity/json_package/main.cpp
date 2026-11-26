@@ -21,6 +21,8 @@ struct Hex;
 struct Wrapped;
 struct wrappedJSON;
 struct Config;
+struct PtrMarshal;
+struct Holder;
 struct Bad;
 struct Node;
 struct Small;
@@ -137,6 +139,26 @@ struct Config {
   auto operator==(const Config&) const -> bool = default;
 };
 
+struct PtrMarshal {
+  static constexpr std::string_view _eo_name = "main.PtrMarshal";
+
+  int64_t N{};
+
+  auto operator==(const PtrMarshal&) const -> bool = default;
+
+  static auto MarshalJSON(ptr<PtrMarshal> p) -> std::tuple<slice<uint8_t>, error>;
+
+  using _eo_methods = eo::methods<eo::method<&PtrMarshal::MarshalJSON, "MarshalJSON">>;
+};
+
+struct Holder {
+  static constexpr std::string_view _eo_name = "main.Holder";
+
+  PtrMarshal P{};
+
+  auto operator==(const Holder&) const -> bool = default;
+};
+
 struct Bad {
   static constexpr std::string_view _eo_name = "main.Bad";
 
@@ -208,6 +230,10 @@ auto Wrapped::UnmarshalJSON(ptr<Wrapped> w, slice<uint8_t> b) -> error {
   return nullptr;
 }
 
+auto PtrMarshal::MarshalJSON(ptr<PtrMarshal> p) -> std::tuple<slice<uint8_t>, error> {
+  return {eo::bytes_from_string(strconv::Itoa(p->N * 100)), nullptr};
+}
+
 auto Bad::MarshalJSON(Bad) -> std::tuple<slice<uint8_t>, error> {
   return {nullptr, errors::New("bad"s)};
 }
@@ -242,6 +268,12 @@ void marshalling() {
   fmt::Println(eo::string_from_bytes(b), err);
 
   std::tie(b, err) = json::MarshalIndent(Inner{.A = 1, .B = "b"s}, ">"s, "  "s);
+  fmt::Println(eo::string_from_bytes(b), err);
+
+  auto h = New<Holder>(Holder{.P = PtrMarshal{.N = 4}});
+  std::tie(b, err) = json::Marshal(*h);
+  fmt::Println(eo::string_from_bytes(b), err);
+  std::tie(b, err) = json::Marshal(h);
   fmt::Println(eo::string_from_bytes(b), err);
 
   auto _eo_call_0 = math::Copysign(double{0}, double{-1});
@@ -332,6 +364,9 @@ void unmarshalling() {
   auto p = New<ptr<Inner>>(New<Inner>(Inner{.A = 1}));
   err = json::Unmarshal(eo::bytes_from_string("null"s), p);
   fmt::Println(*p == nullptr, err);
+  auto kept = New<Inner>(Inner{.A = 5, .B = "keep"s});
+  err = json::Unmarshal(eo::bytes_from_string(R"({"a":null,"b":null})"s), kept);
+  fmt::Println(*kept, err);
   auto x = New<any>(New<Inner>(Inner{}));
   err = json::Unmarshal(eo::bytes_from_string(R"({"a":3})"s), x);
   fmt::Println(*eo::type_assert<ptr<Inner>>(*x), err);

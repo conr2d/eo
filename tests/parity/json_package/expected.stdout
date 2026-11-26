@@ -3,6 +3,8 @@
 >  "a": 1,
 >  "b": "b"
 >} <nil>
+{"P":{"N":4}} <nil>
+{"P":400} <nil>
 null <nil>
 true <nil>
 42 <nil>
@@ -48,6 +50,7 @@ map[a:é😀
 [5 6] 2 <nil>
 [7 0 0] <nil>
 true <nil>
+{5 keep} <nil>
 {3 } <nil>
 [1, {"a" : 2}] <nil>
 -12e3 0 strconv.ParseInt: parsing "-12e3": invalid syntax -12000 <nil>
