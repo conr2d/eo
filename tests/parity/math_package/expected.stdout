@@ -1,0 +1,1158 @@
+E 2.718281828459045 Pi 3.141592653589793 Phi 1.618033988749895
+Sqrt2 1.4142135623730951 SqrtE 1.6487212707001282 SqrtPi 1.772453850905516 SqrtPhi 1.272019649514069
+Ln2 0.6931471805599453 Log2E 1.4426950408889634 Ln10 2.302585092994046 Log10E 0.4342944819032518
+MaxFloat32 3.4028234663852886e+38 SmallestNonzeroFloat32 1.401298464324817e-45
+MaxFloat64 1.7976931348623157e+308 SmallestNonzeroFloat64 5e-324
+9223372036854775807 -9223372036854775808 127 -128 32767 -32768
+2147483647 -2147483648 9223372036854775807 -9223372036854775808
+18446744073709551615 255 65535 4294967295 18446744073709551615
+true false 3.4028235e+38
+0x7ff8000000000001 0x7ff0000000000000 0xfff0000000000000
+0x3fc00000 3.4028235e+38
+-2.75 5e-324
+0 0 false 3 -0 false false false false
+-0 0 true -3 -0 false false false false
+1 1 false 3 -1 false false false false
+-1 1 true -3 -1 false false false false
+0.5 0.5 false 3 -0.5 false false false false
+-0.5 0.5 true -3 -0.5 false false false false
+1.5 1.5 false 3 -1.5 false false false false
+2.5 2.5 false 3 -2.5 false false false false
+-2.5 2.5 true -3 -2.5 false false false false
+3.5 3.5 false 3 -3.5 false false false false
+0.49999999999999994 0.49999999999999994 false 3 -0.49999999999999994 false false false false
+4.5035996273704955e+15 4.5035996273704955e+15 false 3 -4.5035996273704955e+15 false false false false
+4.503599627370497e+15 4.503599627370497e+15 false 3 -4.503599627370497e+15 false false false false
+1e+300 1e+300 false 3 -1e+300 false false false false
+-1e-300 1e-300 true -3 -1e-300 false false false false
+5e-324 5e-324 false 3 -5e-324 false false false false
+1.7976931348623157e+308 1.7976931348623157e+308 false 3 -1.7976931348623157e+308 false false false false
++Inf +Inf false 3 -Inf false true true false
+-Inf +Inf true -3 -Inf false true false true
+NaN NaN false 3 NaN true false false false
+0 0 0 0 0 0
+-0 -0 -0 -0 -0 -0
+1 1 1 1 1 1
+-1 -1 -1 -1 -1 -1
+0.5 0 1 0 1 0
+-0.5 -1 -0 -0 -1 -0
+1.5 1 2 1 2 2
+2.5 2 3 2 3 2
+-2.5 -3 -2 -2 -3 -2
+3.5 3 4 3 4 4
+0.49999999999999994 0 1 0 0 0
+4.5035996273704955e+15 4.503599627370495e+15 4.503599627370496e+15 4.503599627370495e+15 4.503599627370496e+15 4.503599627370496e+15
+4.503599627370497e+15 4.503599627370497e+15 4.503599627370497e+15 4.503599627370497e+15 4.503599627370497e+15 4.503599627370497e+15
+1e+300 1e+300 1e+300 1e+300 1e+300 1e+300
+-1e-300 -1 -0 -0 -0 -0
+5e-324 0 1 0 0 0
+1.7976931348623157e+308 1.7976931348623157e+308 1.7976931348623157e+308 1.7976931348623157e+308 1.7976931348623157e+308 1.7976931348623157e+308
++Inf +Inf +Inf +Inf +Inf +Inf
+-Inf -Inf -Inf -Inf -Inf -Inf
+NaN NaN NaN NaN NaN NaN
+0x1.eeaf4990fa5d8p+42 0x1.eeaf4990fa4p+42 0x1.eeaf4990fa8p+42 0x1.eeaf4990fa4p+42 0x1.eeaf4990fa4p+42 0x1.eeaf4990fa4p+42
+-0x1.a92a74a288874p+31 -0x1.a92a74a4p+31 -0x1.a92a74a2p+31 -0x1.a92a74a2p+31 -0x1.a92a74a2p+31 -0x1.a92a74a2p+31
+-0x1.6049f25171228p+17 -0x1.604ap+17 -0x1.60498p+17 -0x1.60498p+17 -0x1.604ap+17 -0x1.604ap+17
+0x1.28c06e5ae987p+20 0x1.28c06p+20 0x1.28c07p+20 0x1.28c06p+20 0x1.28c07p+20 0x1.28c07p+20
+-0x1.e554b14a2780cp+01 -0x1p+02 -0x1.8p+01 -0x1.8p+01 -0x1p+02 -0x1p+02
+0x1.6fab9d28c9e1p+28 0x1.6fab9d2p+28 0x1.6fab9d3p+28 0x1.6fab9d2p+28 0x1.6fab9d3p+28 0x1.6fab9d3p+28
+0x1.c6630153a8d3p+16 0x1.c663p+16 0x1.c664p+16 0x1.c663p+16 0x1.c663p+16 0x1.c663p+16
+-0x1.88da7ceeb0c8p-10 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+-0x1.a6f1050bf7a38p-01 -0x1p+00 -0x0p+00 -0x0p+00 -0x1p+00 -0x1p+00
+0x1.ec554e4d408a8p+29 0x1.ec554e48p+29 0x1.ec554e5p+29 0x1.ec554e48p+29 0x1.ec554e5p+29 0x1.ec554e5p+29
+0x1.7089f9876f0d8p+23 0x1.7089f8p+23 0x1.7089fap+23 0x1.7089f8p+23 0x1.7089fap+23 0x1.7089fap+23
+0x1.88517fa9bb6ap+15 0x1.885p+15 0x1.8852p+15 0x1.885p+15 0x1.8852p+15 0x1.8852p+15
+-0x1.0382c9096d884p+06 -0x1.04p+06 -0x1p+06 -0x1p+06 -0x1.04p+06 -0x1.04p+06
+0x1.b7277382bb898p+26 0x1.b727738p+26 0x1.b72773cp+26 0x1.b727738p+26 0x1.b727738p+26 0x1.b727738p+26
+0x1.c2a0070f1e0ep+13 0x1.c2ap+13 0x1.c2a8p+13 0x1.c2ap+13 0x1.c2ap+13 0x1.c2ap+13
+0x1.357520d1171ecp+09 0x1.35p+09 0x1.358p+09 0x1.35p+09 0x1.358p+09 0x1.358p+09
+-0x1.7a8p+08 -0x1.7bp+08 -0x1.7ap+08 -0x1.7ap+08 -0x1.7bp+08 -0x1.7ap+08
+0x1.c6648935b65c8p-02 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+0x1.4ae1368de6fp-03 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+-0x1.5fp+08 -0x1.5fp+08 -0x1.5fp+08 -0x1.5fp+08 -0x1.5fp+08 -0x1.5fp+08
+-0x1.ea1e6f24bfdb8p+39 -0x1.ea1e6f24cp+39 -0x1.ea1e6f24bep+39 -0x1.ea1e6f24bep+39 -0x1.ea1e6f24cp+39 -0x1.ea1e6f24cp+39
+0x1.65d51adc7086cp+19 0x1.65d5p+19 0x1.65d52p+19 0x1.65d5p+19 0x1.65d52p+19 0x1.65d52p+19
+0x1.88138f926abbp+25 0x1.88138f8p+25 0x1.88139p+25 0x1.88138f8p+25 0x1.88138f8p+25 0x1.88138f8p+25
+0x1.f1bf0e0542c1p-04 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+-0x1.23f3c49aa93ccp+15 -0x1.23f4p+15 -0x1.23f2p+15 -0x1.23f2p+15 -0x1.23f4p+15 -0x1.23f4p+15
+-0x1.42p+08 -0x1.42p+08 -0x1.42p+08 -0x1.42p+08 -0x1.42p+08 -0x1.42p+08
+0x1.46p+06 0x1.44p+06 0x1.48p+06 0x1.44p+06 0x1.48p+06 0x1.48p+06
+-0x1.c88b99e05aa6cp+19 -0x1.c88bap+19 -0x1.c88b8p+19 -0x1.c88b8p+19 -0x1.c88bap+19 -0x1.c88bap+19
+-0x1.1fdf5408231fp+26 -0x1.1fdf544p+26 -0x1.1fdf54p+26 -0x1.1fdf54p+26 -0x1.1fdf54p+26 -0x1.1fdf54p+26
+0x1.5c8c10a169218p+09 0x1.5c8p+09 0x1.5dp+09 0x1.5c8p+09 0x1.5c8p+09 0x1.5c8p+09
+-0x1.299ab07e4b9p-08 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+-0x1.4bp+07 -0x1.4cp+07 -0x1.4ap+07 -0x1.4ap+07 -0x1.4cp+07 -0x1.4cp+07
+-0x1.5ep+06 -0x1.6p+06 -0x1.5cp+06 -0x1.5cp+06 -0x1.6p+06 -0x1.6p+06
+-0x1.10c80af109a98p+10 -0x1.11p+10 -0x1.10cp+10 -0x1.10cp+10 -0x1.10cp+10 -0x1.10cp+10
+-0x1.17b51ab3254p+09 -0x1.18p+09 -0x1.178p+09 -0x1.178p+09 -0x1.178p+09 -0x1.178p+09
+0x1.9b58a330a02dp+32 0x1.9b58a33p+32 0x1.9b58a331p+32 0x1.9b58a33p+32 0x1.9b58a331p+32 0x1.9b58a331p+32
+0x1.a9603a4cb77fp+40 0x1.a9603a4cb7p+40 0x1.a9603a4cb8p+40 0x1.a9603a4cb7p+40 0x1.a9603a4cb7p+40 0x1.a9603a4cb7p+40
+0x1.008p+08 0x1p+08 0x1.01p+08 0x1p+08 0x1.01p+08 0x1p+08
+0x1.9p+05 0x1.9p+05 0x1.9p+05 0x1.9p+05 0x1.9p+05 0x1.9p+05
+0x1.88173136b91p-06 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+0x1.2a8p+08 0x1.2ap+08 0x1.2bp+08 0x1.2ap+08 0x1.2bp+08 0x1.2ap+08
+-0x1.ec617284d3708p+41 -0x1.ec617284d38p+41 -0x1.ec617284d3p+41 -0x1.ec617284d3p+41 -0x1.ec617284d38p+41 -0x1.ec617284d38p+41
+0x1.35b963d7e201cp+03 0x1.2p+03 0x1.4p+03 0x1.2p+03 0x1.4p+03 0x1.4p+03
+0x1.96p+08 0x1.96p+08 0x1.96p+08 0x1.96p+08 0x1.96p+08 0x1.96p+08
+-0x1.6914dd34a9e44p+39 -0x1.6914dd34aap+39 -0x1.6914dd34a8p+39 -0x1.6914dd34a8p+39 -0x1.6914dd34aap+39 -0x1.6914dd34aap+39
+-0x1.e5303bfcb9098p+47 -0x1.e5303bfcb90ap+47 -0x1.e5303bfcb908p+47 -0x1.e5303bfcb908p+47 -0x1.e5303bfcb90ap+47 -0x1.e5303bfcb90ap+47
+0x1.eb949825ff018p+44 0x1.eb949825ffp+44 0x1.eb949825ff1p+44 0x1.eb949825ffp+44 0x1.eb949825ffp+44 0x1.eb949825ffp+44
+-0x1.6df405c1c386p+16 -0x1.6df5p+16 -0x1.6df4p+16 -0x1.6df4p+16 -0x1.6df4p+16 -0x1.6df4p+16
+-0x1.204ad0b6e3cb8p+03 -0x1.4p+03 -0x1.2p+03 -0x1.2p+03 -0x1.2p+03 -0x1.2p+03
+-0x1.2ea3fdef41a6p+22 -0x1.2ea4p+22 -0x1.2ea3fcp+22 -0x1.2ea3fcp+22 -0x1.2ea3fcp+22 -0x1.2ea3fcp+22
+-0x1.dcfc1dd53b0ep+29 -0x1.dcfc1dd8p+29 -0x1.dcfc1ddp+29 -0x1.dcfc1ddp+29 -0x1.dcfc1dd8p+29 -0x1.dcfc1dd8p+29
+-0x1.dd5cdaa042de8p+05 -0x1.ep+05 -0x1.d8p+05 -0x1.d8p+05 -0x1.ep+05 -0x1.ep+05
+0x1.83fea1967a6c8p-05 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+-0x1.70745bd58c394p+38 -0x1.70745bd59p+38 -0x1.70745bd58cp+38 -0x1.70745bd58cp+38 -0x1.70745bd58cp+38 -0x1.70745bd58cp+38
+0x1.4dp+08 0x1.4dp+08 0x1.4dp+08 0x1.4dp+08 0x1.4dp+08 0x1.4dp+08
+0x1.2ac49fd7040ecp+46 0x1.2ac49fd7040cp+46 0x1.2ac49fd7041p+46 0x1.2ac49fd7040cp+46 0x1.2ac49fd7041p+46 0x1.2ac49fd7041p+46
+0x1.1bp+08 0x1.1bp+08 0x1.1bp+08 0x1.1bp+08 0x1.1bp+08 0x1.1bp+08
+0x1.98p+07 0x1.98p+07 0x1.98p+07 0x1.98p+07 0x1.98p+07 0x1.98p+07
+0x1.fp+03 0x1.ep+03 0x1p+04 0x1.ep+03 0x1p+04 0x1p+04
+-0x1.4574153d9158p+19 -0x1.45742p+19 -0x1.4574p+19 -0x1.4574p+19 -0x1.45742p+19 -0x1.45742p+19
+-0x1.924d96bd90a44p+47 -0x1.924d96bd90a6p+47 -0x1.924d96bd90a4p+47 -0x1.924d96bd90a4p+47 -0x1.924d96bd90a4p+47 -0x1.924d96bd90a4p+47
+-0x1.0fa3f51adfe98p+37 -0x1.0fa3f51aep+37 -0x1.0fa3f51ad8p+37 -0x1.0fa3f51ad8p+37 -0x1.0fa3f51aep+37 -0x1.0fa3f51aep+37
+0x1.3p+07 0x1.3p+07 0x1.3p+07 0x1.3p+07 0x1.3p+07 0x1.3p+07
+0x1.dp+07 0x1.dp+07 0x1.dp+07 0x1.dp+07 0x1.dp+07 0x1.dp+07
+0x1.07p+07 0x1.06p+07 0x1.08p+07 0x1.06p+07 0x1.08p+07 0x1.08p+07
+0x1.ca07b5eddaa6p+31 0x1.ca07b5ecp+31 0x1.ca07b5eep+31 0x1.ca07b5ecp+31 0x1.ca07b5eep+31 0x1.ca07b5eep+31
+-0x1.30c5aca3e348p-04 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+0x1.38b97f1e1a17p-05 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+0x1.f6153da838d2cp+25 0x1.f6153d8p+25 0x1.f6153ep+25 0x1.f6153d8p+25 0x1.f6153d8p+25 0x1.f6153d8p+25
+-0x1.dep+06 -0x1.ep+06 -0x1.dcp+06 -0x1.dcp+06 -0x1.ep+06 -0x1.ep+06
+0x1.dac09ba13b7ep+08 0x1.dap+08 0x1.dbp+08 0x1.dap+08 0x1.dbp+08 0x1.dbp+08
+-0x1.bbc1f15e8fb0cp+13 -0x1.bbc8p+13 -0x1.bbcp+13 -0x1.bbcp+13 -0x1.bbcp+13 -0x1.bbcp+13
+-0x1.3ap+06 -0x1.3cp+06 -0x1.38p+06 -0x1.38p+06 -0x1.3cp+06 -0x1.38p+06
+0x1.56ec3b04b953cp+28 0x1.56ec3bp+28 0x1.56ec3b1p+28 0x1.56ec3bp+28 0x1.56ec3bp+28 0x1.56ec3bp+28
+-0x1.d64ceab4b243cp+12 -0x1.d65p+12 -0x1.d64p+12 -0x1.d64p+12 -0x1.d65p+12 -0x1.d65p+12
+0x1.14ab37411d6fp-07 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+-0x1.506044319458cp+19 -0x1.50606p+19 -0x1.50604p+19 -0x1.50604p+19 -0x1.50604p+19 -0x1.50604p+19
+0x1.931396ad337ap+20 0x1.93139p+20 0x1.9313ap+20 0x1.93139p+20 0x1.93139p+20 0x1.93139p+20
+0x1.87p+08 0x1.87p+08 0x1.87p+08 0x1.87p+08 0x1.87p+08 0x1.87p+08
+-0x1.13de02b6cabfp+23 -0x1.13de04p+23 -0x1.13de02p+23 -0x1.13de02p+23 -0x1.13de02p+23 -0x1.13de02p+23
+-0x1.0fc1bc196e64p+29 -0x1.0fc1bc2p+29 -0x1.0fc1bc18p+29 -0x1.0fc1bc18p+29 -0x1.0fc1bc18p+29 -0x1.0fc1bc18p+29
+-0x1.10cae5e3aab5cp+04 -0x1.2p+04 -0x1.1p+04 -0x1.1p+04 -0x1.1p+04 -0x1.1p+04
+-0x1.3140020410a8p+05 -0x1.38p+05 -0x1.3p+05 -0x1.3p+05 -0x1.3p+05 -0x1.3p+05
+0x1.fca0735b02ce8p+34 0x1.fca0735bp+34 0x1.fca0735b4p+34 0x1.fca0735bp+34 0x1.fca0735bp+34 0x1.fca0735bp+34
+-0x1.8p+00 -0x1p+01 -0x1p+00 -0x1p+00 -0x1p+01 -0x1p+01
+0x1.d9f48e61a3aa8p-01 0x0p+00 0x1p+00 0x0p+00 0x1p+00 0x1p+00
+0x1.a155723f664bcp+39 0x1.a155723f66p+39 0x1.a155723f68p+39 0x1.a155723f66p+39 0x1.a155723f66p+39 0x1.a155723f66p+39
+-0x1.86a09c678debp+15 -0x1.86a2p+15 -0x1.86ap+15 -0x1.86ap+15 -0x1.86ap+15 -0x1.86ap+15
+-0x1.608p+08 -0x1.61p+08 -0x1.6p+08 -0x1.6p+08 -0x1.61p+08 -0x1.6p+08
+-0x1.f5e64c918f1d8p+23 -0x1.f5e64ep+23 -0x1.f5e64cp+23 -0x1.f5e64cp+23 -0x1.f5e64cp+23 -0x1.f5e64cp+23
+0x1.c5410ea3d4decp+16 0x1.c541p+16 0x1.c542p+16 0x1.c541p+16 0x1.c541p+16 0x1.c541p+16
+-0x1.8ep+06 -0x1.9p+06 -0x1.8cp+06 -0x1.8cp+06 -0x1.9p+06 -0x1.9p+06
+-0x1.3ff0c76d46728p+37 -0x1.3ff0c76d48p+37 -0x1.3ff0c76d4p+37 -0x1.3ff0c76d4p+37 -0x1.3ff0c76d48p+37 -0x1.3ff0c76d48p+37
+0x1.f3fa696ab47ap+37 0x1.f3fa696abp+37 0x1.f3fa696ab8p+37 0x1.f3fa696abp+37 0x1.f3fa696ab8p+37 0x1.f3fa696ab8p+37
+-0x1.12edecccb299p+02 -0x1.4p+02 -0x1p+02 -0x1p+02 -0x1p+02 -0x1p+02
+0x1.52p+08 0x1.52p+08 0x1.52p+08 0x1.52p+08 0x1.52p+08 0x1.52p+08
+-0x1.0cp+06 -0x1.0cp+06 -0x1.0cp+06 -0x1.0cp+06 -0x1.0cp+06 -0x1.0cp+06
+0x1.c37ef2bbfc7cp+48 0x1.c37ef2bbfc7cp+48 0x1.c37ef2bbfc7cp+48 0x1.c37ef2bbfc7cp+48 0x1.c37ef2bbfc7cp+48 0x1.c37ef2bbfc7cp+48
+0x1.c101919895904p+29 0x1.c1019198p+29 0x1.c10191ap+29 0x1.c1019198p+29 0x1.c1019198p+29 0x1.c1019198p+29
+0x1.c3f87dbd660bp+21 0x1.c3f878p+21 0x1.c3f88p+21 0x1.c3f878p+21 0x1.c3f88p+21 0x1.c3f88p+21
+-0x1.e14b66f701e7p+19 -0x1.e14b8p+19 -0x1.e14b6p+19 -0x1.e14b6p+19 -0x1.e14b6p+19 -0x1.e14b6p+19
+-0x1.ee65e43b332fp+06 -0x1.fp+06 -0x1.ecp+06 -0x1.ecp+06 -0x1.fp+06 -0x1.fp+06
+-0x1.0bab5701ad2ap+10 -0x1.0bcp+10 -0x1.0b8p+10 -0x1.0b8p+10 -0x1.0bcp+10 -0x1.0bcp+10
+-0x1.058dbddd4a34p+06 -0x1.08p+06 -0x1.04p+06 -0x1.04p+06 -0x1.04p+06 -0x1.04p+06
+-0x1.91f3cdee0347p+20 -0x1.91f3dp+20 -0x1.91f3cp+20 -0x1.91f3cp+20 -0x1.91f3dp+20 -0x1.91f3dp+20
+0x1.e581d952ee09p+33 0x1.e581d9528p+33 0x1.e581d953p+33 0x1.e581d9528p+33 0x1.e581d953p+33 0x1.e581d953p+33
+-0x1.bd8p+08 -0x1.bep+08 -0x1.bdp+08 -0x1.bdp+08 -0x1.bep+08 -0x1.bep+08
+0x1.20d4eb89c1d2p+39 0x1.20d4eb89cp+39 0x1.20d4eb89c2p+39 0x1.20d4eb89cp+39 0x1.20d4eb89c2p+39 0x1.20d4eb89c2p+39
+0x1.460493c6ef45cp+32 0x1.460493c6p+32 0x1.460493c7p+32 0x1.460493c6p+32 0x1.460493c7p+32 0x1.460493c7p+32
+0x1.4beb5905c9a8p+11 0x1.4bep+11 0x1.4cp+11 0x1.4bep+11 0x1.4bep+11 0x1.4bep+11
+-0x1.da005e155a89p+49 -0x1.da005e155a89p+49 -0x1.da005e155a89p+49 -0x1.da005e155a89p+49 -0x1.da005e155a89p+49 -0x1.da005e155a89p+49
+0x1.13c19c5f8b3dp+07 0x1.12p+07 0x1.14p+07 0x1.12p+07 0x1.14p+07 0x1.14p+07
+-0x1.90ceb6f8d1bep-07 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+-0x1.aa4e392fc7a6p-07 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+-0x1.a3b26ddcf5f7cp+16 -0x1.a3b3p+16 -0x1.a3b2p+16 -0x1.a3b2p+16 -0x1.a3b2p+16 -0x1.a3b2p+16
+0x1.36740ad6dc4ap+45 0x1.36740ad6dc48p+45 0x1.36740ad6dc5p+45 0x1.36740ad6dc48p+45 0x1.36740ad6dc48p+45 0x1.36740ad6dc48p+45
+0x1.fbccc3c0724p-03 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+-0x1.a80af3c0dbc2p+41 -0x1.a80af3c0dcp+41 -0x1.a80af3c0db8p+41 -0x1.a80af3c0db8p+41 -0x1.a80af3c0dcp+41 -0x1.a80af3c0dcp+41
+0x1.5c3e137999b1cp+42 0x1.5c3e1379998p+42 0x1.5c3e137999cp+42 0x1.5c3e1379998p+42 0x1.5c3e137999cp+42 0x1.5c3e137999cp+42
+-0x1.447aa5c94e9ecp-04 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+0x1.e24a29e2e5bp+44 0x1.e24a29e2e5bp+44 0x1.e24a29e2e5bp+44 0x1.e24a29e2e5bp+44 0x1.e24a29e2e5bp+44 0x1.e24a29e2e5bp+44
+-0x1.02p+06 -0x1.04p+06 -0x1p+06 -0x1p+06 -0x1.04p+06 -0x1p+06
+0x1.14c402c2d008p+05 0x1.1p+05 0x1.18p+05 0x1.1p+05 0x1.18p+05 0x1.18p+05
+0x1.cecd78fb6b438p+43 0x1.cecd78fb6b4p+43 0x1.cecd78fb6b6p+43 0x1.cecd78fb6b4p+43 0x1.cecd78fb6b4p+43 0x1.cecd78fb6b4p+43
+0x1.ecp+07 0x1.ecp+07 0x1.ecp+07 0x1.ecp+07 0x1.ecp+07 0x1.ecp+07
+-0x1.9ep+08 -0x1.9ep+08 -0x1.9ep+08 -0x1.9ep+08 -0x1.9ep+08 -0x1.9ep+08
+-0x1.28p+06 -0x1.28p+06 -0x1.28p+06 -0x1.28p+06 -0x1.28p+06 -0x1.28p+06
+-0x1.1e44836d8bbe4p-08 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+0x1.5b857b79e80cp+00 0x1p+00 0x1p+01 0x1p+00 0x1p+00 0x1p+00
+0x1.fcf7a7c7e6398p+14 0x1.fcf4p+14 0x1.fcf8p+14 0x1.fcf4p+14 0x1.fcf8p+14 0x1.fcf8p+14
+0x1.92f414b0f1a84p+45 0x1.92f414b0f1a8p+45 0x1.92f414b0f1bp+45 0x1.92f414b0f1a8p+45 0x1.92f414b0f1a8p+45 0x1.92f414b0f1a8p+45
+0x1.62ce2a6ec7e9cp-07 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+0x1.ee0d4de366d24p+48 0x1.ee0d4de366d2p+48 0x1.ee0d4de366d3p+48 0x1.ee0d4de366d2p+48 0x1.ee0d4de366d2p+48 0x1.ee0d4de366d2p+48
+0x1.c17fb01dd0284p+18 0x1.c17f8p+18 0x1.c17fcp+18 0x1.c17f8p+18 0x1.c17fcp+18 0x1.c17fcp+18
+0x1.76d8b02f65428p+36 0x1.76d8b02f6p+36 0x1.76d8b02f7p+36 0x1.76d8b02f6p+36 0x1.76d8b02f6p+36 0x1.76d8b02f6p+36
+-0x1.cc189498bdc18p+31 -0x1.cc18949ap+31 -0x1.cc189498p+31 -0x1.cc189498p+31 -0x1.cc189498p+31 -0x1.cc189498p+31
+-0x1.c33cafba58148p+09 -0x1.c38p+09 -0x1.c3p+09 -0x1.c3p+09 -0x1.c3p+09 -0x1.c3p+09
+-0x1.d6e5972c6edecp+28 -0x1.d6e5973p+28 -0x1.d6e5972p+28 -0x1.d6e5972p+28 -0x1.d6e5973p+28 -0x1.d6e5973p+28
+0x1.242a946daa3c8p+37 0x1.242a946da8p+37 0x1.242a946dbp+37 0x1.242a946da8p+37 0x1.242a946da8p+37 0x1.242a946da8p+37
+-0x1.b6a8690263018p+32 -0x1.b6a86903p+32 -0x1.b6a86902p+32 -0x1.b6a86902p+32 -0x1.b6a86902p+32 -0x1.b6a86902p+32
+0x1.3ep+06 0x1.3cp+06 0x1.4p+06 0x1.3cp+06 0x1.4p+06 0x1.4p+06
+0x1.0287e99082a8p-01 0x0p+00 0x1p+00 0x0p+00 0x1p+00 0x1p+00
+-0x1.95967d7bf6404p+29 -0x1.95967d8p+29 -0x1.95967d78p+29 -0x1.95967d78p+29 -0x1.95967d78p+29 -0x1.95967d78p+29
+-0x1.fff1cc8444a98p+13 -0x1.fff8p+13 -0x1.fffp+13 -0x1.fffp+13 -0x1.fffp+13 -0x1.fffp+13
+-0x1.83245d42841ep-06 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+-0x1.b5d51133b9078p+30 -0x1.b5d51134p+30 -0x1.b5d5113p+30 -0x1.b5d5113p+30 -0x1.b5d51134p+30 -0x1.b5d51134p+30
+-0x1.546061c752aecp+23 -0x1.546062p+23 -0x1.54606p+23 -0x1.54606p+23 -0x1.546062p+23 -0x1.546062p+23
+0x1.8ad80e8aae0cp+29 0x1.8ad80e88p+29 0x1.8ad80e9p+29 0x1.8ad80e88p+29 0x1.8ad80e88p+29 0x1.8ad80e88p+29
+0x1.792c903d960c4p+11 0x1.792p+11 0x1.794p+11 0x1.792p+11 0x1.792p+11 0x1.792p+11
+0x1.eb38cd3c88dccp+32 0x1.eb38cd3cp+32 0x1.eb38cd3dp+32 0x1.eb38cd3cp+32 0x1.eb38cd3dp+32 0x1.eb38cd3dp+32
+0x1.f0a71685eb994p+03 0x1.ep+03 0x1p+04 0x1.ep+03 0x1p+04 0x1p+04
+-0x1.bp+04 -0x1.bp+04 -0x1.bp+04 -0x1.bp+04 -0x1.bp+04 -0x1.bp+04
+-0x1.dd2e27a8f6fap+38 -0x1.dd2e27a8f8p+38 -0x1.dd2e27a8f4p+38 -0x1.dd2e27a8f4p+38 -0x1.dd2e27a8f8p+38 -0x1.dd2e27a8f8p+38
+-0x1.f848987ab73bcp+05 -0x1p+06 -0x1.f8p+05 -0x1.f8p+05 -0x1.f8p+05 -0x1.f8p+05
+0x1.6ap+07 0x1.6ap+07 0x1.6ap+07 0x1.6ap+07 0x1.6ap+07 0x1.6ap+07
+-0x1.99037dbc7dc64p+00 -0x1p+01 -0x1p+00 -0x1p+00 -0x1p+01 -0x1p+01
+-0x1.b81a0f3dd69ap+30 -0x1.b81a0f4p+30 -0x1.b81a0f3cp+30 -0x1.b81a0f3cp+30 -0x1.b81a0f3cp+30 -0x1.b81a0f3cp+30
+-0x1.2ap+06 -0x1.2cp+06 -0x1.28p+06 -0x1.28p+06 -0x1.2cp+06 -0x1.28p+06
+0x1.b9p+07 0x1.b8p+07 0x1.bap+07 0x1.b8p+07 0x1.bap+07 0x1.b8p+07
+0x1.4a154e1d60408p+15 0x1.4a14p+15 0x1.4a16p+15 0x1.4a14p+15 0x1.4a16p+15 0x1.4a16p+15
+-0x1.813f00562204p-12 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+0x1.3bp+07 0x1.3ap+07 0x1.3cp+07 0x1.3ap+07 0x1.3cp+07 0x1.3cp+07
+-0x1.5ff0cff330a34p+04 -0x1.6p+04 -0x1.5p+04 -0x1.5p+04 -0x1.6p+04 -0x1.6p+04
+-0x1.7289bdd585794p+18 -0x1.7289cp+18 -0x1.72898p+18 -0x1.72898p+18 -0x1.7289cp+18 -0x1.7289cp+18
+0x1.d86f16c2e5334p+21 0x1.d86f1p+21 0x1.d86f18p+21 0x1.d86f1p+21 0x1.d86f18p+21 0x1.d86f18p+21
+0x1.26p+06 0x1.24p+06 0x1.28p+06 0x1.24p+06 0x1.28p+06 0x1.28p+06
+0x1.f3d8749d6485cp+28 0x1.f3d8749p+28 0x1.f3d874ap+28 0x1.f3d8749p+28 0x1.f3d874ap+28 0x1.f3d874ap+28
+-0x1.d618738598fb8p+24 -0x1.d61874p+24 -0x1.d61873p+24 -0x1.d61873p+24 -0x1.d61874p+24 -0x1.d61874p+24
+0x1.4bp+07 0x1.4ap+07 0x1.4cp+07 0x1.4ap+07 0x1.4cp+07 0x1.4cp+07
+0x1.59152232df558p+16 0x1.5915p+16 0x1.5916p+16 0x1.5915p+16 0x1.5915p+16 0x1.5915p+16
+0x1.37p+08 0x1.37p+08 0x1.37p+08 0x1.37p+08 0x1.37p+08 0x1.37p+08
+-0x1.c034a54ea2a7cp+01 -0x1p+02 -0x1.8p+01 -0x1.8p+01 -0x1p+02 -0x1p+02
+0x1.ap+04 0x1.ap+04 0x1.ap+04 0x1.ap+04 0x1.ap+04 0x1.ap+04
+-0x1.9ep+06 -0x1.ap+06 -0x1.9cp+06 -0x1.9cp+06 -0x1.ap+06 -0x1.ap+06
+-0x1.2f20da5018ecp+31 -0x1.2f20da52p+31 -0x1.2f20da5p+31 -0x1.2f20da5p+31 -0x1.2f20da5p+31 -0x1.2f20da5p+31
+-0x1.fb58f4509e8p+28 -0x1.fb58f46p+28 -0x1.fb58f45p+28 -0x1.fb58f45p+28 -0x1.fb58f45p+28 -0x1.fb58f45p+28
+0x1.5c8p+08 0x1.5cp+08 0x1.5dp+08 0x1.5cp+08 0x1.5dp+08 0x1.5cp+08
+-0x1.608230776eb8p+38 -0x1.608230777p+38 -0x1.608230776cp+38 -0x1.608230776cp+38 -0x1.608230777p+38 -0x1.608230777p+38
+-0x1.6ddd968d4e19p-08 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+-0x1.c3a69aff0e50cp-08 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+0x1.901236ced835p+31 0x1.901236cep+31 0x1.901236dp+31 0x1.901236cep+31 0x1.901236cep+31 0x1.901236cep+31
+-0x1.aa63344b2fa3cp+36 -0x1.aa63344b3p+36 -0x1.aa63344b2p+36 -0x1.aa63344b2p+36 -0x1.aa63344b3p+36 -0x1.aa63344b3p+36
+0x1.6d89ba23e4274p-04 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+0x1.375ea03e760a8p+05 0x1.3p+05 0x1.38p+05 0x1.3p+05 0x1.38p+05 0x1.38p+05
+-0x1.94p+08 -0x1.94p+08 -0x1.94p+08 -0x1.94p+08 -0x1.94p+08 -0x1.94p+08
+0x1.4d4a381589fcp-01 0x0p+00 0x1p+00 0x0p+00 0x1p+00 0x1p+00
+0x1.fc177d37eaf0cp+35 0x1.fc177d37ep+35 0x1.fc177d38p+35 0x1.fc177d37ep+35 0x1.fc177d37ep+35 0x1.fc177d37ep+35
+0x1.bap+08 0x1.bap+08 0x1.bap+08 0x1.bap+08 0x1.bap+08 0x1.bap+08
+-0x1.81354a8fa3124p+12 -0x1.814p+12 -0x1.813p+12 -0x1.813p+12 -0x1.813p+12 -0x1.813p+12
+0x1.c5655ee05671cp-04 0x0p+00 0x1p+00 0x0p+00 0x0p+00 0x0p+00
+0x1.d78p+08 0x1.d7p+08 0x1.d8p+08 0x1.d7p+08 0x1.d8p+08 0x1.d8p+08
+-0x1.5b14c8325b05p+34 -0x1.5b14c8328p+34 -0x1.5b14c8324p+34 -0x1.5b14c8324p+34 -0x1.5b14c8324p+34 -0x1.5b14c8324p+34
+0x1.ab8p+08 0x1.abp+08 0x1.acp+08 0x1.abp+08 0x1.acp+08 0x1.acp+08
+-0x1.93114899258fp+08 -0x1.94p+08 -0x1.93p+08 -0x1.93p+08 -0x1.93p+08 -0x1.93p+08
+0x1.78dc048298eep+29 0x1.78dc048p+29 0x1.78dc0488p+29 0x1.78dc048p+29 0x1.78dc048p+29 0x1.78dc048p+29
+0x1.01a4c0a63514p+04 0x1p+04 0x1.1p+04 0x1p+04 0x1p+04 0x1p+04
+-0x1.bea7d1d1adebp-11 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+0x1.6bp+08 0x1.6bp+08 0x1.6bp+08 0x1.6bp+08 0x1.6bp+08 0x1.6bp+08
+-0x1.e984cca276134p+38 -0x1.e984cca278p+38 -0x1.e984cca274p+38 -0x1.e984cca274p+38 -0x1.e984cca278p+38 -0x1.e984cca278p+38
+-0x1.6573121d6ce68p-04 -0x1p+00 -0x0p+00 -0x0p+00 -0x0p+00 -0x0p+00
+1 2 2 1 0 1 1.0000000000000002
+2 1 2 1 1 0 1.9999999999999998
+0 -0 0 -0 0 NaN 0
+-0 0 0 -0 0 NaN -0
+NaN 1 NaN NaN NaN NaN NaN
+1 NaN NaN NaN NaN NaN NaN
++Inf NaN +Inf NaN NaN NaN NaN
+NaN -Inf NaN -Inf NaN NaN NaN
+-1 -Inf -1 -Inf +Inf -1 -1.0000000000000002
+3 3 3 3 0 0 3
+1 -1 NaN 2 NaN
+-5e-324 1.0000000000000002 +Inf
+0x7ff8000000000000 0xfff8000000000000 0xfff8000000000000
+0x7ff8000000000001 0x7ff8000000000001 0x7ff8000000000001 0x7ff8000000000001
+0 0 0 0 0 0 0
+-0 -0 0 -0 -0 -0 -0
+1 0.5 1 1 1 0 1
+-1 -0.5 1 -1 -1 -0 NaN
+0.5 0.5 0 0.5 0 0.5 0.7071067811865476
+-0.5 -0.5 0 -0.5 -0 -0.5 NaN
+1.5 0.75 1 1.5 1 0.5 1.224744871391589
+2.5 0.625 2 2.5 2 0.5 1.5811388300841898
+-2.5 -0.625 2 -2.5 -2 -0.5 NaN
+3.5 0.875 2 3.5 3 0.5 1.8708286933869707
+0.49999999999999994 0.9999999999999999 -1 0.49999999999999994 0 0.49999999999999994 0.7071067811865475
+4.5035996273704955e+15 0.9999999999999999 52 4.5035996273704955e+15 4.503599627370495e+15 0.5 6.710886399999999e+07
+4.503599627370497e+15 0.5000000000000001 53 4.503599627370497e+15 4.503599627370497e+15 0 6.7108864e+07
+1e+300 0.7466108948025751 997 1e+300 1e+300 0 1e+150
+-1e-300 -0.6696928794914171 -996 -1e-300 -0 -1e-300 NaN
+5e-324 0.5 -1073 5e-324 0 5e-324 2.2227587494850775e-162
+1.7976931348623157e+308 0.9999999999999999 1024 1.7976931348623157e+308 1.7976931348623157e+308 0 1.3407807929942596e+154
++Inf +Inf 0 +Inf +Inf NaN +Inf
+-Inf -Inf 0 -Inf -Inf NaN NaN
+NaN NaN 0 NaN NaN NaN NaN
++Inf 0 5e-324 1e-323 +Inf 0
+1.4142135623730951 NaN -0 +Inf
+-1 1 0 -1 1
+-1 1 0 0
+true false false true false
+1 true 1
+false NaN 0
+3 x  true
+0 1 -1 -1
+0 1
+0 -1 false
+true true false
+true false
+5 1
+0 -1 -1
+-1 false 1 false -1 false 1 false 1 false -1 false -1 false 1 false -1 false 1 false -1 false -1 false -1 false 1 false -1 false 1 false 1 false -1 false -1 false 1 false 0 true 1 false 0 true 0 true 0 true 1 false -1 false 1 false -1 false 0 true 1 false -1 false -1 false 1 false -1 false -1 false -1 false -1 false -1 false -1 false -1 false 1 false -1 false -1 false -1 false 1 false 1 false 1 false 1 false 1 false 
+""/64: 0 0x0p+00 strconv.ParseFloat: parsing "": invalid syntax [ParseFloat "" invalid syntax range=false syntax=true]
+""/32: 0 0x0p+00 strconv.ParseFloat: parsing "": invalid syntax [ParseFloat "" invalid syntax range=false syntax=true]
+"0"/64: 0 0x0p+00 <nil>
+"0"/32: 0 0x0p+00 <nil>
+"-0"/64: -0 -0x0p+00 <nil>
+"-0"/32: -0 -0x0p+00 <nil>
+"+0"/64: 0 0x0p+00 <nil>
+"+0"/32: 0 0x0p+00 <nil>
+"1"/64: 1 0x1p+00 <nil>
+"1"/32: 1 0x1p+00 <nil>
+"-1.5"/64: -1.5 -0x1.8p+00 <nil>
+"-1.5"/32: -1.5 -0x1.8p+00 <nil>
+"+.5"/64: 0.5 0x1p-01 <nil>
+"+.5"/32: 0.5 0x1p-01 <nil>
+"5."/64: 5 0x1.4p+02 <nil>
+"5."/32: 5 0x1.4p+02 <nil>
+"."/64: 0 0x0p+00 strconv.ParseFloat: parsing ".": invalid syntax [ParseFloat "." invalid syntax range=false syntax=true]
+"."/32: 0 0x0p+00 strconv.ParseFloat: parsing ".": invalid syntax [ParseFloat "." invalid syntax range=false syntax=true]
+"-"/64: 0 0x0p+00 strconv.ParseFloat: parsing "-": invalid syntax [ParseFloat "-" invalid syntax range=false syntax=true]
+"-"/32: 0 0x0p+00 strconv.ParseFloat: parsing "-": invalid syntax [ParseFloat "-" invalid syntax range=false syntax=true]
+"+"/64: 0 0x0p+00 strconv.ParseFloat: parsing "+": invalid syntax [ParseFloat "+" invalid syntax range=false syntax=true]
+"+"/32: 0 0x0p+00 strconv.ParseFloat: parsing "+": invalid syntax [ParseFloat "+" invalid syntax range=false syntax=true]
+"e5"/64: 0 0x0p+00 strconv.ParseFloat: parsing "e5": invalid syntax [ParseFloat "e5" invalid syntax range=false syntax=true]
+"e5"/32: 0 0x0p+00 strconv.ParseFloat: parsing "e5": invalid syntax [ParseFloat "e5" invalid syntax range=false syntax=true]
+"1e"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1e": invalid syntax [ParseFloat "1e" invalid syntax range=false syntax=true]
+"1e"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1e": invalid syntax [ParseFloat "1e" invalid syntax range=false syntax=true]
+"1e+"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1e+": invalid syntax [ParseFloat "1e+" invalid syntax range=false syntax=true]
+"1e+"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1e+": invalid syntax [ParseFloat "1e+" invalid syntax range=false syntax=true]
+"1e-5"/64: 1e-05 0x1.4f8b588e368f1p-17 <nil>
+"1e-5"/32: 9.999999747378752e-06 0x1.4f8b58p-17 <nil>
+"1E+05"/64: 100000 0x1.86ap+16 <nil>
+"1E+05"/32: 100000 0x1.86ap+16 <nil>
+"0.1"/64: 0.1 0x1.999999999999ap-04 <nil>
+"0.1"/32: 0.10000000149011612 0x1.99999ap-04 <nil>
+"1.7976931348623157e308"/64: 1.7976931348623157e+308 0x1.fffffffffffffp+1023 <nil>
+"1.7976931348623157e308"/32: +Inf +Inf strconv.ParseFloat: parsing "1.7976931348623157e308": value out of range [ParseFloat "1.7976931348623157e308" value out of range range=true syntax=false]
+"1.7976931348623159e308"/64: +Inf +Inf strconv.ParseFloat: parsing "1.7976931348623159e308": value out of range [ParseFloat "1.7976931348623159e308" value out of range range=true syntax=false]
+"1.7976931348623159e308"/32: +Inf +Inf strconv.ParseFloat: parsing "1.7976931348623159e308": value out of range [ParseFloat "1.7976931348623159e308" value out of range range=true syntax=false]
+"1.797693134862315807e308"/64: 1.7976931348623157e+308 0x1.fffffffffffffp+1023 <nil>
+"1.797693134862315807e308"/32: +Inf +Inf strconv.ParseFloat: parsing "1.797693134862315807e308": value out of range [ParseFloat "1.797693134862315807e308" value out of range range=true syntax=false]
+"-1e309"/64: -Inf -Inf strconv.ParseFloat: parsing "-1e309": value out of range [ParseFloat "-1e309" value out of range range=true syntax=false]
+"-1e309"/32: -Inf -Inf strconv.ParseFloat: parsing "-1e309": value out of range [ParseFloat "-1e309" value out of range range=true syntax=false]
+"1e-400"/64: 0 0x0p+00 <nil>
+"1e-400"/32: 0 0x0p+00 <nil>
+"-1e-400"/64: -0 -0x0p+00 <nil>
+"-1e-400"/32: -0 -0x0p+00 <nil>
+"4.9e-324"/64: 5e-324 0x1p-1074 <nil>
+"4.9e-324"/32: 0 0x0p+00 <nil>
+"2.4703282292062327e-324"/64: 0 0x0p+00 <nil>
+"2.4703282292062327e-324"/32: 0 0x0p+00 <nil>
+"2.4703282292062328e-324"/64: 5e-324 0x1p-1074 <nil>
+"2.4703282292062328e-324"/32: 0 0x0p+00 <nil>
+"1e-320"/64: 1e-320 0x1.fap-1064 <nil>
+"1e-320"/32: 0 0x0p+00 <nil>
+"0e999999"/64: 0 0x0p+00 <nil>
+"0e999999"/32: 0 0x0p+00 <nil>
+"1e99999999999999999999"/64: +Inf +Inf strconv.ParseFloat: parsing "1e99999999999999999999": value out of range [ParseFloat "1e99999999999999999999" value out of range range=true syntax=false]
+"1e99999999999999999999"/32: +Inf +Inf strconv.ParseFloat: parsing "1e99999999999999999999": value out of range [ParseFloat "1e99999999999999999999" value out of range range=true syntax=false]
+"0.000000000000000000000000000001e30"/64: 1 0x1p+00 <nil>
+"0.000000000000000000000000000001e30"/32: 1 0x1p+00 <nil>
+"123456789012345678901234567890"/64: 1.2345678901234568e+29 0x1.8ee90ff6c373ep+96 <nil>
+"123456789012345678901234567890"/32: 1.2345678918272927e+29 0x1.8ee91p+96 <nil>
+"3.4028234663852886e38"/64: 3.4028234663852886e+38 0x1.fffffep+127 <nil>
+"3.4028234663852886e38"/32: 3.4028234663852886e+38 0x1.fffffep+127 <nil>
+"3.4028235677973366e38"/64: 3.4028235677973366e+38 0x1.ffffffp+127 <nil>
+"3.4028235677973366e38"/32: 3.4028234663852886e+38 0x1.fffffep+127 <nil>
+"3.4028235677973367e38"/64: 3.4028235677973366e+38 0x1.ffffffp+127 <nil>
+"3.4028235677973367e38"/32: +Inf +Inf strconv.ParseFloat: parsing "3.4028235677973367e38": value out of range [ParseFloat "3.4028235677973367e38" value out of range range=true syntax=false]
+"1e-46"/64: 1e-46 0x1.244ce242c5561p-153 <nil>
+"1e-46"/32: 0 0x0p+00 <nil>
+"1e-45"/64: 1e-45 0x1.6d601ad376ab9p-150 <nil>
+"1e-45"/32: 1.401298464324817e-45 0x1p-149 <nil>
+"inf"/64: +Inf +Inf <nil>
+"inf"/32: +Inf +Inf <nil>
+"Inf"/64: +Inf +Inf <nil>
+"Inf"/32: +Inf +Inf <nil>
+"+INF"/64: +Inf +Inf <nil>
+"+INF"/32: +Inf +Inf <nil>
+"-inf"/64: -Inf -Inf <nil>
+"-inf"/32: -Inf -Inf <nil>
+"infinity"/64: +Inf +Inf <nil>
+"infinity"/32: +Inf +Inf <nil>
+"-Infinity"/64: -Inf -Inf <nil>
+"-Infinity"/32: -Inf -Inf <nil>
+"infin"/64: 0 0x0p+00 strconv.ParseFloat: parsing "infin": invalid syntax [ParseFloat "infin" invalid syntax range=false syntax=true]
+"infin"/32: 0 0x0p+00 strconv.ParseFloat: parsing "infin": invalid syntax [ParseFloat "infin" invalid syntax range=false syntax=true]
+"infinityx"/64: 0 0x0p+00 strconv.ParseFloat: parsing "infinityx": invalid syntax [ParseFloat "infinityx" invalid syntax range=false syntax=true]
+"infinityx"/32: 0 0x0p+00 strconv.ParseFloat: parsing "infinityx": invalid syntax [ParseFloat "infinityx" invalid syntax range=false syntax=true]
+"nan"/64: NaN NaN <nil>
+"nan"/32: NaN NaN <nil>
+"NaN"/64: NaN NaN <nil>
+"NaN"/32: NaN NaN <nil>
+"-nan"/64: 0 0x0p+00 strconv.ParseFloat: parsing "-nan": invalid syntax [ParseFloat "-nan" invalid syntax range=false syntax=true]
+"-nan"/32: 0 0x0p+00 strconv.ParseFloat: parsing "-nan": invalid syntax [ParseFloat "-nan" invalid syntax range=false syntax=true]
+"+nan"/64: 0 0x0p+00 strconv.ParseFloat: parsing "+nan": invalid syntax [ParseFloat "+nan" invalid syntax range=false syntax=true]
+"+nan"/32: 0 0x0p+00 strconv.ParseFloat: parsing "+nan": invalid syntax [ParseFloat "+nan" invalid syntax range=false syntax=true]
+"nanx"/64: 0 0x0p+00 strconv.ParseFloat: parsing "nanx": invalid syntax [ParseFloat "nanx" invalid syntax range=false syntax=true]
+"nanx"/32: 0 0x0p+00 strconv.ParseFloat: parsing "nanx": invalid syntax [ParseFloat "nanx" invalid syntax range=false syntax=true]
+"in"/64: 0 0x0p+00 strconv.ParseFloat: parsing "in": invalid syntax [ParseFloat "in" invalid syntax range=false syntax=true]
+"in"/32: 0 0x0p+00 strconv.ParseFloat: parsing "in": invalid syntax [ParseFloat "in" invalid syntax range=false syntax=true]
+"0x1p0"/64: 1 0x1p+00 <nil>
+"0x1p0"/32: 1 0x1p+00 <nil>
+"0x1.8p1"/64: 3 0x1.8p+01 <nil>
+"0x1.8p1"/32: 3 0x1.8p+01 <nil>
+"-0x1P-2"/64: -0.25 -0x1p-02 <nil>
+"-0x1P-2"/32: -0.25 -0x1p-02 <nil>
+"0x.8p1"/64: 1 0x1p+00 <nil>
+"0x.8p1"/32: 1 0x1p+00 <nil>
+"0x1"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0x1": invalid syntax [ParseFloat "0x1" invalid syntax range=false syntax=true]
+"0x1"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0x1": invalid syntax [ParseFloat "0x1" invalid syntax range=false syntax=true]
+"0x1p"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0x1p": invalid syntax [ParseFloat "0x1p" invalid syntax range=false syntax=true]
+"0x1p"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0x1p": invalid syntax [ParseFloat "0x1p" invalid syntax range=false syntax=true]
+"0xp1"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0xp1": invalid syntax [ParseFloat "0xp1" invalid syntax range=false syntax=true]
+"0xp1"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0xp1": invalid syntax [ParseFloat "0xp1" invalid syntax range=false syntax=true]
+"0x"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0x": invalid syntax [ParseFloat "0x" invalid syntax range=false syntax=true]
+"0x"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0x": invalid syntax [ParseFloat "0x" invalid syntax range=false syntax=true]
+"0X1FFFFFFFFFFFFFp-52"/64: 1.9999999999999998 0x1.fffffffffffffp+00 <nil>
+"0X1FFFFFFFFFFFFFp-52"/32: 2 0x1p+01 <nil>
+"0x1.fffffffffffff8p1023"/64: +Inf +Inf strconv.ParseFloat: parsing "0x1.fffffffffffff8p1023": value out of range [ParseFloat "0x1.fffffffffffff8p1023" value out of range range=true syntax=false]
+"0x1.fffffffffffff8p1023"/32: +Inf +Inf strconv.ParseFloat: parsing "0x1.fffffffffffff8p1023": value out of range [ParseFloat "0x1.fffffffffffff8p1023" value out of range range=true syntax=false]
+"0x1p-1074"/64: 5e-324 0x1p-1074 <nil>
+"0x1p-1074"/32: 0 0x0p+00 <nil>
+"0x1p-1075"/64: 0 0x0p+00 <nil>
+"0x1p-1075"/32: 0 0x0p+00 <nil>
+"0x1.8p-1075"/64: 5e-324 0x1p-1074 <nil>
+"0x1.8p-1075"/32: 0 0x0p+00 <nil>
+"0x1p1024"/64: +Inf +Inf strconv.ParseFloat: parsing "0x1p1024": value out of range [ParseFloat "0x1p1024" value out of range range=true syntax=false]
+"0x1p1024"/32: +Inf +Inf strconv.ParseFloat: parsing "0x1p1024": value out of range [ParseFloat "0x1p1024" value out of range range=true syntax=false]
+"0x1.ffffffp127"/64: 3.4028235677973366e+38 0x1.ffffffp+127 <nil>
+"0x1.ffffffp127"/32: +Inf +Inf strconv.ParseFloat: parsing "0x1.ffffffp127": value out of range [ParseFloat "0x1.ffffffp127" value out of range range=true syntax=false]
+"0x1.fffffefp127"/64: 3.4028235614590836e+38 0x1.fffffefp+127 <nil>
+"0x1.fffffefp127"/32: 3.4028234663852886e+38 0x1.fffffep+127 <nil>
+"0x1_0p0"/64: 16 0x1p+04 <nil>
+"0x1_0p0"/32: 16 0x1p+04 <nil>
+"0x_1p0"/64: 1 0x1p+00 <nil>
+"0x_1p0"/32: 1 0x1p+00 <nil>
+"1_000.5"/64: 1000.5 0x1.f44p+09 <nil>
+"1_000.5"/32: 1000.5 0x1.f44p+09 <nil>
+"1__0"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1__0": invalid syntax [ParseFloat "1__0" invalid syntax range=false syntax=true]
+"1__0"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1__0": invalid syntax [ParseFloat "1__0" invalid syntax range=false syntax=true]
+"0x1p1_0"/64: 1024 0x1p+10 <nil>
+"0x1p1_0"/32: 1024 0x1p+10 <nil>
+"0x1p_10"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0x1p_10": invalid syntax [ParseFloat "0x1p_10" invalid syntax range=false syntax=true]
+"0x1p_10"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0x1p_10": invalid syntax [ParseFloat "0x1p_10" invalid syntax range=false syntax=true]
+"1.5x"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1.5x": invalid syntax [ParseFloat "1.5x" invalid syntax range=false syntax=true]
+"1.5x"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1.5x": invalid syntax [ParseFloat "1.5x" invalid syntax range=false syntax=true]
+"1.5 "/64: 0 0x0p+00 strconv.ParseFloat: parsing "1.5 ": invalid syntax [ParseFloat "1.5 " invalid syntax range=false syntax=true]
+"1.5 "/32: 0 0x0p+00 strconv.ParseFloat: parsing "1.5 ": invalid syntax [ParseFloat "1.5 " invalid syntax range=false syntax=true]
+" 1.5"/64: 0 0x0p+00 strconv.ParseFloat: parsing " 1.5": invalid syntax [ParseFloat " 1.5" invalid syntax range=false syntax=true]
+" 1.5"/32: 0 0x0p+00 strconv.ParseFloat: parsing " 1.5": invalid syntax [ParseFloat " 1.5" invalid syntax range=false syntax=true]
+"1..5"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1..5": invalid syntax [ParseFloat "1..5" invalid syntax range=false syntax=true]
+"1..5"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1..5": invalid syntax [ParseFloat "1..5" invalid syntax range=false syntax=true]
+"1.5."/64: 0 0x0p+00 strconv.ParseFloat: parsing "1.5.": invalid syntax [ParseFloat "1.5." invalid syntax range=false syntax=true]
+"1.5."/32: 0 0x0p+00 strconv.ParseFloat: parsing "1.5.": invalid syntax [ParseFloat "1.5." invalid syntax range=false syntax=true]
+"0.0.0"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0.0.0": invalid syntax [ParseFloat "0.0.0" invalid syntax range=false syntax=true]
+"0.0.0"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0.0.0": invalid syntax [ParseFloat "0.0.0" invalid syntax range=false syntax=true]
+"1e5e5"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1e5e5": invalid syntax [ParseFloat "1e5e5" invalid syntax range=false syntax=true]
+"1e5e5"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1e5e5": invalid syntax [ParseFloat "1e5e5" invalid syntax range=false syntax=true]
+"0b101"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0b101": invalid syntax [ParseFloat "0b101" invalid syntax range=false syntax=true]
+"0b101"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0b101": invalid syntax [ParseFloat "0b101" invalid syntax range=false syntax=true]
+"0o17"/64: 0 0x0p+00 strconv.ParseFloat: parsing "0o17": invalid syntax [ParseFloat "0o17" invalid syntax range=false syntax=true]
+"0o17"/32: 0 0x0p+00 strconv.ParseFloat: parsing "0o17": invalid syntax [ParseFloat "0o17" invalid syntax range=false syntax=true]
+"1e+-5"/64: 0 0x0p+00 strconv.ParseFloat: parsing "1e+-5": invalid syntax [ParseFloat "1e+-5" invalid syntax range=false syntax=true]
+"1e+-5"/32: 0 0x0p+00 strconv.ParseFloat: parsing "1e+-5": invalid syntax [ParseFloat "1e+-5" invalid syntax range=false syntax=true]
+"+-1"/64: 0 0x0p+00 strconv.ParseFloat: parsing "+-1": invalid syntax [ParseFloat "+-1" invalid syntax range=false syntax=true]
+"+-1"/32: 0 0x0p+00 strconv.ParseFloat: parsing "+-1": invalid syntax [ParseFloat "+-1" invalid syntax range=false syntax=true]
+"١"/64: 0 0x0p+00 strconv.ParseFloat: parsing "١": invalid syntax [ParseFloat "١" invalid syntax range=false syntax=true]
+"١"/32: 0 0x0p+00 strconv.ParseFloat: parsing "١": invalid syntax [ParseFloat "١" invalid syntax range=false syntax=true]
+"0x1234567890abcdef12345p-10"/64: 1.3432509105099773e+21 0x1.234567890abcep+70 <nil>
+"0x1234567890abcdef12345p-10"/32: 1.3432509432089186e+21 0x1.234568p+70 <nil>
+"1.5"/16: 1.5 0x1.8p+00 <nil>
+"9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999"/64: +Inf +Inf strconv.ParseFloat: parsing "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999": value out of range [ParseFloat "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999" value out of range range=true syntax=false]
+"0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"/64: 0 0x0p+00 <nil>
+"1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e-330"/64: 1 0x1p+00 <nil>
+4173332165588264819.558e164 65d924bbc67a8f45 false 7f800000 true
+6518334129573472e-314 205d38f971bc89f false 0 false
+-79360.95545384266953e18 c4b0ce2a8000e844 false e5867154 false
+-4.9705776796e-198 96f7c791ec285af8 false 80000000 false
+10257731990013835e-319 106829459a7c8c5 false 0 false
+-29853685557732082929746e248 f8169a93ea20b570 false ff800000 true
+-6.1e-315 8000000049975231 false 80000000 false
+2267418430304511094875061e237 76326f0f0a2b0970 false 7f800000 true
+93331e20 451ee171758e73ab false 68f70b8c false
+37383939.0346572669e-31 3b1213e851a3b92f false 18909f43 false
+0.126777669338099941642991410e333 7ff0000000000000 true 7f800000 true
+0477944305458471023916607640e-299 764af362824ed56 false 0 false
+037029475.226616215686353e55 4ceccdeb7049aa92 false 7f800000 true
+33127469.512175487415124061920e-319 9c1d5bb50b false 0 false
+388512429.791116993615e-96 2dc8bb4f74a9fa8d false 0 false
+2157926007187.8932279779e235 7348b0c560f91be9 false 7f800000 true
+-35229873997.5e-39 ba06545fb67190d8 false 9032a2fe false
+24411617819e57 4decf9ab6210569f false 7f800000 true
+42.4e-356 0 false 0 false
+2.622262435253039955278543048e-148 214ad2f38dbe8cd8 false 0 false
+5134149670342209e257 788e5ead80f9a6ce false 7f800000 true
+3344.e-235 fe09cf9bb4b5c5a false 0 false
+354.197278e-311 28c050cdaff07 false 0 false
+049993.38834e205 6b7854ac5028c7e2 false 7f800000 true
+17e68 4e4f873b8a9e4229 false 7f800000 true
+9924552945602153.8103268e329 7ff0000000000000 true 7f800000 true
+-28281.64e84 d24c6f118b434029 false ff800000 true
+2187994252204830344463135837e-145 2781a7f553fcfc61 false 0 false
+-9.e-237 8eed4d84281b7c55 false 80000000 false
+-8.921155427918331035e257 f57db518ddf3dc86 false ff800000 true
+-19506.77540196114970507e208 ec028ac5f5471d86 false ff800000 true
+79.68452e-119 27a0134e8d238d1e false 0 false
+57068026957.201798491569822105e125 5c1f67f9e0a7b249 false 7f800000 true
+-02042839844.102662117202526268e206 eca2f688311029fb false ff800000 true
+289620726637e-134 267ea2048762009b false 0 false
+-446212.720990e148 dfd54c9b1a384ae9 false ff800000 true
+6229402.06996822e300 7fa1bdeedd06dd5b false 7f800000 true
+-8.211179039e-141 a2d9084f1ee810a9 false 80000000 false
+88103535.5208330655e-144 23b064bb9c4a3531 false 0 false
+-91846743931478524328210.17e-40 bc652dacc0989d73 false a3296d66 false
+2930323199930913896e-182 1dfaffd4be6d9415 false 0 false
+2025.0996654188798e282 7b2b3cb10bd28e9f false 7f800000 true
+099041676623586915563e100 58d88c0ce4f393a8 false 7f800000 true
+177858508110958752705329987641e-132 2a997eb11eba35e6 false 0 false
+-29760946217622462785e-315 829376ac66b58a9a false 80000000 false
+1923e-27 3b02991e0d57b325 false 1814c8f0 false
+2393940516978387740.2095928e-33 3ce5900d0eb318b6 false 272c8068 false
+8.0e80 50bafcef51f0fb5f false 7f800000 true
+0413910998071e-349 0 false 0 false
+6778269893.159136068931710491e-212 15f54076a0276689 false 0 false
+744.7e-345 0 false 0 false
+657001210922751490351119800e-288 9b4b02ce2ae146f false 0 false
+4.55813e-78 2fe0e3b32b727306 false 0 false
+688827150075.17e85 5409cc866e3a4898 false 7f800000 true
+802.086374e114 58345b42a4def845 false 7f800000 true
+3437083022.58210e279 7bd6927c9e04c6c9 false 7f800000 true
+-4578383609e63 cf04baed7dcd7cd3 false ff800000 true
+-5.417805798421287698e-322 800000000000006e false 80000000 false
+487548.427e238 7286d9660963108b false 7f800000 true
+5297.094091326011988988e276 7a02ad246940f39c false 7f800000 true
+177746562983402246603e61 50cdfb3f136b5f3d false 7f800000 true
+8.34e-113 28a9ac412faa36a6 false 0 false
+853951141273418275423927435770e-276 cd7e20e6141650a false 0 false
+1.24e310 7ff0000000000000 true 7f800000 true
+3.8194269204e-25 3add8d2788014192 false 16ec693c false
+-4454656788543350044250612960e211 f17b5d27317ae4f8 false ff800000 true
+-4838e98 d50ba61c042d8d50 false ff800000 true
+-275.7343277064e57 cc45f6a85a3a3263 false ff800000 true
+7.46992e-284 526373e521fff56 false 0 false
+-46001528.8712e72 d078d46e6a97ccce false ff800000 true
+7258949506650261702e-321 133e9685e93bbd2 false 0 false
+-44.09366701e-118 a7c63d0b1690605a false 80000000 false
+826432078e242 740715e877b6383b false 7f800000 true
+9216702970553e298 7ff0000000000000 true 7f800000 true
+-55522184.3074437e-177 9ccad2297d450240 false 80000000 false
+0523.746229488544744988e-193 186dde986ddd0e9f false 0 false
+-4602324059877183e-59 b6f06bf0a9f1d0d6 false 80000021 false
+-575100050276340141e-131 a86c533b0b1bc24a false 80000000 false
+49.014406082699e-37 389a0f7ec8716a8b false 4d07bf6 false
+208974911249090038576180074551e-284 b0f60ade250f8c6 false 0 false
+-740283856919240e-1 c2d0d504e87a4500 false d686a827 false
+2.12e118 5880d0596f6689ca false 7f800000 true
+93330087802616.8e-147 2450f57fbeceabbb false 0 false
+10467216317560.2591632511902e-152 2313f1a0b1d1cc28 false 0 false
+153278348464334082745199e267 7c2f74f2e222cc2e false 7f800000 true
+-1658.2003e212 ec9ec8f9fcd08c3b false ff800000 true
+-38908038e91 d466c4f4762fcc4f false ff800000 true
+00240387941119e-45 38f3f87c70fb1b73 false 79fc3e4 false
+-9.e-225 916aa696da95258c false 80000000 false
+25357652e-147 22f3538369f7194c false 0 false
+89867954236972e-86 30f967bfb55014f2 false 0 false
+782389944967847813e198 6cc2281bf0d4baf9 false 7f800000 true
+618898065637357e237 74359c42eff44058 false 7f800000 true
+-3254016306146764900136703.9e-64 b7bc58b2e7eef98d false 80038b16 false
+6.82163e-231 10252e70c0ff884b false 0 false
+51878.1343e-337 0 false 0 false
+58120661e-8 3fe2993e9ac568aa false 3f14c9f5 false
+-151285146775.709918447478023e-20 be19fd97539d0117 false b0cfecbb false
+3686290266507.132123173e219 7002fec27df03b8e false 7f800000 true
+7090252275e61 4ea48bd76a8e6def false 7f800000 true
+184678808451106614598624156.082e70 53ebaadb10410d00 false 7f800000 true
+-820.68e268 f82f11ac1e83faf7 false ff800000 true
+-943.327960e-297 82e347780921f3eb false 80000000 false
+-53769061944820.1017566e-337 8000000000000001 false 80000000 false
+-3833.3e57 cc8315707b199241 false ff800000 true
+-04556336.10187626330749994293e246 f463e312bb0bc4b5 false ff800000 true
+929808058754.734676e65 4fe9b228ad4fbcc5 false 7f800000 true
+-665884500e-154 a1ca9b900df9ee58 false 80000000 false
+271269619659444e28 48bf23e5cb81315f false 7f800000 true
+-8071967158757133533492694e21 c9769f5a37ce4127 false ff800000 true
+69183.9111891e298 7ed02446e6016eb7 false 7f800000 true
+88026.361791290266e230 70b625e8aef1c8ff false 7f800000 true
+5.51e-275 6fe85e537db66bf false 0 false
+980.e-345 0 false 0 false
+230180275576983818318862665413e-125 2c13aa9ea7aa3e7e false 0 false
+-208914553648452e-123 a95f66b9226452f3 false 80000000 false
+2958721.36392164228781950e322 7ff0000000000000 true 7f800000 true
+34904689952640484332132e-141 2756887d084e5e9c false 0 false
+-03836873922938.5939328140e-23 bdc517eb847f68b0 false ae28bf5c false
+061380877574119197474097657e23 4a10cca57f54e43d false 7f800000 true
+-672610333940483208977906e167 e78e313ade22eeb2 false ff800000 true
+691275907821.07424e-319 28daa24e0bb1bd false 0 false
+58445483e324 7ff0000000000000 true 7f800000 true
+-7785909248846417e20 c762be6fe233c9cd false fb15f37f false
+-2583344022760322392809e-126 aa37b317ebe8388b false 80000000 false
+41230252887.e-180 1cc3eabf5c23c0e6 false 0 false
+0.e-105 0 false 0 false
+-392266824.70300102184240e63 cecc6afe1aac3e21 false ff800000 true
+253060e75 50a112f00876032d false 7f800000 true
+861.4169e-280 6686e98de93559b false 0 false
+-1.e294 fcf90d56b873f4c7 false ff800000 true
+96363679185953311038339309423e307 7ff0000000000000 true 7f800000 true
+20411961040920.2977289754518064e59 4ef27c02be38788c false 7f800000 true
+535344038970041e-230 133d87185e9f2a4c false 0 false
+37634629408332e49 4ced466d8edbfc10 false 7f800000 true
+29694755.246312817052263e-344 0 false 0 false
+-9551759.758524927747370625430e-176 9cd71219f7f2867e false 80000000 false
+697.215555044853023622010e244 732fe8d7e49b8c63 false 7f800000 true
+0.e-87 0 false 0 false
+72745169016357882156e307 7ff0000000000000 true 7f800000 true
+39434901410734024698889357381e151 65385435ec0de7b9 false 7f800000 true
+292.987e-238 f07d9213c57f1f3 false 0 false
+1478459035686490354864e-99 2fc5e9ae30437162 false 0 false
+-73244037716314020.681076e261 f9a08707fc9ee5d4 false ff800000 true
+-873.08596111e-282 85ffb255bd1f6404 false 80000000 false
+39.695016738631714846e52 4b1093d14dfc680c false 7f800000 true
+-5641648487e119 daaa0b6b8e57f3aa false ff800000 true
+667769270.18084e284 7cbac43577e31fbb false 7f800000 true
+-26380.6776735530255383e-260 8adfb04439fe3d05 false 80000000 false
+-83.1e-92 ad3b159d3a12dc16 false 80000000 false
+-604239604025710060729985e-136 a8a299a688c42161 false 80000000 false
+-92.e18 c413f306a2409fc0 false e09f9835 false
+-4.5629346e41 c894f3b42f3781c3 false ff800000 true
+171e-212 1461fd5aabd641c0 false 0 false
+-9.891796e-88 addf7bfa4c73091e false 80000000 false
+300495933.458363164520e323 7ff0000000000000 true 7f800000 true
+57644042067512e114 5a7549ff11fff384 false 7f800000 true
+763.56849e-82 2f821b809a22451c false 0 false
+-21.802528291428692931e-69 b1e2cf3775b0a5a9 false 80000000 false
+2.e-187 192bd8d03f3e9864 false 0 false
+581829019845.7e-173 1e74f0d7895ef662 false 0 false
+-981027396311.03980871e-249 8eb98d813d0a5787 false 80000000 false
+78.94969950108015553949e-353 0 false 0 false
+8300006493569.3609482457e-219 15255165304008b9 false 0 false
+524.5490311113e-27 3ae44ae1c9cc5fc5 false 1722570e false
+-3.9e47 c9d1140d1c034f8d false ff800000 true
+-7601138152125978029931583629e-83 b47dd2194ace59a7 false 80000000 false
+-2342847.098914574472656e-207 9646f46531c6b649 false 80000000 false
+-8409410e-98 ad05ed3f42599656 false 80000000 false
+451.e108 56e801166fa5a945 false 7f800000 true
+3261816472667595666e83 5502a41d8636dd68 false 7f800000 true
+8.12e276 796d50fcc015f1b8 false 7f800000 true
+903680199731290909904.6e216 7121c373b8a889f4 false 7f800000 true
+-9834.9474581720e-63 b3af9bb9b5e4a1a9 false 80000000 false
+787.7e326 7ff0000000000000 true 7f800000 true
+652023e-181 1b908377d5fe06f3 false 0 false
+0478241.009155e217 6e2a75eb220d21d1 false 7f800000 true
+-248300273615013988281058786366e284 fff0000000000000 true ff800000 true
+4284601.93631910129306230e97 5573213ef9314a16 false 7f800000 true
+6098.101934582115e-10 3ea4763acc00cde0 false 3523b1d6 false
+941986235781.66e-182 1ca233a2fd4cf3b6 false 0 false
+446516650277132312999248638670e88 585c54b16b31997f false 7f800000 true
+-7.57428368e253 f4a4a981b5d0cb59 false ff800000 true
+-188.8171299797e-148 a1ae2de71a87b8e1 false 80000000 false
+-76180652626691386.39779532e-181 9ddc1392b0f75031 false 80000000 false
+7.8676e-263 983d1be2440c705 false 0 false
+-9707248285e155 e230db5fcc57e38c false ff800000 true
+0368.3589550685931129519e58 4c8256a32aec4d42 false 7f800000 true
+420.43681588586987e-171 1cf9632ce74a12b3 false 0 false
+-3.83091133968455864316013e303 fef65866792c7136 false ff800000 true
+-58838645787876976.4532e-103 ae0768d268eb3cf7 false 80000000 false
+-66178.7357635913010158140406e45 ca46a402929f53fd false ff800000 true
+311025720639e216 6f2a422ba8f470df false 7f800000 true
+80499.26e-150 21d01546162547dc false 0 false
+-4.1422602800339430e-344 8000000000000000 false 80000000 false
+8.8970559934777e130 5b200b50fec49b59 false 7f800000 true
+416e114 58251d9cf2b04d36 false 7f800000 true
+1553218395860612632181653e-299 6e13554a82682d3 false 0 false
+18.121e258 75c2db6dac08b3be false 7f800000 true
+701686065602735485e-144 25be662cbcc7589b false 0 false
+41361431440718.5115059e189 6a00e2d52ae01c0b false 7f800000 true
+806.301301e270 7897d8f00d9fbef1 false 7f800000 true
+8182.635946532525623465e95 5477f15a3e8a5322 false 7f800000 true
+5.e-148 215992c7fdc216fa false 0 false
+7324375688581661.863862e169 66513cca24652ee1 false 7f800000 true
+-75584427928408.812101e154 e2c9a2bb7c2ab9e5 false ff800000 true
+111929989900607571051005.2e65 523681a922fb2aa5 false 7f800000 true
+63672.10057e-91 2e09551e33c5e5de false 0 false
+191661116114105917339.78e-337 3b3160 false 0 false
+9229042163984592267385004e-67 373494da05fb4f75 false 293 false
+94528750371818.2e283 7d97205c3eae8f62 false 7f800000 true
+-4060.e-228 91580b7ddd1a797c false 80000000 false
+185.128688e169 637ea8abd1ca7637 false 7f800000 true
+-7.6510e-297 827403d1fa00b287 false 80000000 false
+-2.70e257 f561fb62e389a95a false ff800000 true
+-6984781.0850e-313 805f6427d05e8a8e false 80000000 false
+-837392696642800252601.0172e-333 800000277666bb80 false 80000000 false
+894.1342e-241 e82a1ae076691fb false 0 false
+61.4037449e221 6e30fcaf86d034b6 false 7f800000 true
+1953161652435588350.5e318 7ff0000000000000 true 7f800000 true
+527270.209669203276665e78 51515ede99e7f7ea false 7f800000 true
+15946.2195266699182067022618318e-266 99415c8f6baa8da false 0 false
+905650778328603e-308 31722edb1a234ab false 0 false
+788875.55204851798291e183 6726a9c75ccb8ea8 false 7f800000 true
+11937e-235 ffda6dfdfc8757b false 0 false
+30.035595981830e299 7e51f09ec3b43824 false 7f800000 true
+-5.07262375450446e-180 9ab50c86c20e6a59 false 80000000 false
+942.808901e-124 26cf2997cd6e1528 false 0 false
+5.873639401400100365903e-156 1fb42921ddc98b45 false 0 false
+-12698.7e-338 8000000000000000 false 80000000 false
+-308106819053090844e8 c5397c6a69b229a4 false e9cbe353 false
+8385.e-115 28e021d2a158d3f3 false 0 false
+28370524213553e-7 4145a51e35eef871 false 4a2d28f2 false
+-05472944308028e147 e118e9fb568cd195 false ff800000 true
+619524731288010.08840142243e285 7e2d9a51c9e04e66 false 7f800000 true
+21184.1450319717292e-52 3608c4be63d24c5d false 0 false
+-3.89e-202 961e7d9b386cf2c4 false 80000000 false
+77105529.619450e-2 412787de97a6ce36 false 493c3ef5 false
+-078674196e202 eb832501adbba6a7 false ff800000 true
+2646472.04e-65 33c5437a2d45c451 false 0 false
+-86894e150 e019ec64192e9e2b false ff800000 true
+-258618079735675e-153 a328a3593b22dc9c false 80000000 false
+81851787324122e-353 0 false 0 false
+31291555158802.97e-68 349eb0cf9e31dd39 false 0 false
+-236.362321e-165 9e2b38ed094416f1 false 80000000 false
+7.e110 56f2a0ea3ecdc25e false 7f800000 true
+87e-284 5602bdae613cee9 false 0 false
+68012058430663724e-360 0 false 0 false
+7383701205864727100266302410e-57 39e2b84bcb5eff13 false f15c25e false
+933965662606884714052708696e112 5cc918d915877173 false 7f800000 true
+29527.49700821359991096772068e38 48c0f2acfd5ac814 false 7f800000 true
+9.069e284 7b18652886de3233 false 7f800000 true
+8443302.e239 72fee9fee5b5ce22 false 7f800000 true
+6.e-149 21288ce8f39b9b2e false 0 false
+8449918382684421442966580e-218 17d8ac669969dabd false 0 false
+-2553374150095e-11 c03988a348731924 false c1cc451a false
+73.6972333941e154 604b7ba2dd9012a9 false 7f800000 true
+92807.59927406318845020734e233 7156cdc4e27a9e00 false 7f800000 true
+-396646147027352069342175473756e91 d8f893a7c30806ef false ff800000 true
+18.e-261 a01b66369c3892a false 0 false
+63.3e231 704462e05a61188c false 7f800000 true
+-745429450807.17359780121308e1 c29b1e5a4e089ef2 false d4d8f2d2 false
+-4.194564291213783e97 d433a339426da518 false ff800000 true
+-4.8682245546e-233 8fb359371becfc93 false 80000000 false
+4.0e211 6bde6adefd7f06aa false 7f800000 true
+024580.663567348622675544e-88 2e9319d06674ec09 false 0 false
+300410.9257323575e200 6a97f43b9420f202 false 7f800000 true
+-39227627354994e-258 8d31246c40326c9d false 80000000 false
+-65902263144858e-238 916383d2b2bd329e false 80000000 false
+54811393721781363808875e-194 1c60f216728030f6 false 0 false
+713882.45007571090e296 7e9aa64d8b809810 false 7f800000 true
+267045957696234695127899.54e183 6aca9df322d8137c false 7f800000 true
+-939585.39e-47 b76a311afb7cb2be false 80001a31 false
+244430527536.2092897865095720e-135 2644aeba3b66a909 false 0 false
+-85020831314263.3195854e117 db1ea9f486688db5 false ff800000 true
+0.3224e215 6c77f11e84877bbf false 7f800000 true
+2724136797383457583447.9759e-129 2999974c1be19dfb false 0 false
+93.888481e-270 848cce610d3c782 false 0 false
+6.e137 5c89cbf0e0b56dc8 false 7f800000 true
+493195573153.9030694248567377e-192 1a805f474c57e69c false 0 false
+-7.210e-140 a30b79b09056a7ea false 80000000 false
+238.e-162 1ecac4bed88dc371 false 0 false
+673593400781478398166907e-243 126e6f903d27f372 false 0 false
+50965e-142 236e588cef92ed60 false 0 false
+04e2 4079000000000000 false 43c80000 false
+6375497425e166 64701c5c21e810ea false 7f800000 true
+-4492428712e141 df35f5627e2e8a8d false ff800000 true
+4122029894078038344.38326e-152 243df5e3f34df916 false 0 false
+-65532668799.9957e269 fa071af5d37225e1 false ff800000 true
+1235320329e281 7c295a227d289aa3 false 7f800000 true
+306.772715468018575689e77 50708ef2062450e8 false 7f800000 true
+4512687e-173 1d6549d3dbfa7794 false 0 false
+893.909536889658126773242e-187 19b84f2895f561b7 false 0 false
+337318893618936e-309 2cb93607d4911a8 false 0 false
+0602949778631.8625362224e193 6a733b2935c7bdd0 false 7f800000 true
+71039673179423321814.9175e267 7b7ddbb97eb6c543 false 7f800000 true
+-698.e-255 8b94783f2ac76c4d false 80000000 false
+826566601202377692625879e-321 2414c5dbb38664c false 0 false
+68692551007352334666e292 7ff0000000000000 true 7f800000 true
+-2.2435957038e-228 90ab367222d3ab45 false 80000000 false
+fe55fe513b17d536 -3.682210361722755746085e+300 fe55fe513b17d536 <nil>
+a8e10bfe525ffdc7 -8.860449232337e-112 a8e10bfe525ffdec <nil>
+6548ede5cfba788c 0x1p+598 6550000000000000 <nil>
+b11855f6e2f9bf15 -0x1.855f6e2f9bf1p-238 b11855f6e2f9bf10 <nil>
+a5bfe648e55aa832 -0.0000000000000000 8000000000000000 <nil>
+168021e16bb748f3 0.0000000 0 <nil>
+8e7d3d28296049a8 -7.01591620404304551e-239 8e7d3d28296049a8 <nil>
+4783220448633ee1 3.178994609735591658e+36 4783220448633ee1 <nil>
+38e03e09bfc5d66e 9.77550055289661101498e-35 38e03e09bfc5d66e <nil>
+dfd10e6d9a2fe85f -3.57326e+153 dfd10e6ec9a0b4cb <nil>
+98c30c7e9e55bc04 -2.137669292467557687e-189 98c30c7e9e55bc04 <nil>
+9417205107410ed 4.3282714353044490674607e-264 9417205107410ed <nil>
+97d77c918c6cbbea -0.000000 8000000000000000 <nil>
+80491a94ecb0e80b -2.79289434e-307 80491a94ecaa0b82 <nil>
+2e3d16a247994ba0 0x1.d16a247994ba00p-284 2e3d16a247994ba0 <nil>
+3473b05d618e139 7.27467952162581e-293 3473b05d618e13a <nil>
+c75285f266aff4a6 -3.8471243570571744e+35 c75285f266aff4a6 <nil>
+380490613b0f93f7 8e-39 3805c72fb1552d83 <nil>
+3f809c64042cb47c 0.0081108 3f809c6525f4864f <nil>
+874aebc775a9bc5 0.00000000000000000000 0 <nil>
+6bbba64d4df95ca2 9.090046464811401248477e+210 6bbba64d4df95ca2 <nil>
+c4e1d7944bfb7823 -6.74055728765326326e+23 c4e1d7944bfb7823 <nil>
+34c762f9a3f0f298 0x1.762f9ap-179 34c762f9a0000000 <nil>
+473dd3e079ea6c91 2e+35 4743426172c74d82 <nil>
+8ac80e5c3fb80fde -0x1.80e5c3fb80fde000000p-851 8ac80e5c3fb80fde <nil>
+9d0d334e132a608f -0.0000000 8000000000000000 <nil>
+f62c22a47c241f4 0x1.2cp-777 f62c00000000000 <nil>
+f2a61b365edbf9d 1.2964485e-235 f2a61b3763ee335 <nil>
+afb4329cfc9c6a5a -0x1.4329cfc9c6a5a000000000p-260 afb4329cfc9c6a5a <nil>
+c0efbe78d3c4593b -0x1.fcp+15 c0efc00000000000 <nil>
+88d72ec832d41e90 -0x1p-882 88d0000000000000 <nil>
+4bc08998830a40e9 8.10995826e+56 4bc08998830aba2f <nil>
+e0a219ced5140816 -3.106460341394437e+157 e0a219ced5140816 <nil>
+ab57f80d330fae27 -6.84905231e-100 ab57f80d330ac150 <nil>
+65a659d894d446c 0.0 0 <nil>
+1b480dfba3b1dc75 2.96804909600308e-177 1b480dfba3b1dc75 <nil>
+bf7391931905c512 -0.00477750263 bf73919318d6a591 <nil>
+bbff103e875ceb53 -1.05247076357554e-19 bbff103e875ceb6c <nil>
+953fb344b823af88 -0x1.fb344b823af88000000000p-684 953fb344b823af88 <nil>
+5d81cf72eaaebe41 2.7148157069085170568e+142 5d81cf72eaaebe41 <nil>
+9aa96bd906cdbd4e -3.063162421e-180 9aa96bd906ca10ad <nil>
+ab735089ef32dcbf -0x1.35089ef32dccp-328 ab735089ef32dcc0 <nil>
+82edd79482389be4 -0.0000 8000000000000000 <nil>
+176db23fb6ef524d 7.94538507e-196 176db23fb73f38ff <nil>
+3c35349355794cca 0.000000000000000001150 3c3536b8b14b676c <nil>
+71c112b8fcba8e6b 0x1.112b8fccp+797 71c112b8fcc00000 <nil>
+c62b492eeb48580 0.00000000000 0 <nil>
+887e6d5721924499 -0.0 8000000000000000 <nil>
+45513846b6430f86 83269983447730249252470784.00000000000000000 45513846b6430f86 <nil>
+215f3a6b016b4c57 0.000000000000 0 <nil>
+9d299a8994a3285c -3.3921458312860397e-168 9d299a8994a3285c <nil>
+ec83eb2aba328125 -5.3644622e+214 ec83eb2abb784f5c <nil>
+18f9908de94ee182 2.295106462439076192228e-188 18f9908de94ee182 <nil>
+8c5589e645f6a283 -3.0083092569383435e-249 8c5589e645f6a283 <nil>
+762d5218ffcf8078 1.80326894243988e+261 762d5218ffcf8072 <nil>
+77cf81c66d7333f1 1.3003860103460272164e+269 77cf81c66d7333f1 <nil>
+e4252ef941a5debe -2.619660648439e+174 e4252ef941a5de28 <nil>
+1bc1420cba745cef 0x1.1420cba745cfp-579 1bc1420cba745cf0 <nil>
+55d27b482adfc9d4 2.6492e+105 55d27b40e0f8a4c7 <nil>
+7ade75c0c1cbc8fd 7.077264706622e+283 7ade75c0c1cbc875 <nil>
+1ca457f4b472633a 0.000000000000000000 0 <nil>
+dd439e95eace879b -1.8691121769e+141 dd439e95ead052d0 <nil>
+4953eac84ab18070 1.77667e+45 4953eacaf7b95c9c <nil>
+37c3302ed693ec49 4.40539804205414e-40 37c3302ed693ec46 <nil>
+1e2499e0cf7c0af6 0 0 <nil>
+2f2e0f62436d6e87 1.980621575e-81 2f2e0f624378efcd <nil>
+8f460e3c66f5604c -4.3354327340811479e-235 8f460e3c66f5604c <nil>
+b213ed8dd14f89d5 -0.00000000000000000000 8000000000000000 <nil>
+f3094f8832e3b1f2 -1.38257961827467e+246 f3094f8832e3b1e4 <nil>
+eccfbe19f2239db3 -1.4e+216 ecd03ea346f1aed7 <nil>
+14063a877c0b6568 0x1.63a877c0b6568000000000p-703 14063a877c0b6568 <nil>
+2e61c09fa53acda1 2.85567771e-85 2e61c09fa57b9a99 <nil>
+6ed70bd46a1f742e 8.53053519458473245232e+225 6ed70bd46a1f742e <nil>
+66817893ef59e11f 5.938890082743058e+185 66817893ef59e11f <nil>
+3f9a0533221ecbc4 2.54e-02 3f9a027525460aa6 <nil>
+97a7cad1611623ad -0.00 8000000000000000 <nil>
+6d0a65a4036adaa 0 0 <nil>
+217984f7fb7b44cb 0.00 0 <nil>
+8ad0512bf5820f60 -1.35839497e-256 8ad0512bf493e9e7 <nil>
+2a33ea256f3237f9 0.000000000000000000 0 <nil>
+c2c0e046eb3dfa66 -3.71108970813328e+13 c2c0e046eb3dfa66 <nil>
+bb1608709ca114b7 -4.55631105786698228526e-24 bb1608709ca114b7 <nil>
+384fa8983c4aec3c 1.8607236816955661845099e-37 384fa8983c4aec3c <nil>
+2e7a50c73bbf685 1.15693364790113243e-294 2e7a50c73bbf685 <nil>
+3679f6a4ab133662 2.8423861568232004e-46 3679f6a4ab133662 <nil>
+e76f64d0687edce3 -1.7484420328576264899e+190 e76f64d0687edce3 <nil>
+7cd876b0852e5e58 0x1.876b0852e5e580p+974 7cd876b0852e5e58 <nil>
+97864d53b5488b51 -0x1.64d5p-647 97864d5000000000 <nil>
+e1e3c516b7597d9e -3.557719050963e+163 e1e3c516b7597c58 <nil>
+4e967108268e694f 3.872143799056332591767e+70 4e967108268e694f <nil>
+964c0e813b9ca1b4 -2.863577029e-201 964c0e813b88bcae <nil>
+926196983ba1625d -3.8926e-220 926196a216b41f2b <nil>
+d4720a5198b52c1a -6.165418092917652356565e+98 d4720a5198b52c1a <nil>
+dede6bf1967bc5fb -9.7e+148 dede581518c6cd31 <nil>
+a30a7b976d1d3250 -6.949532443e-140 a30a7b976d24edbc <nil>
+c7aec8c210d027a9 -2.04596176823944893e+37 c7aec8c210d027a9 <nil>
+7e66b8f64947ddd6 7.609e+300 7e66b94e2e485f7a <nil>
+177f8504e6d13ee7 0x1.f8504e6d13ee70000p-648 177f8504e6d13ee7 <nil>
+8c71123beacc2c 0x1.c71123beacc2cp-1015 8c71123beacc2c <nil>
+a7f84e2b506ac735 -0.000000000 8000000000000000 <nil>
+a6d82b53b86c6ed2 -1.462463e-121 a6d82b53cbe32627 <nil>
+b2c4634d27e36013 -3.87189296353828262983e-64 b2c4634d27e36013 <nil>
+a0cb57a5bacf6b48 -1.0441151034266e-150 a0cb57a5bacf6bb1 <nil>
+8c8b4d82f11f6d01 -3.051e-248 8c8b4e2f04e4c716 <nil>
+a376522b8db2fb0e -7.497477929100763e-138 a376522b8db2fb0e <nil>
+d3f90c9a46fcf57f -3e+96 d3f678d80a22868a <nil>
+cff5450b2e404ba4 -1.539289509417082795966e+77 cff5450b2e404ba4 <nil>
+6b0ae3737480850d 4.3163165703857e+207 6b0ae37374808533 <nil>
+d0c12d2c471cde8a -0x1.12d2c471cde8a0p+269 d0c12d2c471cde8a <nil>
+fc425dc55dcb0b2b -3.579705815505e+290 fc425dc55dcb0bc7 <nil>
+e295465eeb9e940 0.0000000000 0 <nil>
+db782dd9e910bb59 -4.3e+132 db783b68527f934f <nil>
+15e6c2a40e98b546 0.000000000000000000 0 <nil>
+a901d1e6208ed17 8.4e-258 a9024e7f1bb8e5a <nil>
+b437688b685c001c -0x1.7688b685cp-188 b437688b685c0000 <nil>
+ac03e429ea8efbe5 -0.0000000000000000 8000000000000000 <nil>
+f9ed7a3ce2be5b42 -2.09014550891e+279 f9ed7a3ce2be9968 <nil>
+f9aed208816c2743 -1.365855896586325e+278 f9aed208816c2745 <nil>
+c7aa541ff3c58c38 -0x1.a541ff3c58c380000000p+123 c7aa541ff3c58c38 <nil>
+a79e8cb78c8272b1 -7.57161134e-118 a79e8cb78c40ff30 <nil>
+4ff9e79beecaec7e 1.87472625521070335501e+77 4ff9e79beecaec7e <nil>
+7b1784a4b5d085af 0x1.784a4b5d085bp+946 7b1784a4b5d085b0 <nil>
+e58df1598430c994 -1.553099991e+181 e58df1598446560e <nil>
+6de547485b068bbd 2.40362534521803197e+221 6de547485b068bbd <nil>
+405144c32ddcc4fa 6.907e+01 4051447ae147ae14 <nil>
+cf816e705da4145b -9.855558903983276318e+74 cf816e705da4145b <nil>
+4a40113466cf3430 4.6964495270219519e+49 4a40113466cf3430 <nil>
+f36398c0ddd6f309 -6.851e+247 f36398cedbe76a61 <nil>
+18a1c455b56f80b6 4.9845413682418040902e-190 18a1c455b56f80b6 <nil>
+c635d2fe4931f47 5.41e-249 c635df79059c557 <nil>
+f85dc93d8f65880c -6.2943325602032449835e+271 f85dc93d8f65880c <nil>
+9d670444499b9495 -0x1.7044449ap-553 9d67044449a00000 <nil>
+f9a7889c4317fbb2 -0x1p+923 f9a0000000000000 <nil>
+83b9049bc8743273 -1.0028e-290 83b904925c38a38e <nil>
+4ace75092e27c128 2.2790761353e+52 4ace75092e27f204 <nil>
+5df799e84b749c61 4.604813396322801659402e+144 5df799e84b749c61 <nil>
+474810a0e98051ee 0x1.810a0fp+117 474810a0f0000000 <nil>
+5dfcf550867419df 0x1.cf550867419ep+480 5dfcf550867419e0 <nil>
+3cbb663b8ad51b84 0x1.b663b8ad5p-52 3cbb663b8ad50000 <nil>
+92b4f4771ac6766d -0.000000000000000 8000000000000000 <nil>
+7b9ed02df8a3df6a 3e+287 7b9f85d903cddcba <nil>
+23fe30b83c81e18b 0.0000000000000000000 0 <nil>
+a13760f561141320 -0x1.760f56114p-492 a13760f561140000 <nil>
+2cf18cde3d45ceb9 0 0 <nil>
+dc0b052d7d4b4026 -2.4549182666832e+135 dc0b052d7d4b4072 <nil>
+eaecee470afad577 -0x1.cee470afad5770p+687 eaecee470afad577 <nil>
+719f83bc3a0e63fc 2.052145964054805e+239 719f83bc3a0e63fd <nil>
+4bdf6518a9439145 3.079e+57 4bdf6490a2b640e5 <nil>
+3eeac13f3c85022 0 0 <nil>
+a254beb1829681a3 -2.658112369391253708e-143 a254beb1829681a3 <nil>
+850e76da7f4d0a18 -2.5608544975228342e-284 850e76da7f4d0a18 <nil>
+655213df3238ea11 0x1.2p+598 6552000000000000 <nil>
+23db48ea09f22b5e 0.0000000 0 <nil>
+9753b9feaa92b20f -0.0000000000000000000 8000000000000000 <nil>
+5a16d0f242d44174 9.65298109076286253908e+125 5a16d0f242d44174 <nil>
+782158726b93451d 0x1p+899 7820000000000000 <nil>
+b9b826e8c612dda 9.38050755011634e-253 b9b826e8c612ddd <nil>
+3db45bd6b1f72bb 0.00000000 0 <nil>
+ccd39a58f87f8610 -0x1.39a58f87f8610000000p+206 ccd39a58f87f8610 <nil>
+bc5fe8a56dc04e69 -0x1.0p-57 bc60000000000000 <nil>
+1433d3eadaeaf396 2.3559e-211 1433d3e884441ad6 <nil>
+341d8577680b0fa7 0.0000 0 <nil>
+2ccf10099c9d93ec 0x1.f1009ap-307 2ccf1009a0000000 <nil>
+8510e5312979f1f5 -0x1.1p-942 8511000000000000 <nil>
+a288c7f1805e5892 -2.54022035357248206841e-142 a288c7f1805e5892 <nil>
+3e7500f997ae14d3 7.8245283958723377795441e-08 3e7500f997ae14d3 <nil>
+73a106ce03cc6708 0x1p+827 73a0000000000000 <nil>
+b319b78435525bc1 -1.56286e-62 b319b788e3d261c0 <nil>
+9d5fc597c97f78ce -3.4e-167 9d600a1234cd8038 <nil>
+206f167522174e3f 1.8549e-152 206f16721bd7f886 <nil>
+2dc320ef50153b64 0.00000 0 <nil>
+b8da6afb417ff7cd -7.94984651e-35 b8da6afb4177a3e9 <nil>
+fac4da107743b04a -2.422421845132398437e+283 fac4da107743b04a <nil>
+1c3692115477c7eb 0.00000000000000000 0 <nil>
+e93ef188c7488d00 -9.2522316294e+198 e93ef188c74890dc <nil>
+b05e5ff29de97219 -0x1.e5ff29de97219000p-250 b05e5ff29de97219 <nil>
+c0688d1ee84d9b06 -196.410022880147323576239 c0688d1ee84d9b06 <nil>
+48963589b4cecdd7 4.837e+41 489635ddbda3d9d1 <nil>
+1303e9bf869a17dc 4.5e-217 1303db39a1d612b8 <nil>
+526773b17e71b6a5 9.330550625281253e+88 526773b17e71b6a5 <nil>
+2228ee755a91502 0x1.3p-989 223000000000000 <nil>
+a25c192181d5ec03 -0x1.c192181dp-474 a25c192181d00000 <nil>
+170fc2e4cf7cd7f8 1.327795e-197 170fc2e415bf661d <nil>
+7ab6030be983f171 1.27859641617014e+283 7ab6030be983f166 <nil>
+90b55c69fec73a3e -0.0000000000000000000000 8000000000000000 <nil>
+b6d2e7d02b2cee6f -1.3246138177839761832e-44 b6d2e7d02b2cee6f <nil>
+a42afe27e9bf0954 -0.00000000000 8000000000000000 <nil>
+c0bf11007cdf8e7d -7953.001905 c0bf11007cd898b3 <nil>
+b10824bc60ba66ba -0x1.824bc60ba66bap-239 b10824bc60ba66ba <nil>
+531ee3508dc5e11b 2.516794444579106503e+92 531ee3508dc5e11b <nil>
+2ba9fc37d6e627f0 2.376062949523784e-98 2ba9fc37d6e627ef <nil>
+957d0ccb74a439c9 -0.000000000000000000000 8000000000000000 <nil>
+cd8af14d4b23676 0x1.8afp-818 cd8af0000000000 <nil>
+cf17fdef00911007 -1.059751695064239909322e+73 cf17fdef00911007 <nil>
+7e3a4e4c52caefcc 0x1.a4e4c52caefdp+996 7e3a4e4c52caefd0 <nil>
+e5605628a09ddf55 -2.1184e+180 e5605628a3227c06 <nil>
+f706883a31b78572 -2.27043252e+265 f706883a31393470 <nil>
+e903dfd07d690733 -0x1.4p+657 e904000000000000 <nil>
+d67ce3c0dd755ce8 -0x1.ce3c0dd755ce8000000000p+360 d67ce3c0dd755ce8 <nil>
+431f810a33d0ab21 2216901274249928.25 431f810a33d0ab21 <nil>
+4f4f5c11 4f4f5c12 4f4f5c12 41e9eb8230000000
+4932c5e9 4932c5ea 4932c5ea 412658bd30000000
+746e5cb3 746e5cb4 746e5cb4 468dcb9670000000
+27152c1b 27152c1c 27152c1c 3ce2a58370000000
+493c7168 493c7168 493c7169 41278e2d10000000
+5b21f870 5b21f870 5b21f871 43643f0e10000000
+4c5f827d 4c5f827e 4c5f827e 418bf04fb0000000
+3b2f5aed 3b2f5aee 3b2f5aee 3f65eb5db0000000
+633dc71f 633dc720 633dc720 4467b8e3f0000000
+36449b11 36449b12 36449b12 3ec8936230000000
+3c06f9f6 3c06f9f6 3c06f9f7 3f80df3ed0000000
+192246f1 192246f2 192246f2 3b2448de30000000
+746df6df 746df6e0 746df6e0 468dbedbf0000000
+551c644a 551c644a 551c644b 42a38c8950000000
+2857a7a4 2857a7a4 2857a7a5 3d0af4f490000000
+795188a0 795188a0 795188a1 472a311410000000
+673b748c 673b748c 673b748d 44e76e9190000000
+7b23d801 7b23d802 7b23d802 47647b0030000000
+6e580583 6e580584 6e580584 45cb00b070000000
+32ec9a 32ec9a 32ec9b 37f9764d40000000
+4f2d7406 4f2d7406 4f2d7407 41e5ae80d0000000
+653fa4c1 653fa4c2 653fa4c2 44a7f49830000000
+2b29b222 2b29b222 2b29b223 3d65364450000000
+34402e53 34402e54 34402e54 3e8805ca70000000
+26526537 26526538 26526538 3cca4ca6f0000000
+21688caf 21688cb0 21688cb0 3c2d1195f0000000
+1456afe0 1456afe0 1456afe1 3a8ad5fc10000000
+3777d8fb 3777d8fc 3777d8fc 3eeefb1f70000000
+2d6f2035 2d6f2036 2d6f2036 3dade406b0000000
+58138d51 58138d52 58138d52 430271aa30000000
+1a090a21 1a090a22 1a090a22 3b41214430000000
+81e3145 81e3146 81e3146 3903c628b0000000
+64036a0e 64036a0e 64036a0f 44806d41d0000000
+4c32c743 4c32c744 4c32c744 418658e870000000
+64ca09a 64ca09a 64ca09b 38c9941350000000
+78549a37 78549a38 78549a38 470a9346f0000000
+19733bb1 19733bb2 19733bb2 3b2e677630000000
+1c4501b7 1c4501b8 1c4501b8 3b88a036f0000000
+1b7aaa34 1b7aaa34 1b7aaa35 3b6f554690000000
+d2227d3 d2227d4 d2227d4 39a444fa70000000
+1336387a 1336387a 1336387b 3a66c70f50000000
+793fd991 793fd992 793fd992 4727fb3230000000
+46485ba9 46485baa 46485baa 40c90b7530000000
+3f55eccd 3f55ecce 3f55ecce 3feabd99b0000000
+1729e344 1729e344 1729e345 3ae53c6890000000
+f2a8734 f2a8734 f2a8735 39e550e690000000
+71441cfc 71441cfc 71441cfd 4628839f90000000
+46624000 46624000 46624001 40cc480010000000
+279a48d 279a48e 279a48e 384f3491b0000000
+d3e18b4 d3e18b4 d3e18b5 39a7c31690000000
+2b17723f 2b177240 2b177240 3d62ee47f0000000
+4324682b 4324682c 4324682c 40648d0570000000
+1246e8a6 1246e8a6 1246e8a7 3a48dd14d0000000
+4e243a31 4e243a32 4e243a32 41c4874630000000
+563ddf58 563ddf58 563ddf59 42c7bbeb10000000
+f3b0f6c f3b0f6c f3b0f6d 39e761ed90000000
+40087ab7 40087ab8 40087ab8 40010f56f0000000
+63e3fed 63e3fee 63e3fee 38c7c7fdb0000000
+7d25050c 7d25050c 7d25050d 47a4a0a190000000
+4842857c 4842857c 4842857d 410850af90000000
+26460b43 26460b44 26460b44 3cc8c16870000000
+5e233327 5e233328 5e233328 43c46664f0000000
+5e3dc357 5e3dc358 5e3dc358 43c7b86af0000000
+7a17f2ba 7a17f2ba 7a17f2bb 4742fe5750000000
+4715b35b 4715b35c 4715b35c 40e2b66b70000000
+3f525c33 3f525c34 3f525c34 3fea4b8670000000
+1e1c0f9d 1e1c0f9e 1e1c0f9e 3bc381f3b0000000
+2441e3d0 2441e3d0 2441e3d1 3c883c7a10000000
+5048f78a 5048f78a 5048f78b 42091ef150000000
+5b40a3a3 5b40a3a4 5b40a3a4 4368147470000000
+7b36bbff 7b36bc00 7b36bc00 4766d77ff0000000
+2e73cd65 2e73cd66 2e73cd66 3dce79acb0000000
+643f2f3a 643f2f3a 643f2f3b 4487e5e750000000
+5f2605e1 5f2605e2 5f2605e2 43e4c0bc30000000
+7b033a11 7b033a12 7b033a12 4760674230000000
+207049a7 207049a8 207049a8 3c0e0934f0000000
+602af194 602af194 602af195 44055e3290000000
+635e9670 635e9670 635e9671 446bd2ce10000000
+7f52d962 7f52d962 7f52d963 47ea5b2c50000000
+5f652a4b 5f652a4c 5f652a4c 43eca54970000000
+1e5b5461 1e5b5462 1e5b5462 3bcb6a8c30000000
+b1b321a b1b321a b1b321b 3963664350000000
+355e0818 355e0818 355e0819 3eabc10310000000
+2d75c530 2d75c530 2d75c531 3daeb8a610000000
+47348291 47348292 47348292 40e6905230000000
+53c41f 53c420 53c420 3804f107e0000000
+6a48b04a 6a48b04a 6a48b04b 4549160950000000
+1b657023 1b657024 1b657024 3b6cae0470000000
+31e3fc9 31e3fca 31e3fca 3863c7f930000000
+4e428daf 4e428db0 4e428db0 41c851b5f0000000
+d33a9ae d33a9ae d33a9af 39a67535d0000000
+3436f194 3436f194 3436f195 3e86de3290000000
+43266701 43266702 43266702 4064cce030000000
+7131d721 7131d722 7131d722 46263ae430000000
+57657050 57657050 57657051 42ecae0a10000000
+7944946c 7944946c 7944946d 4728928d90000000
+6a195087 6a195088 6a195088 45432a10f0000000
+3f769f3d 3f769f3e 3f769f3e 3feed3e7b0000000
+627cf3d0 627cf3d0 627cf3d1 444f9e7a10000000
+795550ce 795550ce 795550cf 472aaa19d0000000
+2a50d673 2a50d674 2a50d674 3d4a1ace70000000
+66a48e9 66a48ea 66a48ea 38cd491d30000000
+146f06bf 146f06c0 146f06c0 3a8de0d7f0000000
+3875f250 3875f250 3875f251 3f0ebe4a10000000
+39761615 39761616 39761616 3f2ec2c2b0000000
+81e5ea4 81e5ea4 81e5ea5 3903cbd490000000
+34079cd5 34079cd6 34079cd6 3e80f39ab0000000
+363856be 363856be 363856bf 3ec70ad7d0000000
+635d8c07 635d8c08 635d8c08 446bb180f0000000
+7822339d 7822339e 7822339e 47044673b0000000
+57245c75 57245c76 57245c76 42e48b8eb0000000
+4d3c2a36 4d3c2a36 4d3c2a37 41a78546d0000000
+696ea3c2 696ea3c2 696ea3c3 452dd47850000000
+645f03d0 645f03d0 645f03d1 448be07a10000000
+2a4341e5 2a4341e6 2a4341e6 3d48683cb0000000
+4810b31f 4810b320 4810b320 41021663f0000000
+416a39ad 416a39ae 416a39ae 402d4735b0000000
+63298a00 63298a00 63298a01 4465314010000000
+4d138061 4d138062 4d138062 41a2700c30000000
+865b1d6 865b1d6 865b1d7 390cb63ad0000000
+a23780d a23780e a23780e 39446f01b0000000
+2a16071c 2a16071c 2a16071d 3d42c0e390000000
+736b7888 736b7888 736b7889 466d6f1110000000
+2c411d5d 2c411d5e 2c411d5e 3d8823abb0000000
+370c6a9 370c6aa 370c6aa 386e18d530000000
+7d16a156 7d16a156 7d16a157 47a2d42ad0000000
+4064e7f7 4064e7f8 4064e7f8 400c9cfef0000000
+340e83b5 340e83b6 340e83b6 3e81d076b0000000
+4915074d 4915074e 4915074e 4122a0e9b0000000
+5e2c29ac 5e2c29ac 5e2c29ad 43c5853590000000
+2227c0f4 2227c0f4 2227c0f5 3c44f81e90000000
+3510de36 3510de36 3510de37 3ea21bc6d0000000
+71756486 71756486 71756487 462eac90d0000000
+7c5c5737 7c5c5738 7c5c5738 478b8ae6f0000000
+40e5a9f 40e5aa0 40e5aa0 3881cb53f0000000
+3409a829 3409a82a 3409a82a 3e81350530000000
+3b0f0d98 3b0f0d98 3b0f0d99 3f61e1b310000000
+1e195c26 1e195c26 1e195c27 3bc32b84d0000000
+64651363 64651364 64651364 448ca26c70000000
+11211054 11211054 11211055 3a24220a90000000
+60aa44d 60aa44e 60aa44e 38c15489b0000000
+543fdf50 543fdf50 543fdf51 4287fbea10000000
+28661c97 28661c98 28661c98 3d0cc392f0000000
+6413a10a 6413a10a 6413a10b 4482742150000000
+5a68948f 5a689490 5a689490 434d1291f0000000
+683ffe78 683ffe78 683ffe79 4507ffcf10000000
+70b7c4d 70b7c4e 70b7c4e 38e16f89b0000000
+447a921d 447a921e 447a921e 408f5243b0000000
+5443c863 5443c864 5443c864 4288790c70000000
+685beb44 685beb44 685beb45 450b7d6890000000
+IsControl 65 47783dcc96f6448e
+IsLetter 136104 fff8211438857ba3
+IsUpper 1831 d9741dee0db56c35
+IsLower 2233 ec0aaca6e002ff8b
+IsTitle 31 87fd939e4214d25f
+IsMark 2450 21ce5644b8624f80
+IsNumber 1831 f907fd5a29046af0
+IsDigit 680 1eec759ad243ff1d
+IsPunct 842 471cef440d124e56
+IsSymbol 7770 d744d507d5cc0cde
+IsGraphic 149014 4d75dd27b01d027e
+IsPrint 148998 eda370887352dcdf
+IsSpace 25 231591ad12ffe059
+U+0061 IsLetter IsLower IsGraphic IsPrint
+U+005A IsLetter IsUpper IsGraphic IsPrint
+U+0035 IsNumber IsDigit IsGraphic IsPrint
+U+005F IsPunct IsGraphic IsPrint
+U+0020 IsGraphic IsPrint IsSpace
+U+00A0 IsGraphic IsSpace
+U+00AA IsLetter IsGraphic IsPrint
+U+00B2 IsNumber IsGraphic IsPrint
+U+00BD IsNumber IsGraphic IsPrint
+U+01C5 IsLetter IsTitle IsGraphic IsPrint
+U+0300 IsMark IsGraphic IsPrint
+U+0660 IsNumber IsDigit IsGraphic IsPrint
+U+2028 IsSpace
+U+3000 IsGraphic IsSpace
+U+1F600 IsSymbol IsGraphic IsPrint
+U+FFFFFFFFFFFFFFFF
+U+110000
+U+7FFFFFFF
+U+FFFFFFFF80000000

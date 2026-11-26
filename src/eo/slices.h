@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/cmp.h>
 #include <eo/core.h>
 
 #include <algorithm>
@@ -42,6 +43,59 @@ auto ContainsFunc(slice<E> s, F f) -> bool {
 template<typename E>
 auto Contains(slice<E> s, const std::type_identity_t<E>& v) -> bool {
   return Index(std::move(s), v) >= 0;
+}
+
+// slices.Equal(s1, s2): whether s1 and s2 have the same length and equal elements, in order. A nil
+// slice equals an empty one, and a NaN element equals nothing.
+template<typename E>
+auto Equal(slice<E> s1, slice<E> s2) -> bool {
+  if (eo::len(s1) != eo::len(s2)) {
+    return false;
+  }
+  for (auto i = int64_t{0}; i < eo::len(s1); ++i) {
+    if (eo::at(s1, i) != eo::at(s2, i)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// slices.EqualFunc(s1, s2, eq): as Equal, with eq comparing each pair of elements, in order.
+template<typename E1, typename E2, typename F>
+auto EqualFunc(slice<E1> s1, slice<E2> s2, F eq) -> bool {
+  if (eo::len(s1) != eo::len(s2)) {
+    return false;
+  }
+  for (auto i = int64_t{0}; i < eo::len(s1); ++i) {
+    if (!eq(eo::at(s1, i), eo::at(s2, i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// slices.CompareFunc(s1, s2, cmp): compares the elements in order with cmp until one pair differs,
+// and then a shorter slice is less than a longer one.
+template<typename E1, typename E2, typename F>
+auto CompareFunc(slice<E1> s1, slice<E2> s2, F cmp) -> int64_t {
+  for (auto i = int64_t{0}; i < eo::len(s1); ++i) {
+    if (i >= eo::len(s2)) {
+      return +1;
+    }
+    if (auto c = static_cast<int64_t>(cmp(eo::at(s1, i), eo::at(s2, i))); c != 0) {
+      return c;
+    }
+  }
+  if (eo::len(s1) < eo::len(s2)) {
+    return -1;
+  }
+  return 0;
+}
+
+// slices.Compare(s1, s2): as CompareFunc with cmp.Compare, so NaNs compare as cmp.Compare's do.
+template<cmp::Ordered E>
+auto Compare(slice<E> s1, slice<E> s2) -> int64_t {
+  return CompareFunc(std::move(s1), std::move(s2), [](const E& a, const E& b) { return cmp::Compare(a, b); });
 }
 
 // slices.Clone(s): a copy of s in a new array, or nil when s is nil. An empty s gives an empty slice
