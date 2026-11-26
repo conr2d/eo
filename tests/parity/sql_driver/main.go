@@ -41,6 +41,14 @@ func kind(v driver.Value) string {
 	return "other"
 }
 
+// Empty is stored as a nil []byte, which is a non-nil Value.
+type Empty struct{}
+
+func (Empty) Value() (driver.Value, error) {
+	var b []byte
+	return b, nil
+}
+
 func store(v driver.Valuer) {
 	value, err := v.Value()
 	fmt.Println(kind(value), value, value == nil, err)
@@ -63,6 +71,9 @@ func main() {
 	fmt.Println(back == values[5], back == a, a == "text")
 
 	store(ID{1, 2, 3, 4})
+	id := ID{5, 6, 7, 8}
+	store(&id)
+	store(Empty{})
 	c := Count(7)
 	store(&c)
 	c = -1

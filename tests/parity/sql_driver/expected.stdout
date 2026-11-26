@@ -10,6 +10,10 @@ other
 true true true
 bytes [1 2 3 4] false <nil>
 bytes 4 [1 2 3 4]
+bytes [5 6 7 8] false <nil>
+bytes 4 [5 6 7 8]
+bytes [] false <nil>
+bytes 0 []
 int64 7 false <nil>
 nil <nil> true negative count -1
 true

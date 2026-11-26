@@ -11,6 +11,7 @@ using namespace eo;
 
 struct ID;
 struct Count;
+struct Empty;
 
 // ID is stored as its bytes, as go-ethereum's common.Hash is.
 struct ID : eo::defined<ID, std::array<uint8_t, 4>> {
@@ -32,6 +33,17 @@ struct Count : eo::defined<Count, int64_t> {
   using _eo_methods = eo::methods<eo::method<&Count::Value, "Value">>;
 };
 
+// Empty is stored as a nil []byte, which is a non-nil Value.
+struct Empty {
+  static constexpr std::string_view _eo_name = "main.Empty";
+
+  static auto Value(Empty) -> std::tuple<driver::Value, error>;
+
+  using _eo_methods = eo::methods<eo::method<&Empty::Value, "Value">>;
+
+  auto operator==(const Empty&) const -> bool = default;
+};
+
 auto ID::Value(ID _eo_param_id) -> std::tuple<driver::Value, error> {
   auto id = New<ID>(_eo_param_id);
   return {eo::subslice(id, 0), nullptr};
@@ -42,6 +54,11 @@ auto Count::Value(ptr<Count> c) -> std::tuple<driver::Value, error> {
     return {nullptr, fmt::Errorf("negative count %d"s, int64_t(*c))};
   }
   return {int64_t(*c), nullptr};
+}
+
+auto Empty::Value(Empty) -> std::tuple<driver::Value, error> {
+  slice<uint8_t> b{};
+  return {b, nullptr};
 }
 
 // kind names the type of one of the values that a driver must handle.
@@ -85,6 +102,9 @@ func<> eo_main() {
   fmt::Println(back == eo::at(values, 5), back == driver::Value(a), a == any("text"s));
 
   store(ID(std::array<uint8_t, 4>{1, 2, 3, 4}));
+  auto id = New<ID>(ID(std::array<uint8_t, 4>{5, 6, 7, 8}));
+  store(id);
+  store(Empty{});
   auto c = New<Count>(Count{7});
   store(c);
   *c = Count{-1};
