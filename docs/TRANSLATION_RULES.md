@@ -1460,7 +1460,7 @@ A clause variable that is not boxed stays a plain C++ variable that every iterat
 This shape does not cover:
 
 - an init statement that declares variables of different translated types, or a boxed and an unboxed variable, because one C++ `auto` declaration cannot declare them together;
-- a post statement that does not translate to a single C++ expression, such as `i, j = i+1, j-1`.
+- a post statement that does not translate to a single C++ expression, such as one that needs the temporaries of [Evaluation order](#evaluation-order). An assignment of several values to variables, `i, j = i+1, j-1`, is one expression (see [Assigning several values](#assigning-several-values)).
 
 A variable that a `range` clause declares is boxed as described in [Boxed range variables](#boxed-range-variables). A body that declares a variable with the name of a clause variable renames it as described in [Redeclared names](#redeclared-names).
 
@@ -1883,6 +1883,36 @@ A structured binding's names are ordinary variables for the other rules: a lambd
 
 The comma-ok form of a type assertion follows the same forms with a `std::pair`, whose single-operand form is written with `.first` and `.second` (see [Type assertions](#type-assertions)).
 
+#### Assigning several values
+
+An assignment `=` of several values that are not one call, such as `a, b = b, a`, whose operands on the left are variables or `_`, is one `std::tie` assignment from a braced `std::tuple`:
+
+| Go | C++ |
+| --- | --- |
+| `a, b = b, a+b` | `std::tie(a, b) = std::tuple<int64_t, int64_t>{b, a + b};` |
+| `v, err = -1, errors.New("missing")` | `std::tie(v, err) = std::tuple<int64_t, error>{-1, errors::New("missing"s)};` |
+| `_, y = f(), 7` | `std::tie(std::ignore, y) = std::tuple<int64_t, int64_t>{f(), 7};` |
+| `z, x = x, z`, where `z` is [boxed](#boxed-variables) | `std::tie(*z, x) = std::tuple<int64_t, int64_t>{x, *z};` |
+
+- The tuple's element types are the translated types of the operands on the left, and an operand `_` takes the type of its right operand, the default type for an untyped constant. Go rejects an untyped `nil` assigned to `_`, so that case does not arise.
+- Each right operand is written as it would be in an assignment to its left operand:
+  - an untyped constant follows [Untyped constants](#untyped-constants) with that type, as `1` for a `float64` and `122` for a rune `'z'`, which is not an operand of an operator;
+  - `nil` is `nullptr`;
+  - a value converts to an interface or to a defined type as in a single assignment.
+- `_` is `std::ignore`, and a boxed variable is `*v`, which cannot panic.
+
+The braced list evaluates every right operand, left to right, before `std::tie` assigns any of them. This is Go's first phase of an assignment. As a result, `a, b = b, a` swaps the two, and a panic in a right operand leaves every operand on the left unchanged, as in Go. The form is the one that [Defer](#defer) uses for `return y, x` with named results.
+
+The form is an expression, so it also serves as the post statement of a three-clause loop:
+
+```go
+for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
+```
+
+```cpp
+for (auto i = int64_t{0}, j = eo::len(s) - 1; i < j; std::tie(i, j) = std::tuple<int64_t, int64_t>{i + 1, j - 1}) {
+```
+
 #### Calls with the results of another call
 
 Go's `h(f())` passes each result of `f` as an argument of `h`. It is `std::apply(h, f())`, where `h` is a package-level function, or an Eo library function such as `fmt.Println`, which is a function object for this reason: `fmt.Println(f())` is `std::apply(fmt::Println, f())`. A coroutine `h` is called as `co_await std::apply(h, f())`, and a coroutine `f` as `std::apply(h, co_await f())`. For [Evaluation order](#evaluation-order), `std::apply(h, f())` is the call of `h`.
@@ -1904,9 +1934,9 @@ eo_defer([=] { show(_eo_defer_arg_0_0, _eo_defer_arg_0_1); });
 
 #### Multiple results not covered yet
 
-- an assignment or declaration of several values that are not one call, such as `a, b = b, a` and `x, y := 1, 2` ([#111](https://github.com/conr2d/eo/issues/111)). A package-level `var` follows [Package initialization](#package-initialization) instead;
-- an assignment `=` whose left side has an operand other than a variable or `_`, such as `x.f`, `*p`, or `s[i]`: Go evaluates the index and pointer operands on the left before the call and assigns the operands left to right, while C++ evaluates the operands of `std::tie` after the call, so a nil `*p` or an index out of range would panic before the operands to its left are assigned;
-- an assignment that names the same variable twice, as in `x, x = f()`, where Go keeps the last value and `std::tuple` does not specify the order in which it assigns its elements;
+- a declaration statement of several values that are not one call, such as `x, y := 1, 2` and `var x, y = f(), g()` ([#111](https://github.com/conr2d/eo/issues/111)). The init statement of a three-clause `for` loop follows [Loop clause variables](#loop-clause-variables) instead. A structured binding cannot serve, because its names are in scope in its own initializer: `x, y := y, x` in an inner block reads the outer `x` and `y` in Go, and its structured binding does not compile. Declaring the variables first and assigning them with `std::tie` fails too, because the tuple would then read the new, zero `x` and `y`: a working form needs temporaries that are evaluated before the declarations. A package-level `var` follows [Package initialization](#package-initialization) instead;
+- an assignment `=` whose left side has an operand other than a variable or `_`, such as `x.f`, `*p`, or `s[i]`, whether its right side is one call or several values, as in `s[i], s[j] = s[j], s[i]`: Go evaluates the index and pointer operands on the left before the right side and assigns the operands left to right, while C++ evaluates the operands of `std::tie` after the right side, so a nil `*p` or an index out of range would panic before the operands to its left are assigned;
+- an assignment that names the same variable twice, as in `x, x = f()` or `x, x = 1, 2`, where Go keeps the last value and `std::tuple` does not specify the order in which it assigns its elements;
 - a `:=` in the init statement of an `if` or `switch` that would need form 3, because one of its variables is boxed or it has `_` and at least two other operands, and a `for` init statement with several results;
 - `return a, b` in a function without a `defer` statement whose named results a function literal or a pointer can reach: Go assigns the named results before returning, and a goroutine that shares them can observe it, while `return {a, b};` leaves them unchanged;
 - `h(f())` where `h` is a method, a function value, or a variadic Go function, and `go` or `defer` statements of such calls.

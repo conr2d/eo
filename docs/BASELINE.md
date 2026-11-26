@@ -33,7 +33,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | Pointers and escaping variables | [Pointers and escaping variables](./TRANSLATION_RULES.md#pointers-and-escaping-variables) | `escape_return_pointer`, `field_address`, `closure_capture_by_ref`, `loop_variable_address`, `unsafe_pointers`, `unsafe_slices` |
 | Function values and methods | [Function values](./TRANSLATION_RULES.md#function-values) | `func_values`, `func_coroutines`, `value_receiver_escape` |
 | Interfaces, type assertions, type switches | [Interfaces](./TRANSLATION_RULES.md#interfaces) | `interface_values`, `interface_printing`, `type_assertion` |
-| Multiple results | [Multiple results](./TRANSLATION_RULES.md#multiple-results) | `multi_value_results`, `multi_value_defer` |
+| Multiple results | [Multiple results](./TRANSLATION_RULES.md#multiple-results) | `multi_value_results`, `multi_value_defer`, `parallel_assignment` |
 | Errors | [Errors](./TRANSLATION_RULES.md#errors) | `error_values` |
 | Printing and `fmt` verbs | [Formatted printing](./TRANSLATION_RULES.md#formatted-printing) | `println_operands`, `format_verbs`, `map_println` |
 | The `math/big` package, in part | [The math/big package](./TRANSLATION_RULES.md#the-mathbig-package) | `big_int`, `big_int_random` |
