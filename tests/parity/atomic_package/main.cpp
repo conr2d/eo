@@ -111,6 +111,44 @@ void functions() {
   auto _eo_call_6 = atomic::OrUint32(ref(m), 1);
   auto _eo_call_7 = atomic::AndUint32(ref(m), 3);
   fmt::Println(_eo_call_5, _eo_call_6, _eo_call_7, m);
+  int32_t i32{};
+  uint64_t u64{};
+  uintptr_t up{};
+  auto _eo_call_8 = atomic::AddInt32(ref(i32), -3);
+  auto _eo_call_9 = atomic::OrInt32(ref(i32), 8);
+  auto _eo_call_10 = atomic::AndInt32(ref(i32), 14);
+  auto _eo_call_11 = atomic::SwapInt32(ref(i32), 1);
+  fmt::Println(_eo_call_8, _eo_call_9, _eo_call_10, _eo_call_11);
+  auto _eo_call_12 = atomic::CompareAndSwapInt32(ref(i32), 2, 3);
+  auto _eo_call_13 = atomic::CompareAndSwapInt32(ref(i32), 1, 3);
+  auto _eo_call_14 = atomic::LoadInt32(ref(i32));
+  fmt::Println(_eo_call_12, _eo_call_13, _eo_call_14);
+  atomic::StoreUint64(ref(u64), uint64_t{9223372036854775808u});
+  auto _eo_call_15 = atomic::AddUint64(ref(u64), uint64_t{9223372036854775808u});
+  auto _eo_call_16 = atomic::OrUint64(ref(u64), 6);
+  auto _eo_call_17 = atomic::AndUint64(ref(u64), 3);
+  auto _eo_call_18 = atomic::SwapUint64(ref(u64), 9);
+  fmt::Println(_eo_call_15, _eo_call_16, _eo_call_17, _eo_call_18);
+  auto _eo_call_19 = atomic::CompareAndSwapUint64(ref(u64), 9, 10);
+  auto _eo_call_20 = atomic::LoadUint64(ref(u64));
+  auto _eo_call_21 = atomic::AndInt64(ref(n), 3);
+  auto _eo_call_22 = atomic::OrInt64(ref(n), 4);
+  fmt::Println(_eo_call_19, _eo_call_20, _eo_call_21, _eo_call_22, n);
+  atomic::StoreUintptr(ref(up), 5);
+  auto _eo_call_23 = atomic::AddUintptr(ref(up), 2);
+  auto _eo_call_24 = atomic::SwapUintptr(ref(up), 3);
+  auto _eo_call_25 = atomic::CompareAndSwapUintptr(ref(up), 3, 4);
+  auto _eo_call_26 = atomic::LoadUintptr(ref(up));
+  fmt::Println(_eo_call_23, _eo_call_24, _eo_call_25, _eo_call_26);
+  auto _eo_call_27 = atomic::OrUintptr(ref(up), 1);
+  auto _eo_call_28 = atomic::AndUintptr(ref(up), 1);
+  auto _eo_call_29 = atomic::LoadUint32(ref(m));
+  auto _eo_call_30 = atomic::SwapUint32(ref(m), 7);
+  auto _eo_call_31 = atomic::CompareAndSwapUint32(ref(m), 7, 8);
+  fmt::Println(_eo_call_27, _eo_call_28, _eo_call_29, _eo_call_30, _eo_call_31, m);
+  atomic::StoreInt32(ref(i32), 6);
+  atomic::StoreUint32(ref(m), 6);
+  fmt::Println(i32, m);
   ptr<int32_t> none{};
   attempt("AddInt32"s, [=]() mutable { atomic::AddInt32(none, 1); });
 }
@@ -146,7 +184,7 @@ void values() {
     [=]() mutable { w->CompareAndSwap(map<std::string, int64_t>::of({}), map<std::string, int64_t>::of({})); });
 
   auto s = New<atomic::Value>();
-  s->Store(slice<int64_t>::of({1}));
+  fmt::Println(s->Swap(slice<int64_t>::of({1})) == nullptr);
   fmt::Println(s->Load());
 }
 

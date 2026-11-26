@@ -10,6 +10,13 @@ true
 5 -2 -2
 40 true 42
 4294967295 4294967295 4294967295 3
+-3 -3 -3 12
+false true 3
+0 0 6 2
+true 10 42 2 6
+7 7 true 4
+4 5 3 3 true 8
+6 6
 AddInt32 panic: runtime error: invalid memory address or nil pointer dereference
 true
 Store nil panic: sync/atomic: store of nil value into Value
@@ -24,5 +31,6 @@ CompareAndSwap mixed panic: sync/atomic: compare and swap of inconsistently type
 CompareAndSwap string panic: sync/atomic: compare and swap of inconsistently typed value into Value
 1 1
 CompareAndSwap map panic: runtime error: comparing uncomparable type map[string]int
+true
 [1]
 8000 16000 true done

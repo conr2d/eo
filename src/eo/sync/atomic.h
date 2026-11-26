@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <mutex>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 // Go's sync/atomic: the typed values Bool, Int32, Int64, Uint32, Uint64, Uintptr, Pointer[T], and
@@ -104,7 +105,7 @@ struct Int32 : detail::integer<int32_t> {};
 struct Int64 : detail::integer<int64_t> {};
 struct Uint32 : detail::integer<uint32_t> {};
 struct Uint64 : detail::integer<uint64_t> {};
-struct Uintptr : detail::integer<uint64_t> {};
+struct Uintptr : detail::integer<uintptr_t> {};
 
 // Go's atomic.Pointer[T]: a *T that is loaded and stored atomically. CompareAndSwap compares the
 // pointers, not their targets. A ptr owns its target, so the value is guarded by a lock rather than
@@ -239,7 +240,7 @@ EO_ATOMIC_FUNCTIONS(Int32, int32_t)
 EO_ATOMIC_FUNCTIONS(Int64, int64_t)
 EO_ATOMIC_FUNCTIONS(Uint32, uint32_t)
 EO_ATOMIC_FUNCTIONS(Uint64, uint64_t)
-EO_ATOMIC_FUNCTIONS(Uintptr, uint64_t)
+EO_ATOMIC_FUNCTIONS(Uintptr, uintptr_t)
 
 #undef EO_ATOMIC_FUNCTIONS
 

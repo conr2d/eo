@@ -2904,8 +2904,8 @@ The results are Go's:
 
 `Value` holds an `any`. `Load` returns nil until the first store, and `Store`, `Swap`, and `CompareAndSwap` panic with Go's messages:
 
-- `sync/atomic: store of nil value into Value`, and the same for swap and for compare and swap;
-- `sync/atomic: store of inconsistently typed value into Value` when the dynamic type differs from the first value's, and the same for swap and for compare and swap;
+- `sync/atomic: store of nil value into Value`, `sync/atomic: swap of nil value into Value`, and `sync/atomic: compare and swap of nil value into Value`;
+- `sync/atomic: store of inconsistently typed value into Value` when the dynamic type differs from the first value's, with `swap of` and `compare and swap of` in place of `store of` for the other two methods;
 - `sync/atomic: compare and swap of inconsistently typed values` when `old` is not nil and its type differs from `new`'s.
 
 `CompareAndSwap` compares the stored value with `old` with `==` of two interfaces, which panics with `runtime error: comparing uncomparable type map[string]int` for an uncomparable type, as Go's does.

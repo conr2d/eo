@@ -56,6 +56,20 @@ func functions() {
 	atomic.StoreInt64(&n, 40)
 	fmt.Println(atomic.SwapInt64(&n, 41), atomic.CompareAndSwapInt64(&n, 41, 42), n)
 	fmt.Println(atomic.AddUint32(&m, ^uint32(0)), atomic.OrUint32(&m, 1), atomic.AndUint32(&m, 3), m)
+	var i32 int32
+	var u64 uint64
+	var up uintptr
+	fmt.Println(atomic.AddInt32(&i32, -3), atomic.OrInt32(&i32, 8), atomic.AndInt32(&i32, 14), atomic.SwapInt32(&i32, 1))
+	fmt.Println(atomic.CompareAndSwapInt32(&i32, 2, 3), atomic.CompareAndSwapInt32(&i32, 1, 3), atomic.LoadInt32(&i32))
+	atomic.StoreUint64(&u64, 1<<63)
+	fmt.Println(atomic.AddUint64(&u64, 1<<63), atomic.OrUint64(&u64, 6), atomic.AndUint64(&u64, 3), atomic.SwapUint64(&u64, 9))
+	fmt.Println(atomic.CompareAndSwapUint64(&u64, 9, 10), atomic.LoadUint64(&u64), atomic.AndInt64(&n, 3), atomic.OrInt64(&n, 4), n)
+	atomic.StoreUintptr(&up, 5)
+	fmt.Println(atomic.AddUintptr(&up, 2), atomic.SwapUintptr(&up, 3), atomic.CompareAndSwapUintptr(&up, 3, 4), atomic.LoadUintptr(&up))
+	fmt.Println(atomic.OrUintptr(&up, 1), atomic.AndUintptr(&up, 1), atomic.LoadUint32(&m), atomic.SwapUint32(&m, 7), atomic.CompareAndSwapUint32(&m, 7, 8), m)
+	atomic.StoreInt32(&i32, 6)
+	atomic.StoreUint32(&m, 6)
+	fmt.Println(i32, m)
 	var none *int32
 	attempt("AddInt32", func() { atomic.AddInt32(none, 1) })
 }
@@ -82,7 +96,7 @@ func values() {
 	attempt("CompareAndSwap map", func() { w.CompareAndSwap(map[string]int{}, map[string]int{}) })
 
 	var s atomic.Value
-	s.Store([]int{1})
+	fmt.Println(s.Swap([]int{1}) == nil)
 	fmt.Println(s.Load())
 }
 
