@@ -12,12 +12,18 @@
 #include <memory>
 #include <mutex>
 #include <stdexcept>
+#include <thread>
 
 // Lets a test wait until goroutines are queued in a lock, so that handoff order is deterministic.
 struct eo::sync::detail::probe {
   static auto waiters(Mutex& mu) -> std::size_t {
     auto lock = std::lock_guard{mu.mutex};
     return mu.waiters.size();
+  }
+
+  static auto blocked(Mutex& mu) -> int {
+    auto lock = std::lock_guard{mu.mutex};
+    return mu.blocked;
   }
 
   static auto writers(RWMutex& rw) -> std::size_t {
@@ -225,11 +231,73 @@ void test_rwmutex_unlock_releases_readers_first() {
   check(released, "RWMutex Unlock did not release the waiting readers before the writers in order");
 }
 
+// Goroutines take the lock only with BlockingLock, and no critical section suspends, as
+// BlockingLock requires: every increment still happens under the lock, also with one worker (the
+// eo.mutex_one_worker test).
+void test_blocking_lock_mutual_exclusion() {
+  auto count = eo::invoke([]() -> eo::func<int> {
+    struct state {
+      eo::sync::Mutex mu;
+      eo::sync::WaitGroup wg;
+      int count = 0;
+      std::atomic<int> holders = 0;
+      std::atomic<bool> overlapped = false;
+    };
+    auto s = std::make_shared<state>();
+    for (auto i = 0; i < 8; i++) {
+      s->wg.Add(1);
+      eo::go([s]() -> eo::func<> {
+        for (auto j = 0; j < 200; j++) {
+          s->mu.BlockingLock();
+          if (++s->holders != 1) {
+            s->overlapped = true;
+          }
+          auto seen = s->count;
+          s->count = seen + 1;
+          --s->holders;
+          s->mu.Unlock();
+        }
+        s->wg.Done();
+        co_return;
+      });
+    }
+    co_await s->wg.Wait();
+    check(!s->overlapped, "two goroutines held the Mutex at once");
+    co_return s->count;
+  });
+
+  check(count == 1600, "BlockingLock lost an update");
+}
+
+// A thread waiting in BlockingLock gets the lock only after the holder unlocks.
+void test_blocking_lock_waits_for_holder() {
+  eo::sync::Mutex mu;
+  check(mu.TryLock(), "TryLock failed on an unlocked Mutex");
+  std::atomic<bool> acquired = false;
+  auto t = std::thread([&] {
+    mu.BlockingLock();
+    acquired = true;
+  });
+  auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds{5};
+  while (probe::blocked(mu) == 0 && !acquired && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::yield();
+  }
+  check(!acquired, "BlockingLock took a held Mutex");
+  check(probe::blocked(mu) == 1, "BlockingLock did not wait for the Mutex");
+  mu.Unlock();
+  t.join();
+  check(acquired, "BlockingLock did not take the Mutex after Unlock");
+  check(!mu.TryLock(), "BlockingLock did not hold the Mutex");
+  mu.Unlock();
+}
+
 int main() {
   test_try_lock();
   test_mutual_exclusion();
   test_lock_does_not_block_the_worker();
   test_unlock_hands_off_in_order();
+  test_blocking_lock_mutual_exclusion();
+  test_blocking_lock_waits_for_holder();
   test_rwmutex_shares_read_locks();
   test_rwmutex_waiting_writer_blocks_readers();
   test_rwmutex_unlock_releases_readers_first();

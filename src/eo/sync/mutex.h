@@ -5,6 +5,7 @@
 #include <eo/runtime.h>
 #include <eo/sync/waiter.h>
 
+#include <condition_variable>
 #include <deque>
 #include <mutex>
 #include <optional>
@@ -38,6 +39,22 @@ struct Mutex {
     });
   }
 
+  // mu.Lock() for a Mutex none of whose critical sections suspends, at every site that locks it:
+  // it waits for the lock on a C++ condition variable, blocking the worker thread, so the calling
+  // function stays a plain function. The holder never suspends while it holds the lock, so it runs
+  // on another worker until it unlocks, and with one worker no other goroutine runs while it holds
+  // the lock. A Mutex that is also locked with Lock is outside this use: Unlock can hand the lock to
+  // a goroutine that is not running yet, while threads in BlockingLock hold every worker. The
+  // waiters here get the lock in no particular order, and TryLock or a new BlockingLock may take it
+  // first, which Go allows.
+  void BlockingLock() {
+    auto lock = std::unique_lock{mutex};
+    ++blocked;
+    released.wait(lock, [this] { return !locked; });
+    --blocked;
+    locked = true;
+  }
+
   [[nodiscard]] auto TryLock() -> bool {
     auto lock = std::lock_guard{mutex};
     if (locked) {
@@ -49,6 +66,7 @@ struct Mutex {
 
   void Unlock() {
     auto next = std::optional<detail::waiter>{};
+    auto wake = false;
     {
       auto lock = std::lock_guard{mutex};
       if (!locked) {
@@ -56,11 +74,15 @@ struct Mutex {
       }
       if (waiters.empty()) {
         locked = false;
+        wake = blocked > 0;
       } else {
         // Stays locked: ownership passes to the waiter.
         next = std::move(waiters.front());
         waiters.pop_front();
       }
+    }
+    if (wake) {
+      released.notify_one();
     }
     if (next) {
       detail::resume(std::move(*next));
@@ -73,6 +95,8 @@ private:
   std::mutex mutex;
   bool locked = false;
   std::deque<detail::waiter> waiters;
+  std::condition_variable released;
+  int blocked = 0;
 };
 
 } // namespace eo::sync

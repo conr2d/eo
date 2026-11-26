@@ -177,6 +177,8 @@ eo_add_parity_variant(method_goroutine maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPRO
 eo_add_parity_case(multi_value_defer ENVIRONMENT EOMAXPROCS=4)
 eo_add_parity_variant(multi_value_defer maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPROCS=1 GO_ENVIRONMENT GOMAXPROCS=1)
 eo_add_parity_case(multi_value_results)
+eo_add_parity_case(mutex_blocking_lock ENVIRONMENT EOMAXPROCS=4)
+eo_add_parity_variant(mutex_blocking_lock maxprocs1 TIMEOUT 10 ENVIRONMENT EOMAXPROCS=1 GO_ENVIRONMENT GOMAXPROCS=1)
 eo_add_parity_case(parallel_assignment)
 # Pin the worker count so the base cases do not depend on the host's CPU count.
 eo_add_parity_case(mutex_counter ENVIRONMENT EOMAXPROCS=4)
