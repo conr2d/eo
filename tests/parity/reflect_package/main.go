@@ -311,6 +311,27 @@ func maps() {
 	fmt.Println(found.Int(), found.CanInterface())
 }
 
+func comparisons() {
+	t8 := reflect.TypeFor[int8]()
+	fmt.Println(t8.OverflowInt(127), t8.OverflowInt(128), t8.OverflowInt(-129), reflect.TypeFor[uint32]().OverflowUint(1<<32),
+		reflect.TypeFor[float32]().OverflowFloat(1e39), reflect.TypeFor[float64]().OverflowFloat(1e300))
+
+	p := &Point{1, 2}
+	q := &Point{1, 2}
+	var a any = p
+	fmt.Println(reflect.ValueOf(p).Equal(reflect.ValueOf(p)), reflect.ValueOf(p).Equal(reflect.ValueOf(q)),
+		reflect.ValueOf(*p).Equal(reflect.ValueOf(*q)), reflect.ValueOf(&a).Elem().Equal(reflect.ValueOf(p)))
+	fmt.Println(reflect.ValueOf([2]int{1, 2}).Equal(reflect.ValueOf([2]int{1, 2})), reflect.ValueOf(1).Equal(reflect.ValueOf("1")),
+		reflect.Value{}.Equal(reflect.Value{}), reflect.ValueOf(1).Equal(reflect.Value{}))
+
+	s := []int{1, 2, 3}
+	m := map[string]int{"a": 1}
+	m2 := m
+	fmt.Println(reflect.ValueOf(s).Pointer() == reflect.ValueOf(s[0:2]).Pointer(), reflect.ValueOf(s).Pointer() == reflect.ValueOf(s[1:]).Pointer())
+	fmt.Println(reflect.ValueOf(m).Pointer() == reflect.ValueOf(m2).Pointer(), reflect.ValueOf(m).Pointer() == reflect.ValueOf(map[string]int{}).Pointer(),
+		reflect.ValueOf(p).Pointer() == reflect.ValueOf(q).Pointer(), reflect.ValueOf((*int)(nil)).Pointer())
+}
+
 func attempt(name string, f func()) {
 	defer func() { fmt.Println(name, "recovered:", recover()) }()
 	f()
@@ -379,6 +400,11 @@ func panics() {
 	})
 	attempt("TypeAssert zero", func() { reflect.TypeAssert[int](reflect.Value{}) })
 	attempt("FieldByIndex nil embedded", func() { reflect.ValueOf(Outer{}).FieldByIndex([]int{0, 1}) })
+	attempt("Equal of slices", func() { reflect.ValueOf([]int{}).Equal(reflect.ValueOf([]int{})) })
+	attempt("Pointer of int", func() { reflect.ValueOf(1).Pointer() })
+	attempt("OverflowInt of string", func() { reflect.TypeFor[string]().OverflowInt(1) })
+	attempt("OverflowUint of int", func() { reflect.TypeFor[int]().OverflowUint(1) })
+	attempt("OverflowFloat of int", func() { reflect.TypeFor[int]().OverflowFloat(1) })
 }
 
 func main() {
@@ -390,5 +416,6 @@ func main() {
 	slicesAndArrays()
 	embedded()
 	maps()
+	comparisons()
 	panics()
 }

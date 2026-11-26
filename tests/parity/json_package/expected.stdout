@@ -1,0 +1,155 @@
+{"name":"eo \u003c\u0026\u003e \u2028","id":"9007199254740992","ratio":0.1,"small":3.14,"enabled":true,"tags":["x","y"],"by_id":{"-1":"minus one","10":"ten","2":"two"},"raw":{"k":[1,2]},"num":12.50,"data":"aGVsbG8A","ptr":null,"a":7,"E1":8,"e2":"e","hex":"0xff","hex_keys":{"0x1":false,"0x10":true},"wrapped":{"wrapped":3},"any":[1,"s",null,{"z":1.5}],"arr":[1,2,3]} <nil>
+{
+>  "a": 1,
+>  "b": "b"
+>} <nil>
+null <nil>
+true <nil>
+42 <nil>
+-7 <nil>
+200 <nil>
+1e+21 <nil>
+100000000000000000000 <nil>
+1e-7 <nil>
+0.000001 <nil>
+1e-7 <nil>
+-0 <nil>
+123456789 <nil>
+"tab\tquote\"back\\slash\u0001" <nil>
+"bad \ufffd utf8" <nil>
+"emoji 😀" <nil>
+null <nil>
+[] <nil>
+null <nil>
+{"a":2} <nil>
+null <nil>
+"" <nil>
+[] <nil>
+0 <nil>
+{"wrapped":5} <nil>
+{"wrapped":6} <nil>
+"0xa" <nil>
+"" json: unsupported value: NaN
+"" json: unsupported value: -Inf
+"" json: unsupported type: map[main.Inner]int
+"" json: error calling MarshalJSON for type main.Bad: bad
+"" json: error calling MarshalJSON for type main.Bad: bad
+"" json: invalid number literal "1.2.3"
+json: unsupported value: encountered a cycle via *main.Node
+true
+<nil>
+n 3 42 2.5 1.25 true [a] map[k:1] map[5:five]
+[ 1 , 2 ] 7 hi {9 } {4 bee} {5 ee} 31 map[2:true] {11}
+map[f:-1500 list:[1 two false <nil>]] 0 0 [9 0 0]
+map[a:é😀
+ b:[true map[c:<nil>]] n:<nil>] json: cannot unmarshal number 1e400 into Go value of type float64
+map[a:é😀
+/ b:[true map[c:<nil>]] n:<nil>] <nil>
+[5 6] 2 <nil>
+[7 0 0] <nil>
+true <nil>
+{3 } <nil>
+[1, {"a" : 2}] <nil>
+-12e3 0 strconv.ParseInt: parsing "-12e3": invalid syntax -12000 <nil>
+"{\"name\":1}": json: cannot unmarshal number into Go struct field Config.name of type string
+  type number string 9 Config name
+"{\"N\":300}": json: cannot unmarshal number 300 into Go struct field Small.N of type int8
+  type number 300 int8 8 Small N
+"{\"U\":-1}": json: cannot unmarshal number -1 into Go struct field Small.U of type uint8
+  type number -1 uint8 7 Small U
+"{\"F\":1e40}": json: cannot unmarshal number 1e40 into Go struct field Small.F of type float32
+  type number 1e40 float32 9 Small F
+"{\"S\":[1]}": json: cannot unmarshal array into Go struct field Small.S of type string
+  type array string 6 Small S
+"{\"N\":\"1\"}": json: cannot unmarshal string into Go struct field Small.N of type int8
+  type string int8 8 Small N
+"{\"by_id\":{\"x\":\"y\"}}": json: cannot unmarshal number x into Go struct field Config.by_id of type int
+  type number x int 11 Config by_id
+"{\"hex\":\"zz\"}": hex: missing 0x prefix
+"{\"hex\":12}": json: cannot unmarshal number into Go struct field Config.hex of type main.Hex
+  type number main.Hex 9 Config hex
+"{\"id\":\"abc\"}": json: invalid use of ,string struct tag, trying to unmarshal "abc" into int
+"{\"id\":12}": json: invalid use of ,string struct tag, trying to unmarshal unquoted value into int
+"{\"ptr\":{\"a\":\"s\"}}": json: cannot unmarshal string into Go struct field Inner.ptr.a of type int
+  type string int 15 Inner ptr.a
+"{\"a\":1,}": invalid character '}' looking for beginning of object key string
+  offset 8
+"[1,2": unexpected end of JSON input
+  offset 4
+"{\"a\" 1}": invalid character '1' after object key
+  offset 6
+"tru": invalid character ' ' in literal true (expecting 'e')
+  offset 3
+"01": invalid character '1' after top-level value
+  offset 2
+"\"\\x\"": invalid character 'x' in string escape code
+  offset 3
+"": unexpected end of JSON input
+  offset 0
+"  ": unexpected end of JSON input
+  offset 2
+"{}x": invalid character 'x' after top-level value
+  offset 3
+"1 2": invalid character '2' after top-level value
+  offset 3
+json: Unmarshal(nil)
+json: Unmarshal(non-pointer int)
+json: Unmarshal(nil *int)
+true false false
+{"a":[1,2],"b":"<x>"} <nil>
+{
+	"a": [
+		1,
+		2,
+		{}
+	],
+	"b": [],
+	"c": {
+		"d": "e"
+	}
+} <nil>
+"" unexpected end of JSON input
+{"h":"\u003cb\u003e\u0026amp;\u003c/b\u003e\u2029"}
+<nil>
+<nil>
+json: unsupported value: NaN
+{"html":"\u003c\u0026\u003e","n":1}
+{
+ "html": "<&>",
+ "list": [
+  1,
+  2
+ ]
+}
+map[a:1] <nil> 8
+[2 3] <nil> 14
+four <nil> 21
+5.5 <nil> 25
+<nil> <nil> 30
+<nil> unexpected EOF 30
+<nil> map[x:1.0 y:[10 20]]
+json.Number
+json: unknown field "zzz" {1 }
+json.Delim { more=true
+string k more=true
+json.Delim [ more=true
+float64 1 more=true
+string s more=true
+json.Delim { more=true
+string n more=true
+<nil> <nil> more=false
+json.Delim } more=false
+json.Delim ] more=true
+string t more=true
+bool true more=false
+json.Delim } more=true
+token error: invalid character 'r' looking for beginning of value
+[ <nil>
+{1 } <nil>
+{2 } <nil>
+{3 } <nil>
+] <nil>
+<nil> EOF
+<nil> map[a:1]
+" tail"
+[{"value":0,"children":[{"value":0}]} {"value":1,"children":[{"value":10}]} {"value":2,"children":[{"value":20}]} {"value":3,"children":[{"value":30}]} {"value":4,"children":[{"value":40}]} {"value":5,"children":[{"value":50}]} {"value":6,"children":[{"value":60}]} {"value":7,"children":[{"value":70}]}]

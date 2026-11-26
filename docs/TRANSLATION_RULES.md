@@ -2083,6 +2083,66 @@ The functions are ported from Go 1.26:
 - `NewEncoding` and `WithPadding` panic with Go's messages, such as `encoding alphabet includes duplicate symbols` and `invalid padding`.
 - The writer of `NewEncoder` keeps up to two bytes between calls to `Write`, and `Close` encodes them with the padding. The reader of `NewDecoder` reads at most 1024 bytes ahead. `%T` names them `*base64.encoder` and `*base64.decoder`, as in Go.
 
+### The encoding/json package
+
+Go's `encoding/json` maps to the namespace `json` from `<eo/encoding/json.h>`, ported from Go 1.26's `encoding/json` without the `jsonv2` experiment, on [the reflect package](#the-reflect-package). It covers every name of the package:
+
+- `Marshal`, `MarshalIndent`, `Unmarshal`, `Valid`, `Compact`, `Indent`, and `HTMLEscape`;
+- the interfaces `Marshaler` and `Unmarshaler`;
+- `Decoder`, with `NewDecoder` and the methods `Decode`, `Token`, `More`, `Buffered`, `InputOffset`, `UseNumber`, and `DisallowUnknownFields`, and `Encoder`, with `NewEncoder` and the methods `Encode`, `SetIndent`, and `SetEscapeHTML`;
+- the defined types `RawMessage`, `Number`, with `String`, `Float64`, and `Int64`, and `Delim`, and `Token`, which is `any`;
+- the errors `SyntaxError`, `UnmarshalTypeError`, `UnmarshalFieldError`, `InvalidUnmarshalError`, `UnsupportedTypeError`, `UnsupportedValueError`, `InvalidUTF8Error`, and `MarshalerError`.
+
+The functions take the value as an `any`, so `json.Marshal(c)` is `json::Marshal(c)`. A variable whose address goes to `Unmarshal` or `Decode` escapes, so it is [boxed](#boxed-variables), and `&v` is `v`. `Decoder` and `Encoder` are written as translated types, as in [Buffers and readers](#buffers-and-readers), and `NewDecoder` and `NewEncoder` return a `ptr<json::Decoder>` and a `ptr<json::Encoder>`. Struct fields carry their `json` tags in the field table (see [Field tags and embedding](#field-tags-and-embedding)), and a type implements `Marshaler`, `Unmarshaler`, `encoding.TextMarshaler`, or `encoding.TextUnmarshaler` by declaring the method in its method set:
+
+```go
+type Item struct {
+	Name  string `json:"name"`
+	Count int    `json:"count,omitempty"`
+}
+
+func decode(data []byte) {
+	var it Item
+	err := json.Unmarshal(data, &it)
+	b, _ := json.Marshal(it)
+	fmt.Println(string(b), err)
+}
+```
+
+```cpp
+struct Item {
+  static constexpr std::string_view _eo_name = "main.Item";
+
+  std::string Name{};
+  int64_t Count{};
+
+  static constexpr eo::field _eo_fields[] = {{.tag = "json:\"name\""}, {.tag = "json:\"count,omitempty\""}};
+
+  auto operator==(const Item&) const -> bool = default;
+};
+
+void decode(slice<uint8_t> data) {
+  auto it = New<Item>();
+  auto err = json::Unmarshal(data, it);
+  auto b = std::get<0>(json::Marshal(*it));
+  fmt::Println(eo::string_from_bytes(b), err);
+}
+```
+
+The package keeps Go's behavior:
+
+- Encoding follows the tags `-`, `omitempty`, `omitzero`, and `string`, and the rules of embedded structs and of fields of one name at several depths. It sorts map keys, encodes `[]byte` in base64, calls `MarshalJSON` and `MarshalText`, also through the address of a field that can be addressed, compacts what `MarshalJSON` returns, and escapes `<`, `>`, `&`, U+2028, and U+2029 unless `SetEscapeHTML(false)` turns HTML escaping off. A float prints as Go prints it, as in `1e+21` and `0.000001`.
+- Decoding matches field names exactly and then case-insensitively, fills existing slices, arrays, maps, and pointers as Go does, decodes into the value an interface holds when it holds a non-nil pointer, and decodes an object or an array into an `any` as a `map[string]any` or a `[]any` of `float64`, `string`, `bool`, and `nil`, or `Number` after `UseNumber`.
+- The errors have Go's messages and fields, such as `json: cannot unmarshal number 300 into Go struct field Small.N of type int8`, whose `Offset`, `Struct`, and `Field` are Go's, and `invalid character '}' looking for beginning of object key string` with the offset Go reports. A value nested deeper than 10000 levels is a `SyntaxError`, and a cycle of pointers, maps, or slices fails after 1000 levels with `json: unsupported value: encountered a cycle via *main.Node`.
+- The caches of encoders and struct fields are shared by every thread and filled once per type, and a recursive type finds its encoder while it is being built, as in Go.
+
+#### The encoding/json package not covered yet
+
+- a struct type declared inside a function, whose fields have no tags and no embedding (see [Field tags and embedding](#field-tags-and-embedding));
+- the names `int64` and `uint64` in error messages, which Eo prints as `int` and `uint` (see [The reflect package](#the-reflect-package));
+- a slice or an array whose element is a defined byte type, which `reflect` cannot read as bytes;
+- the `jsonv2` experiment and the options of `encoding/json/v2`.
+
 ### The strings and bytes packages
 
 Go's `strings` and `bytes` map, in part, to the namespaces `strings` from `<eo/strings.h>` and `bytes` from `<eo/bytes.h>`. Their functions are called as Go calls them, and their results follow [Multiple results](#multiple-results): `before, after, found := strings.Cut(s, sep)` is `auto [before, after, found] = strings::Cut(s, sep);`.
@@ -2285,8 +2345,8 @@ They are ported from Go 1.26's `bufio.go` and `scan.go`:
 Go's `reflect` maps to the namespace `reflect` from `<eo/reflect.h>`, ported from Go 1.26's `reflect` on the type information that Eo keeps for every type an interface can hold, as Go's runtime does. It covers:
 
 - `Kind`, a defined type with its `String` method, and its constants, `reflect::Invalid` through `reflect::UnsafePointer`, and `reflect::Ptr`;
-- `Type`, with the methods `Kind`, `Name`, `String`, `Elem`, `Key`, `Len`, `NumField`, `Field`, `NumMethod`, `Implements`, `AssignableTo`, `Comparable`, and `Bits`, and `StructField`, with `IsExported`, and `StructTag`, with `Get` and `Lookup`;
-- `Value`, with the methods `Kind`, `Type`, `IsValid`, `CanAddr`, `CanSet`, `CanInterface`, `Interface`, `IsNil`, `IsZero`, `Elem`, `Addr`, `NumField`, `Field`, `FieldByIndex`, `Len`, `Cap`, `Index`, `Bool`, `Int`, `Uint`, `Float`, `String`, `Bytes`, `Set`, `SetBool`, `SetInt`, `SetUint`, `SetFloat`, `SetString`, `SetBytes`, `SetZero`, `SetLen`, `Grow`, `MapIndex`, `MapKeys`, `MapRange`, `SetMapIndex`, `NumMethod`, `OverflowInt`, `OverflowUint`, and `OverflowFloat`, and `MapIter`, with `Next`, `Key`, and `Value`;
+- `Type`, with the methods `Kind`, `Name`, `String`, `Elem`, `Key`, `Len`, `NumField`, `Field`, `NumMethod`, `Implements`, `AssignableTo`, `Comparable`, `Bits`, `OverflowInt`, `OverflowUint`, and `OverflowFloat`, and `StructField`, with `IsExported`, and `StructTag`, with `Get` and `Lookup`;
+- `Value`, with the methods `Kind`, `Type`, `IsValid`, `CanAddr`, `CanSet`, `CanInterface`, `Interface`, `IsNil`, `IsZero`, `Elem`, `Addr`, `NumField`, `Field`, `FieldByIndex`, `Len`, `Cap`, `Index`, `Bool`, `Int`, `Uint`, `Float`, `String`, `Bytes`, `Set`, `SetBool`, `SetInt`, `SetUint`, `SetFloat`, `SetString`, `SetBytes`, `SetZero`, `SetLen`, `Grow`, `MapIndex`, `MapKeys`, `MapRange`, `SetMapIndex`, `NumMethod`, `OverflowInt`, `OverflowUint`, `OverflowFloat`, `Equal`, and `Pointer`, and `MapIter`, with `Next`, `Key`, and `Value`;
 - the functions `TypeOf`, `TypeFor`, `PointerTo`, `PtrTo`, `ValueOf`, `New`, `Zero`, `Indirect`, `MakeSlice`, `MakeMap`, `MakeMapWithSize`, `Copy`, and `TypeAssert`, and `ValueError`, which the `Value` methods panic with.
 
 `Value`, `StructField`, `StructTag`, `ValueError`, and `MapIter` are written as translated types, as in [Buffers and readers](#buffers-and-readers): each method is a static member whose first parameter is the receiver, so `v.Field(0).Int()` is `reflect::Value::Int(reflect::Value::Field(v, 0))`, and `MapRange` returns a `ptr<reflect::MapIter>`. Go's `Type` is an interface that only the runtime's type implements, so it maps to one class, `reflect::Type`, whose methods are called as members, as a translated interface's are: `t.Elem().Kind()` is `t.Elem().Kind()`. A nil `Type` is `nullptr`, two `Type`s are `==` when they are the same type, and a `Type` prints by its `String` method. A `Type` can be a map key, directly or in an interface, as Go's `*rtype` can, so `encoding/json`'s `sync.Map` caches keyed by `reflect.Type` work. The generic functions take their type argument as a template argument: `reflect.TypeFor[error]()` is `reflect::TypeFor<error>()`, and `x, ok := reflect.TypeAssert[int](v)` is `auto [x, ok] = reflect::TypeAssert<int64_t>(v);`.
@@ -2321,6 +2381,7 @@ A `Value` holds the address of the value's storage, shared with what owns it, as
 - `IsZero` follows Go 1.26: a float is zero when it equals 0, so `-0.0` is zero and NaN is not.
 - `MapRange` iterates over a copy of the map's entries, taken by the first `Next`, and `MapKeys` returns the keys in the map's iteration order, which Go does not specify.
 - `Grow` picks a capacity by the formula of `append` (see [Slices](#slices)), without Go's rounding to an allocation size.
+- `Equal` follows Go 1.26: it compares the dynamic values of interfaces, the elements of arrays, and the fields of structs one by one, and panics with `reflect.Value.Equal: values of type []int are not comparable` for a slice, a map, or a function. `Pointer` returns a `uintptr_t`: the target of a pointer, the first element of a slice, or the table of a map, which a map shares with its copies, as in Go.
 - The panics have Go's messages and values: a `*reflect.ValueError`, such as `reflect: call of reflect.Value.Int on string Value`, or a string, such as `reflect: reflect.Value.SetInt using unaddressable value`.
 
 Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_t` (see [Basic types](#basic-types)), so `reflect` reports the kinds `Int` and `Uint` and the names `int` and `uint` for both, as `%T` does.
@@ -2329,8 +2390,8 @@ Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_
 
 - the kinds `Int64` and `Uint64`, which Eo reports as `Int` and `Uint`, and `Uintptr`, `Complex64`, `Complex128`, and `UnsafePointer`;
 - methods and calls: `Type.Method`, `Value.Method`, `MethodByName`, `Call`, and `MakeFunc`, and conversions: `Convert`, `CanConvert`, and `ConvertibleTo`;
-- `DeepEqual`, `Append`, `AppendSlice`, `Value.Equal`, `Value.Comparable`, `Value.Clear`, `Value.FieldByName`, `Value.FieldByNameFunc`, `Value.CanInt`, `Value.CanUint`, `Value.CanFloat`, `Value.CanComplex`, `Value.Complex`, `Value.SetComplex`, `Value.OverflowComplex`, `Value.SetCap`, `Value.Slice`, `Value.Slice3`, `Value.Pointer`, `Value.UnsafePointer`, `Value.UnsafeAddr`, `Value.Seq`, and `Value.Seq2`, and `MapIter.Reset`, `Value.SetIterKey`, and `Value.SetIterValue`;
-- `Type.FieldByName`, `Type.FieldByNameFunc`, `Type.FieldByIndex`, `Type.OverflowInt`, `Type.OverflowUint`, `Type.OverflowFloat`, `Type.OverflowComplex`, `Type.PkgPath`, `Type.Size`, `Type.Align`, the function type methods `In`, `Out`, `NumIn`, `NumOut`, and `IsVariadic`, and `VisibleFields`;
+- `DeepEqual`, `Append`, `AppendSlice`, `Value.Comparable`, `Value.Clear`, `Value.FieldByName`, `Value.FieldByNameFunc`, `Value.CanInt`, `Value.CanUint`, `Value.CanFloat`, `Value.CanComplex`, `Value.Complex`, `Value.SetComplex`, `Value.OverflowComplex`, `Value.SetCap`, `Value.Slice`, `Value.Slice3`, `Value.Pointer` of a channel or a function, `Value.UnsafePointer`, `Value.UnsafeAddr`, `Value.Seq`, and `Value.Seq2`, and `MapIter.Reset`, `Value.SetIterKey`, and `Value.SetIterValue`;
+- `Type.FieldByName`, `Type.FieldByNameFunc`, `Type.FieldByIndex`, `Type.OverflowComplex`, `Type.PkgPath`, `Type.Size`, `Type.Align`, the function type methods `In`, `Out`, `NumIn`, `NumOut`, and `IsVariadic`, and `VisibleFields`;
 - channels: `Len` and `Cap` of a channel `Value`, `Type.ChanDir`, `Send`, `Recv`, `Close`, `MakeChan`, and `Select`, and the constructors of types: `SliceOf`, `MapOf`, `ArrayOf`, `StructOf`, `FuncOf`, and `ChanOf`;
 - `PointerTo` of a pointer to a pointer, and `Interface` of a function or channel value;
 - `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
@@ -2914,7 +2975,7 @@ Examples currently requiring additional canonical rules include:
 - the forms in [The math/big package not covered yet](#the-mathbig-package-not-covered-yet);
 - the forms in [The strings and bytes packages not covered yet](#the-strings-and-bytes-packages-not-covered-yet) and [The unicode package not covered yet](#the-unicode-package-not-covered-yet);
 - the forms in [The io package not covered yet](#the-io-package-not-covered-yet), [The bufio package not covered yet](#the-bufio-package-not-covered-yet), and [The reflect package not covered yet](#the-reflect-package-not-covered-yet);
-- the forms in [The strconv package not covered yet](#the-strconv-package-not-covered-yet), [The encoding/hex package not covered yet](#the-encodinghex-package-not-covered-yet), and [The encoding/binary package not covered yet](#the-encodingbinary-package-not-covered-yet);
+- the forms in [The strconv package not covered yet](#the-strconv-package-not-covered-yet), [The encoding/hex package not covered yet](#the-encodinghex-package-not-covered-yet), [The encoding/binary package not covered yet](#the-encodingbinary-package-not-covered-yet), and [The encoding/json package not covered yet](#the-encodingjson-package-not-covered-yet);
 - the forms in [Packages not covered yet](#packages-not-covered-yet), such as dot imports and test packages;
 - the forms in [Evaluation order not covered yet](#evaluation-order-not-covered-yet), a loop post statement that needs temporaries, and in [Switch statements not covered yet](#switch-statements-not-covered-yet);
 - `range` loops over functions, and the assignment form with a left operand that is not a variable (see [Range loops](#range-loops)), and the three-clause loop forms that [Loop clause variables](#loop-clause-variables) does not cover;
