@@ -31,7 +31,7 @@ auto lanes(ptr<sponge> s) -> ptr<std::array<uint64_t, 2>> {
 
 func<> eo_main() {
   auto s = New<sponge>(sponge{.rate = 8});
-  for (auto i : eo::range(eo::len(s->a))) {
+  for (auto i : eo::range(int64_t{16})) {
     eo::at(s->a, i) = uint8_t(i + 1);
   }
   auto a = lanes(s);
@@ -53,5 +53,10 @@ func<> eo_main() {
 
   ptr<sponge> none{};
   fmt::Println(eo::unsafe_ptr_cast<std::array<uint64_t, 2>>(none) == nullptr);
+  auto count = int64_t{0};
+  for ([[maybe_unused]] auto _eo_range_key : eo::range(int64_t{16})) {
+    count++;
+  }
+  fmt::Println(count, int64_t{16});
   co_return;
 }

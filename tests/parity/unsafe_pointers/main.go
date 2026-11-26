@@ -41,4 +41,9 @@ func main() {
 
 	var none *sponge
 	fmt.Println((*[2]uint64)(unsafe.Pointer(none)) == nil)
+	count := 0
+	for range none.a {
+		count++
+	}
+	fmt.Println(count, len(none.a))
 }
