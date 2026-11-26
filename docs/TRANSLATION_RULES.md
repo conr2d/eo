@@ -2806,7 +2806,7 @@ A Go operation that blocks the calling goroutine translates to an awaitable that
 | --- | --- | --- |
 | `select` without `default` | `co_await select.index()` | frozen, see [Select](#select) |
 | `wg.Wait()` | `co_await wg.Wait()` | frozen |
-| `mu.Lock()` | `co_await mu.Lock()` | frozen, see [Mutex](#mutex) |
+| `mu.Lock()` | `co_await mu.Lock()`, or `mu.BlockingLock()` for a lock whose critical sections never suspend | frozen, see [Mutex](#mutex) |
 | `rw.Lock()`, `rw.RLock()` | `co_await rw.Lock()`, `co_await rw.RLock()` | frozen, see [Mutex](#mutex) |
 | `ch <- v` | `co_await (ch << v)` | frozen, see [Channels](#channels) |
 | `v := <-ch`, `v, ok := <-ch` | `auto v = co_await *ch`, `auto [v, ok] = co_await eo::recv_ok(ch)` | frozen, see [Channels](#channels) |
@@ -2891,6 +2891,37 @@ The following are not frozen:
 - a Mutex or RWMutex as a struct field. A package-level one follows [Package-level variables](#package-level-variables), as in `tests/parity/mutex_counter`, and sharing a local one follows the WaitGroup rules above, as in `tests/parity/mutex_local_shared`;
 - `RLocker`, and passing a lock as a `sync.Locker`, have no mapping;
 - `sync::Mutex`, `sync::RWMutex`, and `sync::WaitGroup` cannot be copied or moved. A Go program that copies one, which `go vet` reports, is unsupported.
+
+#### Locks that never suspend
+
+A `sync.Mutex` none of whose critical sections suspends is locked with `mu.BlockingLock()` instead, at every site that locks it, and `mu.Lock()` is then not a blocking operation: a function that locks it stays a plain function, as do its callers. A critical section runs from a `Lock` to the `Unlock` that releases it, or to the end of the function for a deferred `Unlock`. It suspends when it contains a blocking operation or a call to a function translated as a coroutine. `BlockingLock` applies only when the translator sees every site:
+
+- every `Lock` of the mutex is in the package being translated, which holds for an unexported variable or an unexported field of a struct;
+- no critical section of it suspends.
+
+go-ethereum's `rlp` type cache is such a lock. It builds encoders and decoders with `reflect` under its mutex, and without `BlockingLock` every caller of `rlp.EncodeToBytes` and `rlp.DecodeBytes` would become a coroutine:
+
+```go
+func (c *typeCache) generate(typ reflect.Type, tags rlpstruct.Tags) *typeinfo {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	...
+}
+```
+
+```cpp
+auto typeCache::generate(ptr<typeCache> c, reflect::Type typ, rlpstruct::Tags tags) -> ptr<typeinfo> {
+  eo_defer_scope;
+  c->mu.BlockingLock();
+  try {
+    auto _eo_defer_receiver_0 = ptr(c, &c->mu);
+    eo_defer([=] { _eo_defer_receiver_0->Unlock(); });
+    ...
+```
+
+`BlockingLock` waits for the lock on a C++ condition variable, which blocks the worker thread, as [Once](#once) waits for another goroutine's `f`. The wait cannot deadlock, for the same reason. The holder never suspends while it holds the lock, so it runs on another worker until it unlocks. With `EOMAXPROCS=1`, no other goroutine runs while it holds the lock, so no one waits. `TryLock` and `Unlock` are unchanged.
+
+A mutex that one site locks with `BlockingLock` and another with `co_await mu.Lock()` is outside the mapping. `Unlock` hands the lock directly to a goroutine waiting in `Lock`, which may not be running yet. Meanwhile, threads waiting in `BlockingLock` could hold every worker, so that goroutine would never run. `RWMutex` has no such form yet.
 
 #### Once
 

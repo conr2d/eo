@@ -58,6 +58,7 @@ Each area below has a canonical rule and at least one [parity case](../tests/par
 | `defer` | [Defer](./TRANSLATION_RULES.md#defer) | `defer_args`, `defer_in_loop`, `loop_variable_defer` |
 | Panic and recover | [Panic and recover](./TRANSLATION_RULES.md#panic-and-recover) | `panic_runs_defers`, `recover_values`, `recover_named_result`, `recover_runtime_error`, `repanic_in_defer` |
 | `sync.WaitGroup`, `sync.Mutex`, `sync.RWMutex` | [Blocking operations](./TRANSLATION_RULES.md#blocking-operations) | `waitgroup_results`, `mutex_counter`, `rwmutex_readers` |
+| `sync.Mutex` locks that never suspend | [Locks that never suspend](./TRANSLATION_RULES.md#locks-that-never-suspend) | `mutex_blocking_lock` |
 | Package-level variables and `init` | [Package-level variables](./TRANSLATION_RULES.md#package-level-variables) | `package_vars`, `init_panic` |
 | Packages of several files, and programs of several packages | [Packages](./TRANSLATION_RULES.md#packages) | `package_files`, `package_imports` |
 | Program termination | [Program termination](./TRANSLATION_RULES.md#program-termination) | `main_returns_early`, `exit_from_goroutine`, `goroutine_panic` |
