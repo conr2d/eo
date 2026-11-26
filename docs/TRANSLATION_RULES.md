@@ -967,7 +967,7 @@ auto ok = d == Monday && c > Celsius{30.0};
 
 #### Printing defined types
 
-`fmt` prints a value of a defined type by its `Error` or `String` method, as described in [Printing methods](#printing-methods), and otherwise as its underlying value: a `Celsius` without methods prints as `37.5`, and a `Data` as `[1 2]`. A verb that the underlying type does not take prints the bad-verb form with the name of the defined type, as `%!s(main.Flag=true)`. `%d` of a `Weekday` with a `String` method prints its number, as in Go. A pointer operand to a defined array, slice, or map type prints as `&` followed by its target. A defined type whose underlying type can be a map key can be a key itself, and fmt sorts those keys by their underlying values.
+`fmt` prints a value of a defined type by its `Error` or `String` method, as described in [Printing methods](#printing-methods), and otherwise as its underlying value: a `Celsius` without methods prints as `37.5`, and a `Data` as `[1 2]`. A verb that the underlying type does not take prints the bad-verb form with the name of the defined type, as `%!s(main.Flag=true)`. `%d` of a `Weekday` with a `String` method prints its number, as in Go. A pointer operand to a defined struct, array, slice, or map type prints as `&` followed by its target. A defined type whose underlying type can be a map key can be a key itself, and fmt sorts those keys by their underlying values.
 
 #### Defined types not covered yet
 
