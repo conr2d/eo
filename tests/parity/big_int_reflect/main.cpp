@@ -88,5 +88,11 @@ func<> eo_main() {
   auto _eo_call_14 = big::NewInt(1);
   auto _eo_call_15 = big::NewInt(1);
   equal(*_eo_call_14, *_eo_call_15);
+  auto _eo_call_16 = big::NewInt(-1);
+  auto _eo_call_17 = big::NewInt(1);
+  equal(*_eo_call_16, *_eo_call_17);
+  auto _eo_call_18 = big::NewInt(-3);
+  auto _eo_call_19 = big::NewInt(-1);
+  equal(*_eo_call_18, *_eo_call_19);
   co_return;
 }

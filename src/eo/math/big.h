@@ -750,6 +750,10 @@ struct Int {
   // operation has set is, and as its abs, which Eo does not keep, would be nil.
   static constexpr bool _eo_opaque_struct = true;
   static constexpr std::string_view _eo_uncomparable_field = "big.nat";
+  // Go's reflect.Value.Equal compares neg before it reaches abs.
+  static auto _eo_prefix_equal(const Int& a, const Int& b) -> bool {
+    return (a.value_ < 0) == (b.value_ < 0);
+  }
   static auto _eo_is_zero(const Int& x) -> bool {
     return x.value_ == 0;
   }

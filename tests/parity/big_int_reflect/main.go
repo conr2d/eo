@@ -56,4 +56,6 @@ func main() {
 	fmt.Println(z.UnmarshalText([]byte("0b101")), z, z.UnmarshalText([]byte("1_000")), z, z.UnmarshalText([]byte("12x")))
 	fmt.Println(z.UnmarshalJSON([]byte("null")), z.UnmarshalJSON([]byte("-77")), z)
 	equal(*big.NewInt(1), *big.NewInt(1))
+	equal(*big.NewInt(-1), *big.NewInt(1))
+	equal(*big.NewInt(-3), *big.NewInt(-1))
 }

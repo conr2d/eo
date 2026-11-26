@@ -959,6 +959,9 @@ struct Value {
     }
     case eo::detail::rk_struct: {
       if (const auto field = v._eo_typ->opaque_uncomparable; !field.empty()) {
+        if (!v._eo_typ->opaque_prefix_equal(v._eo_ptr.get(), u._eo_ptr.get())) {
+          return false;
+        }
         eo::panic("reflect.Value.Equal: values of type " + std::string(field) + " are not comparable");
       }
       auto nf = NumField(v);
