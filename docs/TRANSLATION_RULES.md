@@ -577,9 +577,11 @@ The slice helpers are function objects with the same collision rule as the strin
 
 #### The slices package
 
-Go's `slices` package maps, in part, to the namespace `slices` from `<eo/slices.h>`, whose functions are called as Go calls them, like those of `maps` (see [Maps](#maps)): `slices.Clone(s)`, `slices.Delete(s, i, j)`, `slices.DeleteFunc(s, del)`, `slices.Index(s, v)`, `slices.IndexFunc(s, f)`, `slices.Contains(s, v)`, `slices.ContainsFunc(s, f)`, `slices.SortFunc(s, cmp)`, and `slices.SortStableFunc(s, cmp)` are `slices::Clone(s)`, `slices::Delete(s, i, j)`, and so on. A function literal argument is the lambda of [Function literals](#function-literals), passed directly, and a comparison function returns `int64_t`, as Go's returns `int`. Each function takes its slice as a `slice<E>`, and `slices::Clone`, `slices::Delete`, and `slices::DeleteFunc` return one, so a slice of a [defined type](#defined-types) `T` passes as it is, and a result that Go gives the type `T` is converted, as the result of `eo::append` is: `names = slices.Delete(names, 0, 1)` is `names = Names(slices::Delete(names, 0, 1));`.
+Go's `slices` package maps, in part, to the namespace `slices` from `<eo/slices.h>`, whose functions are called as Go calls them, like those of `maps` (see [Maps](#maps)): `slices.Clone(s)`, `slices.Delete(s, i, j)`, `slices.DeleteFunc(s, del)`, `slices.Index(s, v)`, `slices.IndexFunc(s, f)`, `slices.Contains(s, v)`, `slices.ContainsFunc(s, f)`, `slices.Grow(s, n)`, `slices.SortFunc(s, cmp)`, and `slices.SortStableFunc(s, cmp)` are `slices::Clone(s)`, `slices::Delete(s, i, j)`, and so on. A function literal argument is the lambda of [Function literals](#function-literals), passed directly, and a comparison function returns `int64_t`, as Go's returns `int`. Each function takes its slice as a `slice<E>`, and `slices::Clone`, `slices::Delete`, `slices::DeleteFunc`, and `slices::Grow` return one, so a slice of a [defined type](#defined-types) `T` passes as it is, and a result that Go gives the type `T` is converted, as the result of `eo::append` is: `names = slices.Delete(names, 0, 1)` is `names = Names(slices::Delete(names, 0, 1));`.
 
 The functions keep Go's aliasing and nil behavior. `slices::Clone` of nil is nil, and of an empty slice is an empty slice that is not nil. `slices::Delete` and `slices::DeleteFunc` move the kept elements within `s`, set the elements between the new length and the old one to the zero value, as Go does since Go 1.22, and return `s` shortened, so another slice of the same array sees both changes. `slices::Delete` panics as `s[i:j:len(s)]` does when its bounds are out of range, with the same runtime error. `slices::DeleteFunc` calls `del` once for each element, in order, and `slices::IndexFunc` and `slices::ContainsFunc` call `f` on the elements in order until it returns true.
+
+`slices::Grow` returns `s` itself when its capacity has room for `n` more elements, and otherwise a slice of the same length over a new array, as Go's `append(s[:cap(s)], make([]E, n)...)[:len(s)]` does. Its capacity is at least `len(s) + n`, and beyond that it follows `append`, which Go does not specify either. A negative `n` panics with Go's message, `cannot be negative`.
 
 `slices::SortFunc` sorts with `std::sort`, so equal elements can end in another order than Go's, which Go leaves unspecified too, and a program whose output depends on the order of equal elements is outside this mapping. `slices::SortStableFunc` keeps equal elements in their order, as Go does. `cmp` must be a strict weak order, as Go requires for a sorted result: Go sorts some order for any other `cmp`, and C++ gives no such promise.
 
@@ -2028,6 +2030,29 @@ The functions are ported from Go 1.26:
 
 - `Read`, `Write`, `Size`, `Append`, `Encode`, `Decode`, `ReadUvarint`, `ReadVarint`, and `NativeEndian`.
 
+### The encoding package
+
+Go's `encoding` maps to the namespace `encoding` from `<eo/encoding.h>`. It covers every interface of the package: `BinaryMarshaler`, `BinaryUnmarshaler`, `BinaryAppender`, `TextMarshaler`, `TextUnmarshaler`, and `TextAppender`. They are [interface values](#interface-values), whose methods are called as members, as in `m.MarshalText()`. A translated type implements one by declaring the method in its method set, as for any interface: a `Celsius` with `MarshalText` and a `ptr<Celsius>` with `UnmarshalText` are an `encoding::TextMarshaler` and an `encoding::TextUnmarshaler`.
+
+### The encoding/base64 package
+
+Go's `encoding/base64` maps to the namespace `base64` from `<eo/encoding/base64.h>`. It covers every name of the package:
+
+- the type `Encoding`, `NewEncoding`, and the encodings `StdEncoding`, `URLEncoding`, `RawStdEncoding`, and `RawURLEncoding`, which are `ptr<base64::Encoding>`;
+- the constants `StdPadding` and `NoPadding`, which are `int32_t`;
+- the methods `WithPadding`, `Strict`, `Encode`, `AppendEncode`, `EncodeToString`, `EncodedLen`, `Decode`, `AppendDecode`, `DecodeString`, and `DecodedLen`;
+- `NewEncoder`, which returns an `io::WriteCloser`, and `NewDecoder`, which returns an `io::Reader`;
+- the defined type `CorruptInputError`.
+
+`Encoding` is written as a translated type, so its methods are static members whose first parameter is the receiver (see [Methods](#methods)): `base64.StdEncoding.EncodeToString(b)` is `base64::Encoding::EncodeToString(base64::StdEncoding, b)`. `WithPadding` and `Strict` have value receivers, as in Go, so `base64.StdEncoding.Strict()` is `base64::Encoding::Strict(*base64::StdEncoding)`, and each returns a new `ptr<base64::Encoding>`. A constant `base64.CorruptInputError(7)` is `base64::CorruptInputError{7}`, as for any [defined type](#defined-types).
+
+The functions are ported from Go 1.26:
+
+- Decoding skips `\r` and `\n` anywhere in the input. It stops at the first other byte outside the alphabet, at padding that is missing or out of place, and, for a `Strict` encoding, at nonzero bits after the last full byte. It returns the bytes decoded before that point with a `base64::CorruptInputError`, which holds the offset Go reports, as in `illegal base64 data at input byte 4`.
+- `Encode` and `Decode` write to `dst` through Go's index checks, so a `dst` that is too short panics with Go's runtime error. A nil `ptr<base64::Encoding>` panics as a nil `*Encoding` does.
+- `NewEncoding` and `WithPadding` panic with Go's messages, such as `encoding alphabet includes duplicate symbols` and `invalid padding`.
+- The writer of `NewEncoder` keeps up to two bytes between calls to `Write`, and `Close` encodes them with the padding. The reader of `NewDecoder` reads at most 1024 bytes ahead. `%T` names them `*base64.encoder` and `*base64.decoder`, as in Go.
+
 ### The strings and bytes packages
 
 Go's `strings` and `bytes` map, in part, to the namespaces `strings` from `<eo/strings.h>` and `bytes` from `<eo/bytes.h>`. Their functions are called as Go calls them, and their results follow [Multiple results](#multiple-results): `before, after, found := strings.Cut(s, sep)` is `auto [before, after, found] = strings::Cut(s, sep);`.
@@ -2103,6 +2128,10 @@ They compute their results as Go's `letter.go` and `graphic.go` do, from tables 
 Go's `unicode/utf8` maps to the namespace `utf8` from `<eo/unicode/utf8.h>`. It covers every function and constant of the package: `RuneError`, `RuneSelf`, `MaxRune`, and `UTFMax`; `FullRune`, `DecodeRune`, `DecodeLastRune`, `RuneCount`, and `Valid` with their `InString` and `String` forms; `EncodeRune`, `AppendRune`, `RuneLen`, `RuneStart`, and `ValidRune`.
 
 A `rune` is `int32_t` and an `int` result is `int64_t`, so `r, size := utf8.DecodeRune(b)` is `auto [r, size] = utf8::DecodeRune(b);`. The functions are ported from Go 1.26's `utf8.go`, with its tables, so an invalid or truncated encoding decodes to `RuneError` with the size Go gives, a surrogate or a value above `MaxRune` encodes as `RuneError`, and `RuneLen` of either is `-1`. `EncodeRune` panics with `runtime error: index out of range` when its slice is too short for the encoding, and writes nothing then, as Go's does. `Valid` checks one byte at a time where Go checks a word of ASCII at a time, which gives the same results.
+
+### The unicode/utf16 package
+
+Go's `unicode/utf16` maps to the namespace `utf16` from `<eo/unicode/utf16.h>`. It covers every function of the package: `IsSurrogate`, `DecodeRune`, `EncodeRune`, `RuneLen`, `Encode`, `AppendRune`, and `Decode`. A rune is `int32_t`, a UTF-16 sequence is a `slice<uint16_t>`, and `r1, r2 := utf16.EncodeRune(r)` is `auto [r1, r2] = utf16::EncodeRune(r);`. The functions are ported from Go 1.26's `utf16.go`, so an unpaired surrogate decodes to U+FFFD, and a surrogate, a negative rune, or a rune above U+10FFFF encodes as U+FFFD. `Decode` returns an empty slice that is not nil for an empty or nil input, as Go's does.
 
 ### The math/bits package
 
