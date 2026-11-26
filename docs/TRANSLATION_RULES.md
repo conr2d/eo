@@ -2322,6 +2322,12 @@ The functions are ported from Go 1.26:
 
 The results are Go's, but Go compiles the comparisons to code without branches, and C++ does not promise that, so the timing is outside the mapping.
 
+### The database/sql/driver package
+
+Go's `database/sql/driver` maps to the namespace `driver` from `<eo/database/sql/driver.h>`. It covers `Value` and `Valuer`, which a type implements so that `database/sql` can store it, as go-ethereum's `common.Hash` does. Eo has no `database/sql`, so nothing in Eo calls them.
+
+`driver.Value` is a defined type over the empty interface, so it is an [interface](#interface-values) with no methods, `driver::Value`, whose name is `driver.Value`. It holds any value and compares as `any` does, so `return h[:], nil` in a method that returns `(driver.Value, error)` is `return {eo::subslice(h, 0), nullptr};`, and `case nil:` of a type switch on it is `_eo_type_switch == nullptr`. Comparing it with an `any` converts the `any`, as in `v == driver::Value(a)`. `driver.Valuer` is the interface `driver::Valuer` with the method `Value() (Value, error)`.
+
 ### The io package
 
 Go's `io` maps, in part, to the namespace `io` from `<eo/io.h>`. It covers:

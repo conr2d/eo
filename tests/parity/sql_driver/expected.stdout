@@ -1,0 +1,17 @@
+true <nil>
+0 nil <nil>
+1 int64 -3
+2 float64 2.5
+3 bool true
+4 bytes [114 97 119]
+5 string text
+[]uint8 string float64
+other
+true true true
+bytes [1 2 3 4] false <nil>
+bytes 4 [1 2 3 4]
+int64 7 false <nil>
+nil <nil> true negative count -1
+true
+nil <nil> true negative count -1
+false
