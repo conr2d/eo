@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 //
 #pragma once
+#include <eo/defined.h>
 #include <eo/panic.h>
 
 #include <cstddef>
@@ -223,6 +224,45 @@ namespace detail {
 // could outlive it. A function object, like the string helpers (see <eo/string.h>), so that ref(x) of
 // a std::string or a std::array does not also find std::ref by argument-dependent lookup.
 inline constexpr detail::ref_fn ref{};
+
+namespace detail {
+
+  // The type that Go's underlying type of T translates to: U for a defined type over U, and T itself
+  // otherwise. For a struct T, that is T, as C++ has no name for Go's struct type literal.
+  template<typename T>
+  struct go_underlying {
+    using type = T;
+  };
+
+  template<defined_type T>
+  struct go_underlying<T> {
+    using type = typename go_underlying<typename T::_eo_underlying>::type;
+  };
+
+  template<typename T>
+  using go_underlying_t = typename go_underlying<T>::type;
+
+} // namespace detail
+
+// Go's conversion (*T)(p) of a pointer whose base type S has the same underlying type as T: a pointer
+// to the same variable, as a T, which keeps the target of p alive. A defined type adds no data to its
+// underlying type, so T and S have the same layout, and Eo builds with -fno-strict-aliasing, so that
+// accesses through both pointers see each other. The C++ object model does not allow either cast:
+// the target is not a T, so this relies on GCC and Clang treating a cast between layout-identical
+// types with no virtual functions as the same address. A nil p converts to nil.
+template<typename T, typename S>
+  requires std::same_as<detail::go_underlying_t<std::remove_cv_t<T>>, detail::go_underlying_t<S>>
+auto ptr_cast(const ptr<S>& p) noexcept -> ptr<T> {
+  static_assert(sizeof(T) == sizeof(S) && alignof(T) == alignof(S));
+  if (p == nullptr) {
+    return nullptr;
+  }
+  if constexpr (std::is_base_of_v<S, T> || std::is_base_of_v<T, S>) {
+    return ptr<T>(p, static_cast<T*>(p.get()));
+  } else {
+    return ptr<T>(p, reinterpret_cast<T*>(p.get()));
+  }
+}
 
 namespace detail {
 

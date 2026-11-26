@@ -822,7 +822,7 @@ Method values and method expressions, including promoted ones, are described in 
 
 ### Defined types
 
-A Go defined type whose underlying type is not a struct or an interface, such as `type Celsius float64`, maps to a C++ struct of the same name derived from `eo::defined<T, U>`, from `<eo/defined.h>`, which `<eo/core.h>` includes. `U` is the translated underlying type: a [basic type](#basic-types), `std::string`, a `std::array`, a `slice`, a `map`, or an `fn`. The underlying type of `type Kelvin Celsius` is `float64`, so `Kelvin` derives from `eo::defined<Kelvin, double>` and does not get the methods of `Celsius`, as in Go. The struct first inherits the constructors of its base with `using defined::defined;`, then declares `_eo_name`, its methods as static member functions, and `_eo_methods` if it has methods, as a struct does (see [Methods](#methods) and [Method tables](#method-tables)). It has no fields and no `operator==` of its own:
+A Go defined type whose underlying type is not an interface, such as `type Celsius float64`, maps to a C++ struct of the same name derived from `eo::defined<T, U>`, from `<eo/defined.h>`, which `<eo/core.h>` includes. `U` is the translated underlying type: a [basic type](#basic-types), `std::string`, a `std::array`, a `slice`, a `map`, an `fn`, or a struct (see [Defined struct types](#defined-struct-types)). The underlying type of `type Kelvin Celsius` is `float64`, so `Kelvin` derives from `eo::defined<Kelvin, double>` and does not get the methods of `Celsius`, as in Go. The struct first inherits the constructors of its base with `using defined::defined;`, then declares `_eo_name`, its methods as static member functions, and `_eo_methods` if it has methods, as a struct does (see [Methods](#methods) and [Method tables](#method-tables)). It has no fields and no `operator==` of its own:
 
 ```go
 type Celsius float64
@@ -885,6 +885,51 @@ A defined type is thus a C++ type of its own, so `fmt`, interfaces, type asserti
 | a composite literal `T{...}` of a slice or map type | `T(U::of({...}))`, as in `Data(slice<uint8_t>::of({1, 2}))` |
 | a composite literal `T{...}` of an array type | `T(e)`, where `e` is the literal of `U` (see [Arrays](#arrays)), as in `Hash(std::array<uint8_t, 32>{1, 2})` |
 | `T(s)`, where `T` is an array type and `s` a slice | `eo::array_from_slice<T>(s)` |
+| `(*T)(p)`, a conversion between pointer types | `eo::ptr_cast<T>(p)` (see [Pointer conversions](#pointer-conversions)) |
+
+#### Defined struct types
+
+`type B A`, where `A` is a struct type, gives `B` the fields of `A` and none of its methods. `U` is then the translated struct `A`, which stands for the struct type of `A`, as C++ has no name for a Go struct type literal. `A` is a translated struct or a struct of a package that Eo maps, such as `big.Int`, and `type C B` derives from `eo::defined<C, A>` too. `eo::defined` derives from `A`, so the fields of `A` are those of `B` and `b.X` is `b.X`, and it lists no methods, so `B` has only those it declares in its own `_eo_methods`:
+
+```go
+type Point struct {
+	X, Y int
+}
+
+func (p Point) String() string { ... }
+
+type Vec Point
+
+type Amount big.Int
+
+func (a *Amount) String() string {
+	return "amount " + (*big.Int)(a).String()
+}
+```
+
+```cpp
+struct Vec : eo::defined<Vec, Point> {
+  using defined::defined;
+  static constexpr std::string_view _eo_name = "main.Vec";
+};
+
+struct Amount : eo::defined<Amount, big::Int> {
+  using defined::defined;
+  static constexpr std::string_view _eo_name = "main.Amount";
+
+  static auto String(ptr<Amount> a) -> std::string;
+
+  using _eo_methods = eo::methods<eo::method<&Amount::String, "String">>;
+};
+```
+
+| Go | C++ |
+| --- | --- |
+| `B(a)`, `A(b)`, and `C(b)` | `B(a)`, `A(b)`, and `C(b)`, as in `Vec(p)`, `Point(v)`, and `Amount(*n)` |
+| a composite literal `B{...}` | `B(e)`, where `e` is the literal of `A`, as in `Vec(Point{1, 2})` and `Alias(Tagged{.Name = "eo"s})` |
+| `b == c` of two `B` values | `b == c`, by the `operator==` of `A` |
+
+`A` converts to `B` only explicitly, as in Go. `fmt` prints a `B` by its own methods, and otherwise by the fields of `A`, without the methods of `A`: a `Vec` prints as `{1 2}` where a `Point` prints by its `String` method, and `%T` and `%#v` name `main.Vec`. A pointer to a `B` prints as `&` followed by its fields, as `&{1 2}`. A struct of a package that Eo maps prints as Go prints its unexported fields, so an `Amount` value prints as `{true [4096]}`. Interfaces, type assertions, map keys, `reflect`, and `encoding/json` see `B` as a type of its own with the fields and tags of `A`, when `A` is a translated struct.
 
 #### Operators of defined types
 
@@ -922,11 +967,13 @@ auto ok = d == Monday && c > Celsius{30.0};
 
 #### Printing defined types
 
-`fmt` prints a value of a defined type by its `Error` or `String` method, as described in [Printing methods](#printing-methods), and otherwise as its underlying value: a `Celsius` without methods prints as `37.5`, and a `Data` as `[1 2]`. A verb that the underlying type does not take prints the bad-verb form with the name of the defined type, as `%!s(main.Flag=true)`. `%d` of a `Weekday` with a `String` method prints its number, as in Go. A pointer operand to a defined array, slice, or map type prints as `&` followed by its target. A defined type whose underlying type can be a map key can be a key itself, and fmt sorts those keys by their underlying values.
+`fmt` prints a value of a defined type by its `Error` or `String` method, as described in [Printing methods](#printing-methods), and otherwise as its underlying value: a `Celsius` without methods prints as `37.5`, and a `Data` as `[1 2]`. A verb that the underlying type does not take prints the bad-verb form with the name of the defined type, as `%!s(main.Flag=true)`. `%d` of a `Weekday` with a `String` method prints its number, as in Go. A pointer operand to a defined struct, array, slice, or map type prints as `&` followed by its target. A defined type whose underlying type can be a map key can be a key itself, and fmt sorts those keys by their underlying values.
 
 #### Defined types not covered yet
 
-- defined pointer and channel types, defined types whose underlying type is a struct, such as `type B A` for a struct `A`, and generic defined types;
+- defined pointer and channel types, and generic defined types;
+- a defined struct type `type B A` where `A` has embedded fields, whose promoted methods Go gives `B` too;
+- `%#v` of a defined type over a struct of a package that Eo maps, such as `type Amount big.Int`, which names the struct, `big.Int{...}`, where Go names `main.Amount`. `reflect` sees such a type as it sees the struct (see [The reflect package not covered yet](#the-reflect-package-not-covered-yet));
 - defined types declared inside a function;
 - `range` over a value of a defined integer type.
 
@@ -1291,6 +1338,19 @@ A reference cycle of owning pointers is never destroyed, while Go's garbage coll
 Destroying a target releases the pointers it holds without recursion, so dropping the head of a long linked list frees it without overflowing the stack.
 
 A data race on a pointer variable, such as one goroutine assigning `p` while another copies it, is undefined behavior in Eo, as it is for any variable outside the [data-race-free programs](./TRANSLATION.md) that Eo targets. Go happens to keep a racy single-word pointer write memory-safe; a reference-counted pointer does not.
+
+#### Pointer conversions
+
+Go converts a pointer `p` of type `*S` to `*T` when `S` and `T` have the same underlying type, and both pointers then refer to the same variable. `(*T)(p)` is `eo::ptr_cast<T>(p)`, which returns a `ptr<T>` to the target of `p` and keeps that target alive, as `ptr(owner, address)` does. A nil `p` converts to nil:
+
+| Go | C++ |
+| --- | --- |
+| `(*big.Int)(a)`, `(*Amount)(n)` | `eo::ptr_cast<big::Int>(a)`, `eo::ptr_cast<Amount>(n)` |
+| `(*Point)(&v)`, where `v` is not boxed | `eo::ptr_cast<Point>(ref(v))` |
+| `(*Celsius)(&f)`, where `f` is boxed | `eo::ptr_cast<Celsius>(f)` |
+| `(*[2]uint8)(k)` of a `*Key` `k` | `eo::ptr_cast<std::array<uint8_t, 2>>(k)` |
+
+`eo::ptr_cast` accepts only types whose translated underlying types are the same, as [Defined types](#defined-types) gives them: `U` for a defined type over `U`, and the type itself otherwise. A defined type adds no data to `U`, so both types have the same layout. C++'s type-based aliasing rules would let the compiler assume that a `T` and an `S` never share storage, so the `eo` CMake target passes `-fno-strict-aliasing` as a public compile option, as it passes `-fwrapv`. Translated code compiled without it is outside the mapping.
 
 #### Escape facts
 
@@ -2397,6 +2457,7 @@ Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_
 - `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
 - `Bytes` and `SetBytes` of a slice or array whose element is a defined byte type;
 - a struct type declared inside a function, which has no field table;
+- the struct types of the packages that Eo maps, such as `big.Int`, and the defined types over them, such as `type Amount big.Int`. Their kind is `Invalid`, they have no fields, and `IsZero` reports false;
 - printing a `Value` inside another value, which Go prints by the `Value`'s own fields. A `Value` operand prints the value it holds, as in Go.
 
 ### Goroutine

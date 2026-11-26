@@ -70,14 +70,14 @@ template<typename T>
 consteval auto is_composite_type() -> bool {
   if constexpr (defined_type<T>) {
     using U = typename T::_eo_underlying;
-    return is_slice<U> || is_map<U> || is_std_array<U>;
+    return go_struct<U> || struct_underlying<U> || is_slice<U> || is_map<U> || is_std_array<U>;
   } else {
     return go_struct<T> || is_slice<T> || is_map<T> || is_std_array<T>;
   }
 }
 
 // Whether a pointer to T prints as & followed by its target: a struct, an array, a slice, or a map,
-// or a defined type whose underlying type is an array, a slice, or a map.
+// or a defined type whose underlying type is one of them.
 template<typename T>
 inline constexpr bool is_composite = is_composite_type<T>();
 
@@ -1218,6 +1218,15 @@ void print_arg(printer& p, const T& value, int32_t verb, int depth) {
           print_value(p, underlying(value), verb, depth, type_name<T>());
           return;
         }
+      }
+      // A struct prints by its fields, without the methods of U, which T does not have: a translated
+      // struct by print_value, and a struct of a package that Eo maps by its _eo_print.
+      if constexpr (go_struct<U>) {
+        print_value(p, underlying(value), verb, depth, type_name<T>());
+        return;
+      } else if constexpr (struct_underlying<U> && requires { _eo_print(p, underlying(value), verb, depth); }) {
+        _eo_print(p, underlying(value), verb, depth);
+        return;
       }
       print_arg(p, underlying(value), verb, depth);
     } else if constexpr (std::is_same_v<T, bool>) {
