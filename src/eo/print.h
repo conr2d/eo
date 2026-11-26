@@ -77,7 +77,7 @@ consteval auto is_composite_type() -> bool {
 }
 
 // Whether a pointer to T prints as & followed by its target: a struct, an array, a slice, or a map,
-// or a defined type whose underlying type is an array, a slice, or a map.
+// or a defined type whose underlying type is one of them.
 template<typename T>
 inline constexpr bool is_composite = is_composite_type<T>();
 
