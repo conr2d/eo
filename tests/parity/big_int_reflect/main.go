@@ -15,6 +15,13 @@ type Record struct {
 	Name  string
 }
 
+func equal(a, b big.Int) {
+	defer func() {
+		fmt.Println("recovered:", recover())
+	}()
+	fmt.Println(reflect.ValueOf(a).Equal(reflect.ValueOf(b)))
+}
+
 func main() {
 	t := reflect.TypeFor[big.Int]()
 	fmt.Println(t.Kind(), t.Kind() == reflect.Struct, reflect.TypeFor[Amount]().Kind(), reflect.TypeFor[*big.Int]().Elem().Kind())
@@ -48,4 +55,5 @@ func main() {
 	z := new(big.Int)
 	fmt.Println(z.UnmarshalText([]byte("0b101")), z, z.UnmarshalText([]byte("1_000")), z, z.UnmarshalText([]byte("12x")))
 	fmt.Println(z.UnmarshalJSON([]byte("null")), z.UnmarshalJSON([]byte("-77")), z)
+	equal(*big.NewInt(1), *big.NewInt(1))
 }

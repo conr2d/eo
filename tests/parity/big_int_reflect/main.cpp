@@ -26,6 +26,17 @@ struct Record {
   auto operator==(const Record&) const -> bool = default;
 };
 
+void equal(big::Int a, big::Int b) {
+  eo_defer_scope;
+  try {
+    eo_defer([&] { fmt::Println("recovered:"s, recover()); });
+    fmt::Println(reflect::Value::Equal(reflect::ValueOf(a), reflect::ValueOf(b)));
+    eo_defer_run;
+  } catch (...) {
+    eo_defer_panic;
+  }
+}
+
 func<> eo_main() {
   auto t = reflect::TypeFor<big::Int>();
   auto _eo_call_0 = reflect::TypeFor<Amount>().Kind();
@@ -55,8 +66,9 @@ func<> eo_main() {
   fmt::Println(err, back->Ptr);
   err = json::Unmarshal(eo::bytes_from_string(R"({"Value":{"x":1}})"s), back);
   fmt::Println(err);
-  auto [text, err2] = big::Int::MarshalText(five);
-  fmt::Println(eo::string_from_bytes(text), err2);
+  slice<uint8_t> text{};
+  std::tie(text, err) = big::Int::MarshalText(five);
+  fmt::Println(eo::string_from_bytes(text), err);
   ptr<big::Int> nilInt{};
   std::tie(text, err) = big::Int::MarshalText(nilInt);
   fmt::Println(eo::string_from_bytes(text), err);
@@ -73,5 +85,8 @@ func<> eo_main() {
   auto _eo_call_12 = big::Int::UnmarshalJSON(z, eo::bytes_from_string("null"s));
   auto _eo_call_13 = big::Int::UnmarshalJSON(z, eo::bytes_from_string("-77"s));
   fmt::Println(_eo_call_12, _eo_call_13, z);
+  auto _eo_call_14 = big::NewInt(1);
+  auto _eo_call_15 = big::NewInt(1);
+  equal(*_eo_call_14, *_eo_call_15);
   co_return;
 }

@@ -144,6 +144,8 @@ namespace detail {
     const rptr_ops* ptr_ops = nullptr;
     mutable std::atomic<const rtype*> ptr_cache{nullptr};
     auto (*fields)() -> std::span<const rfield> = nullptr;
+    // An opaque struct's uncomparable field type (see eo::opaque_struct), or empty.
+    std::string_view opaque_uncomparable;
     // An interface type's methods, ordered by name.
     auto (*imethods)() -> std::span<const entry_base> = nullptr;
     auto (*equal)(const void*, const void*) -> bool = nullptr;
@@ -680,6 +682,7 @@ namespace detail {
       r.fields = &struct_fields<R>;
     } else if constexpr (opaque_struct<R>) {
       r.fields = []() -> std::span<const rfield> { return {}; };
+      r.opaque_uncomparable = R::_eo_uncomparable_field;
     }
   }
 

@@ -2114,7 +2114,7 @@ A `big.Int` value that `encoding/json` cannot address has none of these methods,
 #### The math/big package not covered yet
 
 - `big.Float`, `big.Rat`, and the functions and methods not listed above, such as `GCD`, `Sqrt`, `ProbablyPrime`, `Float64`, `Append`, `Scan`, `GobEncode`, and `GobDecode`;
-- method values and method expressions of `big.Int` methods, and methods other than `String` in an interface;
+- method values and method expressions of `big.Int` methods, and methods other than `String`, `Format`, and the marshalers in an interface;
 - `%w` of a `*big.Int` outside `fmt::Errorf`, which prints an address where Go prints `&{false [...]}`;
 - `%#v` of a `big.Int` value of 0 that an operation has set, which Go prints `big.nat{}` and Eo `big.nat(nil)`;
 - `QuoRem` and `DivMod` whose two results are the same `Int`, or whose modulus `m` is also `y`, where Go's result depends on the order of its own writes.
@@ -2539,7 +2539,7 @@ Go's `int` and `int64` are both `int64_t`, and `uint` and `uint64` both `uint64_
 - `Interface` of a `*T` that `New`, `Addr`, or a `Value` of `PointerTo(t)` holds, where `T` has no methods and the program names `*T` nowhere else, such as in a conversion to an interface, a type assertion, or a field type;
 - `Bytes` and `SetBytes` of a slice or array whose element is a defined byte type;
 - a struct type declared inside a function, which has no field table;
-- the fields of `big.Int` and of the defined types over it, such as `type Amount big.Int`. Their kind is `Struct`, as in Go, so `encoding/json` encodes a `big.Int` without its pointer methods as `{}`, and go-ethereum's `rlp` decides how to encode a nil `*big.Int` field. But `NumField` is 0, where Go reports the unexported fields `neg` and `abs`. `IsZero` reports whether the value is 0, while Go also requires `abs` to be nil: an `Int` that arithmetic sets to 0 after it held a larger value has a non-nil `abs` in Go, so Go's `IsZero` reports false for it;
+- the fields of `big.Int` and of the defined types over it, such as `type Amount big.Int`. Their kind is `Struct`, as in Go, so `encoding/json` encodes a `big.Int` without its pointer methods as `{}`, and go-ethereum's `rlp` decides how to encode a nil `*big.Int` field. But `NumField` is 0, where Go reports the unexported fields `neg` and `abs`. `Value.Equal` of two of them panics with Go's `reflect.Value.Equal: values of type big.nat are not comparable`. `IsZero` reports whether the value is 0, while Go also requires `abs` to be nil: an `Int` that arithmetic sets to 0 after it held a larger value has a non-nil `abs` in Go, so Go's `IsZero` reports false for it;
 - the other struct types of the packages that Eo maps, such as `bytes.Buffer`, and the defined types over them. Their kind is `Invalid`, they have no fields, and `IsZero` reports false;
 - printing a `Value` inside another value, which Go prints by the `Value`'s own fields. A `Value` operand prints the value it holds, as in Go.
 

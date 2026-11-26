@@ -749,6 +749,7 @@ struct Int {
   // unexported fields (see eo::opaque_struct). It is the zero value when it is 0, as an Int that no
   // operation has set is, and as its abs, which Eo does not keep, would be nil.
   static constexpr bool _eo_opaque_struct = true;
+  static constexpr std::string_view _eo_uncomparable_field = "big.nat";
   static auto _eo_is_zero(const Int& x) -> bool {
     return x.value_ == 0;
   }
