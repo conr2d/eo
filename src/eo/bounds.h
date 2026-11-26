@@ -19,20 +19,26 @@ namespace eo::detail {
 // any type, so a negative index is reported as negative and a huge unsigned one is not wrapped. Go
 // leaves out the length or the other bound when the reported operand is negative.
 
+// Each check compares inline, so that a check whose operands are constants or already known folds
+// away, and formats its message out of line, in a cold function that the caller only calls to panic.
+
 template<go_integer I, go_integer N>
-void check_index(I i, N length) {
+[[noreturn, gnu::cold, gnu::noinline]] void index_error(I i, N length) {
   if (std::cmp_less(i, 0)) {
     panic_bounds_error(fmt::format("index out of range [{}]", i));
   }
-  if (std::cmp_greater_equal(i, length)) {
-    panic_bounds_error(fmt::format("index out of range [{}] with length {}", i, length));
+  panic_bounds_error(fmt::format("index out of range [{}] with length {}", i, length));
+}
+
+template<go_integer I, go_integer N>
+[[gnu::always_inline]] inline void check_index(I i, N length) {
+  if (std::cmp_less(i, 0) || std::cmp_greater_equal(i, length)) [[unlikely]] {
+    index_error(i, length);
   }
 }
 
-// s[low:high] of a value whose upper limit is `limit`: the length of a string or an array, or the
-// capacity of a slice, named by `limit_name`. Go checks the high bound first.
 template<go_integer L, go_integer H, go_integer N>
-void check_slice(L low, H high, N limit, const char* limit_name = "length") {
+[[noreturn, gnu::cold, gnu::noinline]] void slice_error(L low, H high, N limit, const char* limit_name) {
   if (std::cmp_less(high, 0)) {
     panic_bounds_error(fmt::format("slice bounds out of range [:{}]", high));
   }
@@ -42,15 +48,21 @@ void check_slice(L low, H high, N limit, const char* limit_name = "length") {
   if (std::cmp_less(low, 0)) {
     panic_bounds_error(fmt::format("slice bounds out of range [{}:]", low));
   }
-  if (std::cmp_greater(low, high)) {
-    panic_bounds_error(fmt::format("slice bounds out of range [{}:{}]", low, high));
+  panic_bounds_error(fmt::format("slice bounds out of range [{}:{}]", low, high));
+}
+
+// s[low:high] of a value whose upper limit is `limit`: the length of a string or an array, or the
+// capacity of a slice, named by `limit_name`. Go checks the high bound first.
+template<go_integer L, go_integer H, go_integer N>
+[[gnu::always_inline]] inline void check_slice(L low, H high, N limit, const char* limit_name = "length") {
+  if (std::cmp_less(high, 0) || std::cmp_greater(high, limit) || std::cmp_less(low, 0) || std::cmp_greater(low, high))
+    [[unlikely]] {
+    slice_error(low, high, limit, limit_name);
   }
 }
 
-// s[low:high:max] of a value whose upper limit is `limit`: the capacity of a slice, or the length of
-// an array, named by `limit_name`. Go checks max first, then high, then low.
 template<go_integer L, go_integer H, go_integer M, go_integer N>
-void check_slice3(L low, H high, M max, N limit, const char* limit_name = "capacity") {
+[[noreturn, gnu::cold, gnu::noinline]] void slice3_error(L low, H high, M max, N limit, const char* limit_name) {
   if (std::cmp_less(max, 0)) {
     panic_bounds_error(fmt::format("slice bounds out of range [::{}]", max));
   }
@@ -66,8 +78,16 @@ void check_slice3(L low, H high, M max, N limit, const char* limit_name = "capac
   if (std::cmp_less(low, 0)) {
     panic_bounds_error(fmt::format("slice bounds out of range [{}::]", low));
   }
-  if (std::cmp_greater(low, high)) {
-    panic_bounds_error(fmt::format("slice bounds out of range [{}:{}:]", low, high));
+  panic_bounds_error(fmt::format("slice bounds out of range [{}:{}:]", low, high));
+}
+
+// s[low:high:max] of a value whose upper limit is `limit`: the capacity of a slice, or the length of
+// an array, named by `limit_name`. Go checks max first, then high, then low.
+template<go_integer L, go_integer H, go_integer M, go_integer N>
+[[gnu::always_inline]] inline void check_slice3(L low, H high, M max, N limit, const char* limit_name = "capacity") {
+  if (std::cmp_less(max, 0) || std::cmp_greater(max, limit) || std::cmp_less(high, 0) || std::cmp_greater(high, max) ||
+    std::cmp_less(low, 0) || std::cmp_greater(low, high)) [[unlikely]] {
+    slice3_error(low, high, max, limit, limit_name);
   }
 }
 
