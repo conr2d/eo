@@ -2896,9 +2896,9 @@ The following are not frozen:
 
 A `sync.Mutex` none of whose critical sections suspends is locked with `mu.BlockingLock()` instead, at every site that locks it, and `mu.Lock()` is then not a blocking operation: a function that locks it stays a plain function, as do its callers. A critical section runs from a `Lock` to the `Unlock` that releases it, or to the end of the function for a deferred `Unlock`, and includes every function that it calls, transitively. `BlockingLock` applies only when the translator can see all of them:
 
-- every `Lock` of the mutex is in the package being translated: the mutex is an unexported variable or an unexported field, and the package never lets its address out, through a result, an exported field, a function value, or an interface;
+- every `Lock` of the mutex is in the package being translated: the mutex is an unexported variable or an unexported field, and the package never lets its address out, in any way, such as through a result, an exported field or variable, a function value, an interface, a channel, or a map or slice that escapes;
 - no critical section contains a blocking operation or a call to a function translated as a coroutine;
-- every call in a critical section has a target that the translator knows statically. A call of an interface method or of a function value disqualifies the mutex, because its target may be a coroutine (see [Coroutine function values](#coroutine-function-values)). The methods of `reflect::Type`, `reflect::Value`, and other Eo library types count as known targets.
+- every call in a critical section has a target that the translator knows statically. A call of an interface method or of a function value disqualifies the mutex, because its target may be a coroutine (see [Coroutine function values](#coroutine-function-values)). The methods of `reflect::Type`, `reflect::Value`, and other Eo library types count as known targets. This is conservative: a plain `fn` slot cannot hold a coroutine, so a call through one could not suspend either, but the rule does not rely on slot types yet.
 
 go-ethereum's `rlp` type cache is such a lock. It builds encoders and decoders with `reflect` under its mutex, and without `BlockingLock` every caller of `rlp.EncodeToBytes` and `rlp.DecodeBytes` would become a coroutine:
 
