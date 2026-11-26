@@ -161,9 +161,22 @@ public:
     return s;
   }
 
+  // The header of s read as a slice of T: the same first element, length, and capacity, for
+  // unsafe_slice_cast.
+  template<typename S>
+  static auto reinterpret(const slice<S>& s) noexcept -> slice {
+    if (s == nullptr) {
+      return nullptr;
+    }
+    return slice{ptr<T>(s.data_, reinterpret_cast<T*>(s.data())), s.len_, s.cap_};
+  }
+
 private:
   template<typename U>
   friend class ptr;
+
+  template<typename U>
+  friend class slice;
 
   slice(ptr<T> data, int64_t len, int64_t cap) noexcept: data_(std::move(data)), len_(len), cap_(cap) {}
 
@@ -438,5 +451,16 @@ inline constexpr detail::bytes_from_string_fn bytes_from_string{};
 inline constexpr detail::string_from_bytes_fn string_from_bytes{};
 inline constexpr detail::runes_from_string_fn runes_from_string{};
 inline constexpr detail::string_from_runes_fn string_from_runes{};
+
+// Go's *(*[]T)(unsafe.Pointer(&s)) of a slice s of type []S, which reads the header of s as the header
+// of a []T: the result starts at the first element of s, keeps the backing array of s alive, and has
+// the length and the capacity of s as numbers of T, not of bytes, as in Go. A nil s gives a nil slice.
+// Only types without pointers are accepted, as for unsafe_ptr_cast. Every element that the result
+// reaches must lie within the backing array of s and be aligned for T; neither is checked.
+template<typename T, typename S>
+  requires std::is_trivially_copyable_v<T> && std::is_trivially_copyable_v<S>
+auto unsafe_slice_cast(const slice<S>& s) noexcept -> slice<T> {
+  return slice<T>::reinterpret(s);
+}
 
 } // namespace eo
