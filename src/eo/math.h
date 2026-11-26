@@ -223,24 +223,8 @@ inline auto Ldexp(double frac, int64_t exp) -> double {
 
 // Go's Modf: the integer and fractional parts, each with f's sign. For ±Inf, the fraction is NaN.
 inline auto Modf(double f) -> std::tuple<double, double> {
-  if (f < 1) {
-    if (f < 0) {
-      auto [i, frac] = Modf(-f);
-      return {-i, -frac};
-    }
-    if (f == 0) {
-      return {f, f};
-    }
-    return {0.0, f};
-  }
-  auto x = Float64bits(f);
-  auto e = ((x >> 52) & 0x7FF) - 1023;
-  // Keep the top 12+e bits, the integer part; clear the rest.
-  if (e < 64 - 12) {
-    x &= ~((uint64_t{1} << (64 - 12 - e)) - 1);
-  }
-  auto i = Float64frombits(x);
-  return {i, f - i};
+  auto integer = Trunc(f);
+  return {integer, Copysign(f - integer, f)};
 }
 
 inline auto Nextafter(double x, double y) -> double {

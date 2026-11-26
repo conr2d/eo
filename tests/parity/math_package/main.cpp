@@ -148,11 +148,17 @@ void minMax() {
   auto _eo_call_11 = math::Nextafter(1, 2);
   auto _eo_call_12 = math::Nextafter(math::MaxFloat64, math::Inf(1));
   fmt::Println(_eo_call_10, _eo_call_11, _eo_call_12);
-  auto _eo_call_13 = math::Float64bits(math::Mod(1, 0));
-  auto _eo_call_14 = math::Float64bits(math::Mod(math::Inf(-1), 1));
-  auto _eo_call_15 = math::Float64bits(math::Mod(nan, 1));
-  auto _eo_call_16 = math::Float64bits(math::Max(nan, 1));
-  fmt::Printf("%#x %#x %#x %#x\n"s, _eo_call_13, _eo_call_14, _eo_call_15, _eo_call_16);
+  auto posFrac = std::get<1>(math::Modf(math::Inf(1)));
+  auto negFrac = std::get<1>(math::Modf(math::Inf(-1)));
+  auto _eo_call_13 = math::Float64bits(posFrac);
+  auto _eo_call_14 = math::Float64bits(negFrac);
+  auto _eo_call_15 = math::Float64bits(math::Sqrt(-1));
+  fmt::Printf("%#x %#x %#x\n"s, _eo_call_13, _eo_call_14, _eo_call_15);
+  auto _eo_call_16 = math::Float64bits(math::Mod(1, 0));
+  auto _eo_call_17 = math::Float64bits(math::Mod(math::Inf(-1), 1));
+  auto _eo_call_18 = math::Float64bits(math::Mod(nan, 1));
+  auto _eo_call_19 = math::Float64bits(math::Max(nan, 1));
+  fmt::Printf("%#x %#x %#x %#x\n"s, _eo_call_16, _eo_call_17, _eo_call_18, _eo_call_19);
 }
 
 void decompose() {
@@ -200,11 +206,17 @@ void cmpPackage() {
   auto _eo_call_15 = cmp::Less(Name{"x"s}, Name{"y"s});
   auto _eo_call_16 = cmp::Compare(uint8_t{200}, 100);
   fmt::Println(_eo_call_14, _eo_call_15, _eo_call_16);
-  auto _eo_call_17 = cmp::Or(slice<int64_t>::of({0, 0, 3, 4}));
-  auto _eo_call_18 = cmp::Or(slice<std::string>::of({""s, "x"s}));
-  auto _eo_call_19 = cmp::Or<std::string>(nullptr);
-  auto _eo_call_20 = cmp::Or(slice<Name>::of({Name{""s}, Name{"n"s}}));
-  fmt::Println(_eo_call_17, _eo_call_18, _eo_call_19, _eo_call_20 == Name{"n"s});
+  auto _eo_call_17 = math::Copysign(0, -1);
+  auto _eo_call_18 = math::Signbit(cmp::Or(slice<double>::of({_eo_call_17, 1})));
+  auto _eo_call_19 = cmp::Or(slice<double>::of({nan, 2}));
+  auto _eo_call_20 = math::Copysign(0, -1);
+  auto _eo_call_21 = cmp::Or(slice<double>::of({0.0, _eo_call_20}));
+  fmt::Println(_eo_call_18, _eo_call_19, _eo_call_21);
+  auto _eo_call_22 = cmp::Or(slice<int64_t>::of({0, 0, 3, 4}));
+  auto _eo_call_23 = cmp::Or(slice<std::string>::of({""s, "x"s}));
+  auto _eo_call_24 = cmp::Or<std::string>(nullptr);
+  auto _eo_call_25 = cmp::Or(slice<Name>::of({Name{""s}, Name{"n"s}}));
+  fmt::Println(_eo_call_22, _eo_call_23, _eo_call_24, _eo_call_25 == Name{"n"s});
 }
 
 void slicesPackage() {
@@ -232,10 +244,14 @@ void slicesPackage() {
   auto _eo_call_13 = slices::EqualFunc(slice<std::string>::of({"a"s}), slice<std::string>::of({"b"s}), fold);
   fmt::Println(_eo_call_12, _eo_call_13);
   auto byLen = [=](std::string x, int64_t y) mutable -> int64_t { return cmp::Compare(eo::len(x), y); };
-  auto _eo_call_14 = slices::CompareFunc(slice<std::string>::of({"ab"s, "c"s}), slice<int64_t>::of({2, 1}), byLen);
-  auto _eo_call_15 = slices::CompareFunc(slice<std::string>::of({"ab"s}), slice<int64_t>::of({3}), byLen);
-  auto _eo_call_16 = slices::CompareFunc(slice<std::string>::of({"ab"s}), slice<int64_t>::of({2, 0}), byLen);
-  fmt::Println(_eo_call_14, _eo_call_15, _eo_call_16);
+  auto five = [=](std::string x, int64_t y) mutable -> int64_t { return 5 * cmp::Compare(eo::len(x), y); };
+  auto _eo_call_14 = slices::CompareFunc(slice<std::string>::of({"abc"s}), slice<int64_t>::of({1}), five);
+  auto _eo_call_15 = slices::CompareFunc(slice<std::string>::of({"a"s, "b"s}), slice<int64_t>::of({1}), five);
+  fmt::Println(_eo_call_14, _eo_call_15);
+  auto _eo_call_16 = slices::CompareFunc(slice<std::string>::of({"ab"s, "c"s}), slice<int64_t>::of({2, 1}), byLen);
+  auto _eo_call_17 = slices::CompareFunc(slice<std::string>::of({"ab"s}), slice<int64_t>::of({3}), byLen);
+  auto _eo_call_18 = slices::CompareFunc(slice<std::string>::of({"ab"s}), slice<int64_t>::of({2, 0}), byLen);
+  fmt::Println(_eo_call_16, _eo_call_17, _eo_call_18);
   for (auto i = int64_t{0}; i < 50; i++) {
     auto x = eo::make_slice<int64_t>(pick(4));
     auto y = eo::make_slice<int64_t>(pick(4));
@@ -245,9 +261,9 @@ void slicesPackage() {
     for (auto j : eo::range(eo::len(y))) {
       eo::at(y, j) = pick(3);
     }
-    auto _eo_call_17 = slices::Compare(x, y);
-    auto _eo_call_18 = slices::Equal(x, y);
-    fmt::Print(_eo_call_17, _eo_call_18, " "s);
+    auto _eo_call_19 = slices::Compare(x, y);
+    auto _eo_call_20 = slices::Equal(x, y);
+    fmt::Print(_eo_call_19, _eo_call_20, " "s);
   }
   fmt::Println();
 }
@@ -363,6 +379,8 @@ void parseFloat() {
     show(s, 64);
     show(s, 32);
   }
+  show("0x1234567890abcdef12345p-10"s, 64);
+  show("0x1234567890abcdef12345p-10"s, 32);
   show("1.5"s, 16);
   show(strings::Repeat("9"s, 400), 64);
   show("0."s + strings::Repeat("0"s, 400) + "1"s, 64);
@@ -463,8 +481,25 @@ void unicodePredicates() {
     }
     fmt::Printf("%s %d %x\n"s, p.name, count, hash);
   }
-  for (auto [_eo_range_key, r] : eo::range(slice<int32_t>::of(
-         {97, 90, 53, 95, 32, 160, 170, 178, 189, 453, 768, 1632, 8232, 12288, 128512, -1, int32_t{1114112}}))) {
+  for (auto [_eo_range_key, r] : eo::range(slice<int32_t>::of({97,
+         90,
+         53,
+         95,
+         32,
+         160,
+         170,
+         178,
+         189,
+         453,
+         768,
+         1632,
+         8232,
+         12288,
+         128512,
+         -1,
+         int32_t{1114112},
+         int32_t{2147483647},
+         int32_t{-2147483648}}))) {
     fmt::Printf("%U"s, r);
     for (auto [_eo_range_key, p] : eo::range(predicates)) {
       if (p.is(r)) {

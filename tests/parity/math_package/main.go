@@ -77,6 +77,9 @@ func minMax() {
 	}
 	fmt.Println(math.Mod(7, -3), math.Mod(-7, 3), math.Mod(math.Inf(1), 2), math.Mod(2, math.Inf(-1)), math.Mod(1, 0))
 	fmt.Println(math.Nextafter(0, -1), math.Nextafter(1, 2), math.Nextafter(math.MaxFloat64, math.Inf(1)))
+	_, posFrac := math.Modf(math.Inf(1))
+	_, negFrac := math.Modf(math.Inf(-1))
+	fmt.Printf("%#x %#x %#x\n", math.Float64bits(posFrac), math.Float64bits(negFrac), math.Float64bits(math.Sqrt(-1)))
 	fmt.Printf("%#x %#x %#x %#x\n", math.Float64bits(math.Mod(1, 0)), math.Float64bits(math.Mod(math.Inf(-1), 1)), math.Float64bits(math.Mod(nan, 1)), math.Float64bits(math.Max(nan, 1)))
 }
 
@@ -96,6 +99,7 @@ func cmpPackage() {
 	fmt.Println(cmp.Compare(nan, 1.0), cmp.Compare(1.0, nan), cmp.Compare(nan, nan), cmp.Compare(0.0, math.Copysign(0, -1)))
 	fmt.Println(cmp.Less(nan, 1.0), cmp.Less(1.0, nan), cmp.Less(nan, nan), cmp.Less(1, 2), cmp.Less("b", "a"))
 	fmt.Println(cmp.Compare(Celsius(1.5), Celsius(-3)), cmp.Less(Name("x"), Name("y")), cmp.Compare(uint8(200), 100))
+	fmt.Println(math.Signbit(cmp.Or(math.Copysign(0, -1), 1)), cmp.Or(nan, 2), cmp.Or(0.0, math.Copysign(0, -1)))
 	fmt.Println(cmp.Or(0, 0, 3, 4), cmp.Or("", "x"), cmp.Or[string](), cmp.Or(Name(""), Name("n")) == "n")
 }
 
@@ -109,6 +113,8 @@ func slicesPackage() {
 	fold := func(x, y string) bool { return strings.EqualFold(x, y) }
 	fmt.Println(slices.EqualFunc([]string{"Go", "EO"}, []string{"go", "eo"}, fold), slices.EqualFunc([]string{"a"}, []string{"b"}, fold))
 	byLen := func(x string, y int) int { return cmp.Compare(len(x), y) }
+	five := func(x string, y int) int { return 5 * cmp.Compare(len(x), y) }
+	fmt.Println(slices.CompareFunc([]string{"abc"}, []int{1}, five), slices.CompareFunc([]string{"a", "b"}, []int{1}, five))
 	fmt.Println(slices.CompareFunc([]string{"ab", "c"}, []int{2, 1}, byLen), slices.CompareFunc([]string{"ab"}, []int{3}, byLen), slices.CompareFunc([]string{"ab"}, []int{2, 0}, byLen))
 	for i := 0; i < 50; i++ {
 		x := make([]int, pick(4))
@@ -147,6 +153,8 @@ func parseFloat() {
 		show(s, 64)
 		show(s, 32)
 	}
+	show("0x1234567890abcdef12345p-10", 64)
+	show("0x1234567890abcdef12345p-10", 32)
 	show("1.5", 16)
 	show(strings.Repeat("9", 400), 64)
 	show("0."+strings.Repeat("0", 400)+"1", 64)
@@ -226,7 +234,7 @@ func unicodePredicates() {
 		}
 		fmt.Printf("%s %d %x\n", p.name, count, hash)
 	}
-	for _, r := range []rune{'a', 'Z', '5', '_', ' ', '\u00a0', '\u00aa', '\u00b2', '\u00bd', '\u01c5', '\u0300', '\u0660', '\u2028', '\u3000', '\U0001F600', -1, unicode.MaxRune + 1} {
+	for _, r := range []rune{'a', 'Z', '5', '_', ' ', '\u00a0', '\u00aa', '\u00b2', '\u00bd', '\u01c5', '\u0300', '\u0660', '\u2028', '\u3000', '\U0001F600', -1, unicode.MaxRune + 1, math.MaxInt32, math.MinInt32} {
 		fmt.Printf("%U", r)
 		for _, p := range predicates {
 			if p.is(r) {

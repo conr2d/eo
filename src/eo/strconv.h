@@ -493,6 +493,8 @@ namespace detail {
     }
     auto value = F{0};
     auto format = r.hex ? std::chars_format::hex : std::chars_format::general;
+    // read_float accepted the number, so from_chars reads all of it: it takes the same decimal and
+    // hexadecimal forms, as strtod does.
     auto [end, ec] = std::from_chars(digits.data(), digits.data() + digits.size(), value, format);
     auto overflow = false;
     if (ec == std::errc::result_out_of_range) {
@@ -529,8 +531,8 @@ namespace detail {
 
 } // namespace detail
 
-// Go's strconv.ParseFloat: decimal and hexadecimal numbers in Go's syntax, with underscores only
-// after a base prefix, and "inf", "infinity", and "nan" in any case. A number out of range returns
+// Go's strconv.ParseFloat: decimal and hexadecimal numbers in Go's syntax, with underscores between
+// digits or after a base prefix, and "inf", "infinity", and "nan" in any case. A number out of range returns
 // an infinity and ErrRange.
 inline auto ParseFloat(std::string s, int64_t bitSize) -> std::tuple<double, error> {
   auto [f, n, fail] = detail::parse_float_prefix(s, bitSize);
