@@ -2421,7 +2421,7 @@ Not covered yet: `FS.Open` and `FS.ReadDir`, the `fs.File` and `fs.DirEntry` val
 
 ### The time package
 
-Go's `time` maps, in part, to the namespace `time` from `<eo/time.h>`, ported from Go 1.26's `time.go`, `format.go`, `format_rfc3339.go`, `zoneinfo.go`, `zoneinfo_read.go`, and `zoneinfo_unix.go`. Its code is in the Eo library, `time.cpp`.
+Go's `time` maps, in part, to the namespace `time` from `<eo/time.h>`, ported from Go 1.26's `time.go`, `format.go`, `format_rfc3339.go`, `zoneinfo.go`, `zoneinfo_read.go`, `zoneinfo_unix.go`, and `sys_unix.go`. Its code is in the Eo library, `time.cpp`.
 
 `Duration`, `Month`, and `Weekday` are [defined types](#defined-types) over `int64_t`, with Go's constants, such as `time::Second`, `time::March`, and `time::Saturday`. A constant duration follows [Constants of defined types](#constants-of-defined-types): `2 * time.Millisecond` is `time::Duration{2000000}`, and `time.Second` on its own is `time::Second`. `Time` is a struct with Go's unexported fields, `wall`, `ext`, and `loc`, so it is comparable and copyable as in Go, and `t == u` compares the monotonic reading and the `Location` pointer, as Go's `==` does. `*time.Location` is `ptr<time::Location>`, and `time::UTC` and `time::Local` point to the package's two locations, so `loc == time::UTC` is Go's comparison. Methods follow [Methods](#methods): `t.Format(time.RFC3339)` is `time::Time::Format(t, time::RFC3339)`, `t.UnmarshalJSON(b)` is `time::Time::UnmarshalJSON(ref(t), b)`, `d.Seconds()` is `time::Duration::Seconds(d)`, and `loc.String()` is `time::Location::String(loc)`. `fmt` prints each of them with its `String` method.
 
@@ -2444,15 +2444,15 @@ The port keeps Go's results, including those that overflow, its errors, such as 
 #### The time package not covered yet
 
 - the last two places where Go's `LoadLocation` looks: the tzdata that a program embeds with `time/tzdata`, and the `zoneinfo.zip` of `GOROOT`, which Go's toolchain installs. A zone that the system's tzdata lacks, such as `America/Godthab` on a system without Ubuntu's `tzdata-legacy`, is therefore unknown in C++ and found in Go;
-- `Timer`, `Ticker`, `After`, `AfterFunc`, and `Tick`. `NewTimer` and `NewTicker` still take a `std::chrono` duration and send a `std::chrono::system_clock::time_point` on `C`, as a provisional mapping;
+- `Timer`, `Ticker`, `After`, `AfterFunc`, and `Tick` ([#177](https://github.com/conr2d/eo/issues/177)). `NewTimer` and `NewTicker` still take a `std::chrono` duration and send a `std::chrono::system_clock::time_point` on `C`, as a provisional mapping;
 - `Time.AppendFormat`, `AppendText`, and `AppendBinary` append their whole result at once, where Go appends it in pieces. Both give the same slice, but when the pieces do not fit the capacity of `b`, Go writes those that fit into `b`'s array before it allocates, which another slice of that array can observe;
 - the `synctest` bubbles that `Since` and `Until` check, `ParseError`'s copies of its value, which only change what Go keeps alive, and the Windows, Plan 9, and Android ways of loading zones.
 
 ### The os and syscall packages, in part
 
-`<eo/os.h>` maps `os.Getenv`, `os.LookupEnv`, `os.Setenv`, and `os.Unsetenv`, and `os.SyscallError` with `NewSyscallError`, besides `os.Exit` (see [Program termination](#program-termination)) and `os.ExpandEnv`. `os.Setenv` returns a `*os.SyscallError` whose `Syscall` is `setenv` and whose `Err` is `EINVAL` for an empty key, a key with `=` or NUL, and a value with NUL, as Go does: `setenv: invalid argument`. The functions take a lock around the C library's environment, which is not safe for concurrent use.
+`<eo/os.h>` maps `os.Getenv`, `os.LookupEnv`, `os.Setenv`, and `os.Unsetenv`, and `os.SyscallError` with `NewSyscallError`, besides `os.Exit` (see [Program termination](#program-termination)) and `os.ExpandEnv`. `os.Setenv` returns a `*os.SyscallError` whose `Syscall` is `setenv` and whose `Err` is `EINVAL` for an empty key, a key with `=` or NUL, and a value with NUL, as Go does: `setenv: invalid argument`. The functions read and change the C library's environment, under a lock, because it is not safe for concurrent use. Go reads a copy that it takes on first use and changes only through its own `Setenv` and `Unsetenv`, so a variable that C or C++ code sets with `setenv` or `putenv` is seen here and not in Go.
 
-`<eo/syscall.h>` maps `syscall.Errno`, with `Error`, `Is`, `Temporary`, and `Timeout`, whose messages are those of Go's table for Linux on amd64, and `syscall.Getenv`, `Setenv`, and `Unsetenv`. `errors::Is(err, fs::ErrNotExist)` is true for an `Errno` of `ENOENT`, as in Go. The constants, such as `syscall.ENOENT`, are not declared, because C's `<cerrno>` defines their names as macros, which would replace them in any translation unit that includes it.
+`<eo/syscall.h>` maps `syscall.Errno`, with `Error`, `Is`, `Temporary`, and `Timeout`, whose messages are those of Go's table for Linux on amd64, and `syscall.Getenv`, `Setenv`, and `Unsetenv`. `errors::Is(err, fs::ErrNotExist)` is true for an `Errno` of `ENOENT`, as in Go. The constants, such as `syscall.ENOENT`, are not declared, because C's `<cerrno>` defines their names as macros, which would replace them in any translation unit that includes it ([#178](https://github.com/conr2d/eo/issues/178)).
 
 ### The io package
 

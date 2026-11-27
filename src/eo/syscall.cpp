@@ -5,6 +5,9 @@
 
 #include <cstdlib>
 #include <mutex>
+#include <string_view>
+
+using namespace std::string_view_literals;
 
 namespace eo::syscall {
 
@@ -17,6 +20,11 @@ namespace {
 } // namespace
 
 auto Getenv(const std::string& key) -> std::tuple<std::string, bool> {
+  // Go looks the key up in a table of the environment's entries split at their first '=', so an
+  // empty key, or one with '=' or NUL, which getenv would match against a prefix, is never found.
+  if (key.empty() || key.find_first_of("=\0"sv) != std::string::npos) {
+    return {std::string{}, false};
+  }
   std::lock_guard lock(envLock);
   if (auto* value = std::getenv(key.c_str())) {
     return {std::string(value), true};

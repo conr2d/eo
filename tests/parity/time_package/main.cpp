@@ -574,7 +574,8 @@ void locations() {
     "\x{03}"s,
     "\x{01}\x{00}"s,
     "\x{02}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}\x{00}"s,
-    "\x{01}\x{00}\x{00}\x{00}\x{0e}\x{d5}\x{0b}\x{a0}\x{e8}\x{00}\x{00}\x{00}\x{00}\x{ff}\x{ff}"s});
+    "\x{01}\x{00}\x{00}\x{00}\x{0e}\x{d5}\x{0b}\x{a0}\x{e8}\x{00}\x{00}\x{00}\x{00}\x{ff}\x{ff}"s,
+    "\x{01}\x{00}\x{00}\x{00}\x{0e}\x{d5}\x{0b}\x{a0}\x{e8}\x{80}\x{00}\x{00}\x{01}\x{ff}\x{ff}"s});
   for (auto [_eo_range_key, b] : eo::range(bad)) {
     time::Time u{};
     auto err = time::Time::UnmarshalBinary(ref(u), eo::bytes_from_string(b));
@@ -774,6 +775,14 @@ func<> eo_main() {
   if (auto err = os::Setenv("TZ"s, "America/New_York"s); err != nullptr) {
     panic(err);
   }
+  auto [v, ok] = os::LookupEnv("TZ"s);
+  auto _eo_call_0 = os::Getenv("TZ\x{00}x"s);
+  auto _eo_call_1 = os::Getenv("TZ="s);
+  auto _eo_call_2 = os::Setenv(""s, "x"s);
+  auto _eo_call_3 = os::Setenv("A=B"s, "x"s);
+  auto _eo_call_4 = os::Setenv("A"s, "x\x{00}"s);
+  auto _eo_call_5 = os::Unsetenv("EO_TIME_UNSET"s);
+  fmt::Println(v, ok, _eo_call_0 == ""s, _eo_call_1 == ""s, _eo_call_2, _eo_call_3, _eo_call_4, _eo_call_5);
   for (auto [_eo_range_key, name] : eo::range(slice<std::string>::of({"America/New_York"s,
          "Europe/London"s,
          "Asia/Kolkata"s,
@@ -788,15 +797,15 @@ func<> eo_main() {
          "Pacific/Kiritimati"s,
          "Europe/Moscow"s,
          "America/Nuuk"s}))) {
-    auto _eo_call_0 = load(name);
-    zones = eo::append(zones, {_eo_call_0});
+    auto _eo_call_6 = load(name);
+    zones = eo::append(zones, {_eo_call_6});
   }
-  auto _eo_call_1 = time::FixedZone(""s, 0);
-  auto _eo_call_2 = time::FixedZone("ABC"s, 19800);
-  auto _eo_call_3 = time::FixedZone(""s, -12345);
-  auto _eo_call_4 = time::FixedZone(""s, 50400);
-  auto _eo_call_5 = time::FixedZone("Z"s, -1);
-  zones = eo::append(zones, {time::UTC, time::Local, _eo_call_1, _eo_call_2, _eo_call_3, _eo_call_4, _eo_call_5});
+  auto _eo_call_7 = time::FixedZone(""s, 0);
+  auto _eo_call_8 = time::FixedZone("ABC"s, 19800);
+  auto _eo_call_9 = time::FixedZone(""s, -12345);
+  auto _eo_call_10 = time::FixedZone(""s, 50400);
+  auto _eo_call_11 = time::FixedZone("Z"s, -1);
+  zones = eo::append(zones, {time::UTC, time::Local, _eo_call_7, _eo_call_8, _eo_call_9, _eo_call_10, _eo_call_11});
   parsing();
   formatting();
   instants();

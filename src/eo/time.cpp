@@ -403,8 +403,12 @@ namespace {
     return {int64_t(ts.tv_sec), int32_t(ts.tv_nsec), runtimeNano()};
   }
 
-  // Go's startNano, so that a monotonic reading is never zero.
-  const int64_t startNano = runtimeNano() - 1;
+  // Go's startNano, so that a monotonic reading is never zero. It is set on first use rather than
+  // in this file's static initialization, which another translation unit's may precede.
+  auto startNano() -> int64_t {
+    static const int64_t start = runtimeNano() - 1;
+    return start;
+  }
 
   auto norm(int64_t hi, int64_t lo, int64_t base) -> std::tuple<int64_t, int64_t> {
     if (lo < 0) {
@@ -2317,8 +2321,16 @@ namespace {
     return -1;
   }
 
-  inline error errBadData = errors::New("malformed time zone information");
-  inline error errLocation = errors::New("time: invalid location name");
+  // errBadData and errLocation are made on first use, as startNano is.
+  auto errBadData() -> error {
+    static const error e = errors::New("malformed time zone information");
+    return e;
+  }
+
+  auto errLocation() -> error {
+    static const error e = errors::New("time: invalid location name");
+    return e;
+  }
 
   // Go's time.fileSizeError.
   struct fileSizeError : eo::defined<fileSizeError, std::string> {
@@ -2394,23 +2406,25 @@ namespace {
     return {std::move(ret), err};
   }
 
-  auto get4(sv b) -> int64_t {
-    if (b.size() < 4) {
+  // get4, get2, preadn, and loadTzinfoFromZip work on slice<uint8_t>, as Go's work on []byte, so that
+  // a malformed zip file panics where Go's slicing does, with Go's message.
+  auto get4(slice<uint8_t> b) -> int64_t {
+    if (eo::len(b) < 4) {
       return 0;
     }
-    return int64_t(uint8_t(b[0])) | int64_t(uint8_t(b[1])) << 8 | int64_t(uint8_t(b[2])) << 16 |
-      int64_t(uint8_t(b[3])) << 24;
+    return int64_t(eo::at(b, 0)) | int64_t(eo::at(b, 1)) << 8 | int64_t(eo::at(b, 2)) << 16 |
+      int64_t(eo::at(b, 3)) << 24;
   }
 
-  auto get2(sv b) -> int64_t {
-    if (b.size() < 2) {
+  auto get2(slice<uint8_t> b) -> int64_t {
+    if (eo::len(b) < 2) {
       return 0;
     }
-    return int64_t(uint8_t(b[0])) | int64_t(uint8_t(b[1])) << 8;
+    return int64_t(eo::at(b, 0)) | int64_t(eo::at(b, 1)) << 8;
   }
 
   // Go's preadn: reads len(buf) bytes at off, or at off from the end when off is negative.
-  auto preadn(int fd, std::string& buf, int64_t off) -> error {
+  auto preadn(int fd, slice<uint8_t> buf, int64_t off) -> error {
     auto whence = SEEK_SET;
     if (off < 0) {
       whence = SEEK_END;
@@ -2418,16 +2432,15 @@ namespace {
     if (::lseek(fd, off, whence) < 0) {
       return errno_error(errno);
     }
-    size_t done = 0;
-    while (done < buf.size()) {
-      auto [m, err] = read_file(fd, buf.data() + done, buf.size() - done);
+    while (eo::len(buf) > 0) {
+      auto [m, err] = read_file(fd, reinterpret_cast<char*>(buf.data()), size_t(eo::len(buf)));
       if (m <= 0) {
         if (err == nullptr) {
           return errors::New("short read");
         }
         return err;
       }
-      done += size_t(m);
+      buf = eo::subslice(buf, m);
     }
     return nullptr;
   }
@@ -2437,6 +2450,7 @@ namespace {
     if (err != nullptr) {
       return {std::string{}, err};
     }
+    // Go's defer closefd(fd).
     struct closer {
       int fd;
       ~closer() {
@@ -2454,50 +2468,54 @@ namespace {
       return std::tuple<std::string, error>{std::string{}, errors::New("corrupt zip file " + zipfile)};
     };
 
-    auto buf = std::string(size_t(ztailsize), '\0');
+    auto buf = eo::make_slice<uint8_t>(ztailsize);
     if (auto e = preadn(fd, buf, -ztailsize); e != nullptr || get4(buf) != zecheader) {
       return corrupt();
     }
-    auto n = get2(sv(buf).substr(10));
-    auto size = get4(sv(buf).substr(12));
-    auto off = get4(sv(buf).substr(16));
+    auto n = get2(eo::subslice(buf, 10));
+    auto size = get4(eo::subslice(buf, 12));
+    auto off = get4(eo::subslice(buf, 16));
 
-    buf = std::string(size_t(size), '\0');
+    buf = eo::make_slice<uint8_t>(size);
     if (auto e = preadn(fd, buf, off); e != nullptr) {
       return corrupt();
     }
-    auto rest = sv(buf);
+
     for (int64_t i = 0; i < n; i++) {
-      if (get4(rest) != zcheader) {
+      if (get4(buf) != zcheader) {
         break;
       }
-      auto meth = get2(rest.substr(10));
-      auto fsize = get4(rest.substr(24));
-      auto namelen = get2(rest.substr(28));
-      auto xlen = get2(rest.substr(30));
-      auto fclen = get2(rest.substr(32));
-      auto foff = get4(rest.substr(42));
-      auto zname = rest.substr(46, size_t(namelen));
-      rest = rest.substr(size_t(46 + namelen + xlen + fclen));
-      if (zname != name) {
+      auto meth = get2(eo::subslice(buf, 10));
+      auto fsize = get4(eo::subslice(buf, 24));
+      auto namelen = get2(eo::subslice(buf, 28));
+      auto xlen = get2(eo::subslice(buf, 30));
+      auto fclen = get2(eo::subslice(buf, 32));
+      auto foff = get4(eo::subslice(buf, 42));
+      auto zname = eo::subslice(buf, 46, 46 + namelen);
+      buf = eo::subslice(buf, 46 + namelen + xlen + fclen);
+      if (eo::string_from_bytes(zname) != name) {
         continue;
       }
       if (meth != 0) {
         return {std::string{}, errors::New("unsupported compression for " + name + " in " + zipfile)};
       }
-      auto header = std::string(size_t(zheadersize + namelen), '\0');
-      if (auto e = preadn(fd, header, foff); e != nullptr || get4(header) != zheader ||
-          get2(sv(header).substr(8)) != meth || get2(sv(header).substr(26)) != namelen ||
-          sv(header).substr(30, size_t(namelen)) != name) {
+
+      buf = eo::make_slice<uint8_t>(zheadersize + namelen);
+      if (auto e = preadn(fd, buf, foff); e != nullptr || get4(buf) != zheader || get2(eo::subslice(buf, 8)) != meth ||
+          get2(eo::subslice(buf, 26)) != namelen ||
+          eo::string_from_bytes(eo::subslice(buf, 30, 30 + namelen)) != name) {
         return corrupt();
       }
-      xlen = get2(sv(header).substr(28));
-      auto data = std::string(size_t(fsize), '\0');
-      if (auto e = preadn(fd, data, foff + 30 + namelen + xlen); e != nullptr) {
+      xlen = get2(eo::subslice(buf, 28));
+
+      buf = eo::make_slice<uint8_t>(fsize);
+      if (auto e = preadn(fd, buf, foff + 30 + namelen + xlen); e != nullptr) {
         return corrupt();
       }
-      return {std::move(data), nullptr};
+
+      return {eo::string_from_bytes(buf), nullptr};
     }
+
     return {std::string{}, syscall::Errno{syscall::detail::enoent}};
   }
 
@@ -2768,17 +2786,18 @@ auto LoadLocation(const std::string& name) -> std::tuple<ptr<Location>, error> {
     return {Local, nullptr};
   }
   if (containsDotDot(name) || name[0] == '/' || name[0] == '\\') {
-    return {nullptr, errLocation};
+    return {nullptr, errLocation()};
   }
   static const auto zoneinfo = std::get<0>(syscall::Getenv("ZONEINFO"));
   auto firstErr = error{};
   if (!zoneinfo.empty()) {
     if (auto [zoneData, err] = loadTzinfoFromDirOrZip(zoneinfo, name); err == nullptr) {
-      auto [z, e] = LoadLocationFromTZData(name, eo::bytes_from_string(zoneData));
-      if (e == nullptr) {
+      if (auto [z, e] = LoadLocationFromTZData(name, eo::bytes_from_string(zoneData)); e == nullptr) {
         return {z, nullptr};
       }
-      firstErr = e;
+      // Go's inner err shadows the outer one, which is nil here, so firstErr stays nil and the
+      // system's error is returned.
+      firstErr = err;
     } else if (!is_enoent(err)) {
       firstErr = err;
     }
@@ -2796,12 +2815,12 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
   auto d = dataIO{bytes, false};
 
   if (auto magic = d.read(4); magic != "TZif") {
-    return {nullptr, errBadData};
+    return {nullptr, errBadData()};
   }
 
   int64_t version = 0;
   if (auto p = d.read(16); p.size() != 16) {
-    return {nullptr, errBadData};
+    return {nullptr, errBadData()};
   } else {
     switch (p[0]) {
     case 0:
@@ -2814,7 +2833,7 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
       version = 3;
       break;
     default:
-      return {nullptr, errBadData};
+      return {nullptr, errBadData()};
     }
   }
 
@@ -2830,7 +2849,7 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
   for (auto& ni : n) {
     auto [nn, ok] = d.big4();
     if (!ok) {
-      return {nullptr, errBadData};
+      return {nullptr, errBadData()};
     }
     ni = int64_t(nn);
   }
@@ -2846,7 +2865,7 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
     for (auto& ni : n) {
       auto [nn, ok] = d.big4();
       if (!ok) {
-        return {nullptr, errBadData};
+        return {nullptr, errBadData()};
       }
       ni = int64_t(nn);
     }
@@ -2866,7 +2885,7 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
   auto isutc = d.read(n[NUTCLocal]);
 
   if (d.error) {
-    return {nullptr, errBadData};
+    return {nullptr, errBadData()};
   }
 
   auto extend = std::string{};
@@ -2877,23 +2896,23 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
 
   auto nzone = n[NZone];
   if (nzone == 0) {
-    return {nullptr, errBadData};
+    return {nullptr, errBadData()};
   }
   auto zones = eo::make_slice<detail::zone>(nzone);
   for (auto& zone : zones) {
     auto [nz, ok] = zonedata.big4();
     if (!ok) {
-      return {nullptr, errBadData};
+      return {nullptr, errBadData()};
     }
     zone.offset = int64_t(int32_t(nz));
     auto [b, okb] = zonedata.byte();
     if (!okb) {
-      return {nullptr, errBadData};
+      return {nullptr, errBadData()};
     }
     zone.isDST = b != 0;
     std::tie(b, okb) = zonedata.byte();
     if (!okb || int64_t(b) >= int64_t(abbrev.size())) {
-      return {nullptr, errBadData};
+      return {nullptr, errBadData()};
     }
     zone.name = byteString(abbrev.substr(b));
   }
@@ -2905,19 +2924,19 @@ auto LoadLocationFromTZData(const std::string& name, slice<uint8_t> data) -> std
     if (!is64) {
       auto [n4, ok] = txtimes.big4();
       if (!ok) {
-        return {nullptr, errBadData};
+        return {nullptr, errBadData()};
       }
       when = int64_t(int32_t(n4));
     } else {
       auto [n8, ok] = txtimes.big8();
       if (!ok) {
-        return {nullptr, errBadData};
+        return {nullptr, errBadData()};
       }
       when = int64_t(n8);
     }
     t.when = when;
     if (int64_t(uint8_t(txzones[size_t(i)])) >= eo::len(zones)) {
-      return {nullptr, errBadData};
+      return {nullptr, errBadData()};
     }
     t.index = uint8_t(txzones[size_t(i)]);
     if (i < int64_t(isstd.size())) {
@@ -3269,7 +3288,7 @@ auto Time::UnmarshalBinary(ptr<Time> t, slice<uint8_t> data) -> error {
   }
 
   *t = Time{};
-  t->wall = uint64_t(uint32_t(ns));
+  t->wall = uint64_t(int64_t(ns));
   t->ext = s;
 
   if (offset == -1 * 60) {
@@ -3455,11 +3474,14 @@ auto ParseError::Error(ptr<ParseError> e) -> std::string {
 // Functions
 
 auto Now() -> Time {
+  // startNano is read first, so that it precedes the reading below, as Go's is set at package
+  // initialization.
+  auto start = startNano();
   auto [sec, nsec, mono] = runtimeNow();
   if (mono == 0) {
     return Time{uint64_t(uint32_t(nsec)), sec + unixToInternal, Local};
   }
-  mono -= startNano;
+  mono -= start;
   sec += unixToInternal - minWall;
   if (uint64_t(sec) >> 33 != 0) {
     return Time{uint64_t(uint32_t(nsec)), sec + minWall, Local};
@@ -3469,14 +3491,14 @@ auto Now() -> Time {
 
 auto Since(Time t) -> Duration {
   if ((t.wall & hasMonotonic) != 0) {
-    return subMono(runtimeNano() - startNano, t.ext);
+    return subMono(runtimeNano() - startNano(), t.ext);
   }
   return Time::Sub(Now(), t);
 }
 
 auto Until(Time t) -> Duration {
   if ((t.wall & hasMonotonic) != 0) {
-    return subMono(t.ext, runtimeNano() - startNano);
+    return subMono(t.ext, runtimeNano() - startNano());
   }
   return Time::Sub(t, Now());
 }

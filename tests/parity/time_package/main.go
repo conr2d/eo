@@ -326,7 +326,8 @@ func locations() {
 	var zero time.Time
 	fmt.Println(zero, zero.IsZero(), zero.Location(), zero.GoString(), zero.Unix(), zero.Weekday(), zero.YearDay())
 	bad := []string{"", "\x03", "\x01\x00", "\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-		"\x01\x00\x00\x00\x0e\xd5\x0b\xa0\xe8\x00\x00\x00\x00\xff\xff"}
+		"\x01\x00\x00\x00\x0e\xd5\x0b\xa0\xe8\x00\x00\x00\x00\xff\xff",
+		"\x01\x00\x00\x00\x0e\xd5\x0b\xa0\xe8\x80\x00\x00\x01\xff\xff"}
 	for _, b := range bad {
 		var u time.Time
 		err := u.UnmarshalBinary([]byte(b))
@@ -449,6 +450,9 @@ func main() {
 	if err := os.Setenv("TZ", "America/New_York"); err != nil {
 		panic(err)
 	}
+	v, ok := os.LookupEnv("TZ")
+	fmt.Println(v, ok, os.Getenv("TZ\x00x") == "", os.Getenv("TZ=") == "", os.Setenv("", "x"), os.Setenv("A=B", "x"),
+		os.Setenv("A", "x\x00"), os.Unsetenv("EO_TIME_UNSET"))
 	for _, name := range []string{"America/New_York", "Europe/London", "Asia/Kolkata", "Australia/Lord_Howe",
 		"Pacific/Chatham", "America/Sao_Paulo", "Africa/Casablanca", "Antarctica/Troll", "Europe/Dublin",
 		"America/St_Johns", "Asia/Tehran", "Pacific/Kiritimati", "Europe/Moscow", "America/Nuuk"} {
