@@ -27,6 +27,7 @@ struct toyCurve {
 
   ptr<elliptic::CurveParams> params{};
   int64_t calls{};
+  int64_t reads{};
 
   auto operator==(const toyCurve&) const -> bool = default;
 
@@ -73,6 +74,7 @@ struct failReader {
 };
 
 auto toyCurve::Params(ptr<toyCurve> c) -> ptr<elliptic::CurveParams> {
+  c->reads++;
   return c->params;
 }
 
@@ -206,8 +208,11 @@ void keys() {
     auto _eo_call_0 = big::Int::Cmp(priv->PublicKey.X, wantX) == 0;
     auto _eo_call_1 = big::Int::Cmp(priv->PublicKey.Y, wantY) == 0;
     fmt::Println(bits, inRange, _eo_call_0, _eo_call_1);
-    // The reader passed in is ignored, and ScalarBaseMult is called once, before the check above.
-    fmt::Println(cr->reads, c->calls);
+    // The reader passed in is ignored, ScalarBaseMult is called once, before the check above, and
+    // Params is called once to pick the curve's implementation and once for each draw of D, which
+    // is a single draw for a large N but for a negligible chance.
+    fmt::Println(cr->reads, c->calls, c->reads >= 2, bits < 61 || c->reads == 2);
+    c->reads = 0;
     auto _eo_call_2 = priv->PublicKey.Curve == elliptic::Curve(c);
     auto _eo_call_3 = priv->PublicKey.Curve.Params()->Name;
     auto _eo_call_4 = priv->PublicKey.Curve.Params()->BitSize;

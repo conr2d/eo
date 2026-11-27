@@ -20,7 +20,8 @@
 // Go's crypto/rand: Reader and Read, ported from Go 1.26's rand.go and the parts of
 // crypto/internal/rand and crypto/internal/sysrand that they call outside FIPS 140 mode. The bytes
 // come from getrandom(2), as Go's do on Linux. Go falls back to /dev/urandom on kernels before 3.17,
-// and Eo does not.
+// and Eo does not. Go also prints a warning to stderr when its first read blocks for a minute waiting
+// for entropy, and Eo does not.
 
 namespace eo::rand {
 
@@ -38,9 +39,11 @@ namespace detail {
         if (errno == EINTR) {
           continue;
         }
+        // errno is saved before the message is built, which may allocate.
+        auto err = errno;
         eo::runtime::fatal_error(
           std::string("crypto/rand: failed to read random data (see https://go.dev/issue/66821): ") +
-          std::strerror(errno));
+          std::strerror(err));
       }
       p += got;
       n -= static_cast<size_t>(got);
@@ -48,7 +51,8 @@ namespace detail {
   }
 
   // Go's crypto/internal/rand.reader, the dynamic type of the default Reader. Its Read never fails
-  // and always fills b.
+  // and always fills b. Go's embeds the interface drbg.DefaultReader, which reflect would show as a
+  // field, and Eo's has none.
   struct reader {
     static constexpr std::string_view _eo_name = "rand.reader";
 

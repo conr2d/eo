@@ -20,9 +20,13 @@ import (
 type toyCurve struct {
 	params *elliptic.CurveParams
 	calls  int
+	reads  int
 }
 
-func (c *toyCurve) Params() *elliptic.CurveParams { return c.params }
+func (c *toyCurve) Params() *elliptic.CurveParams {
+	c.reads++
+	return c.params
+}
 
 func (c *toyCurve) IsOnCurve(x, y *big.Int) bool {
 	twice := new(big.Int).Lsh(x, 1)
@@ -146,8 +150,11 @@ func keys() {
 		inRange := d.Sign() > 0 && d.Cmp(c.params.N) < 0
 		wantX, wantY := c.ScalarMult(c.params.Gx, c.params.Gy, d.Bytes())
 		fmt.Println(bits, inRange, priv.X.Cmp(wantX) == 0, priv.Y.Cmp(wantY) == 0)
-		// The reader passed in is ignored, and ScalarBaseMult is called once, before the check above.
-		fmt.Println(cr.reads, c.calls)
+		// The reader passed in is ignored, ScalarBaseMult is called once, before the check above, and
+		// Params is called once to pick the curve's implementation and once for each draw of D, which
+		// is a single draw for a large N but for a negligible chance.
+		fmt.Println(cr.reads, c.calls, c.reads >= 2, bits < 61 || c.reads == 2)
+		c.reads = 0
 		fmt.Println(priv.PublicKey.Curve == elliptic.Curve(c), priv.Curve.Params().Name, priv.Params().BitSize)
 		fmt.Println(priv.IsOnCurve(priv.X, priv.Y))
 	}

@@ -91,6 +91,10 @@ namespace detail {
 // from crypto/rand's default reader.
 inline auto GenerateKey(elliptic::Curve c, io::Reader r) -> std::tuple<ptr<PrivateKey>, error> {
   r = rand::detail::CustomReader(r);
+
+  // Go compares c.Params() with the parameters of the NIST curves here, which Eo does not map, so
+  // every curve takes the legacy path. The call is kept, because the curve can observe it.
+  c.Params();
   return detail::generateLegacy(c, r);
 }
 
