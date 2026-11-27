@@ -157,6 +157,21 @@ eo_add_parity_case(strconv_package)
 eo_add_parity_case(hex_package)
 eo_add_parity_case(subtle_package)
 eo_add_parity_case(crypto_ecdsa)
+eo_add_parity_case(embed_files)
+set(embed_files_dir ${CMAKE_CURRENT_SOURCE_DIR}/embed_files)
+eo_embed(eo_parity_embed_files VARIABLE greeting BASE_DIR ${embed_files_dir} FILES hello.txt)
+eo_embed(eo_parity_embed_files VARIABLE raw BASE_DIR ${embed_files_dir} FILES data/sub/b.bin)
+eo_embed(
+  eo_parity_embed_files
+  VARIABLE
+  files
+  BASE_DIR
+  ${embed_files_dir}
+  FILES
+  hello.txt
+  data/a.txt
+  data/empty.txt
+  data/sub/b.bin)
 eo_add_parity_case(unsafe_pointers)
 eo_add_parity_case(unsafe_slices)
 eo_add_parity_case(sql_driver)

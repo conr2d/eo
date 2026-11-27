@@ -1,0 +1,37 @@
+greeting "hello, embed\n"
+raw 26 "bytes \x00\xff\x7f\x80 \"quoted\" \\ end\n"
+"hello.txt": 13 bytes "hello, embed\n" (nil false)
+"data/a.txt": 5 bytes "alpha" (nil false)
+"data/empty.txt": 0 bytes "" (nil false)
+"data/sub/b.bin": 26 bytes "bytes \x00\xff\x7f\x80 \"quoted\" \\ end\n" (nil false)
+"data": error read data: is a directory (path error true, not exist false)
+"data/sub": error read data/sub: is a directory (path error true, not exist false)
+".": error read .: is a directory (path error true, not exist false)
+"data/": error open data/: file does not exist (path error true, not exist true)
+"missing.txt": error open missing.txt: file does not exist (path error true, not exist true)
+"data/missing": error open data/missing: file does not exist (path error true, not exist true)
+"/hello.txt": error open /hello.txt: file does not exist (path error true, not exist true)
+"./hello.txt": error open ./hello.txt: file does not exist (path error true, not exist true)
+"data//a.txt": error open data//a.txt: file does not exist (path error true, not exist true)
+"data/../hello.txt": error open data/../hello.txt: file does not exist (path error true, not exist true)
+"": error open : file does not exist (path error true, not exist true)
+"hello.txt/": error open hello.txt/: file does not exist (path error true, not exist true)
+"Hello.txt": error open Hello.txt: file does not exist (path error true, not exist true)
+"data/sub/b.bin/x": error open data/sub/b.bin/x: file does not exist (path error true, not exist true)
+"\xff": error open ÿ: file does not exist (path error true, not exist true)
+"hello.txt": error open hello.txt: file does not exist (path error true, not exist true)
+".": error read .: is a directory (path error true, not exist false)
+raw "Bytes", file "bytes"
+again "bytes"
+true false true
+ValidPath("a") = true
+ValidPath("a/b") = true
+ValidPath("a/./b") = false
+ValidPath("a/../b") = false
+ValidPath("a//b") = false
+ValidPath("/a") = false
+ValidPath("a/") = false
+ValidPath("..") = false
+ValidPath("\xff") = false
+read x: invalid argument true false
+invalid argument permission denied file already exists file does not exist file already closed

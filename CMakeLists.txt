@@ -21,6 +21,9 @@ if(EO_SANITIZE)
   add_link_options(-fsanitize=${EO_SANITIZE})
 endif()
 
+# eo_embed(), which compiles the files of a //go:embed directive into a target.
+include(cmake/EoEmbed.cmake)
+
 add_subdirectory(src)
 
 # A project that adds Eo with add_subdirectory(), such as a port that links eo::eo, gets the library
