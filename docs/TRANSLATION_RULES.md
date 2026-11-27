@@ -2392,6 +2392,33 @@ Go's `database/sql/driver` maps to the namespace `driver` from `<eo/database/sql
 
 `driver.Value` is a defined type over the empty interface, so it is an [interface](#interface-values) with no methods, `driver::Value`, whose name is `driver.Value`. It holds any value and compares as `any` does, so `return h[:], nil` in a method that returns `(driver.Value, error)` is `return {eo::subslice(h, 0), nullptr};`, and `case nil:` of a type switch on it is `_eo_type_switch == nullptr`. Comparing it with an `any` converts the `any`, as in `v == driver::Value(a)`. `driver.Valuer` is the interface `driver::Valuer` with the method `Value() (Value, error)`.
 
+### The embed and io/fs packages
+
+Go's `embed` maps to the namespace `embed` from `<eo/embed.h>`, and `io/fs`, in part, to the namespace `fs` from `<eo/io/fs.h>`. Both are ported from Go 1.26.
+
+A package-level variable with a `//go:embed` directive gets its files from the build, as the Go toolchain compiles them into the program. The translation of the package calls the CMake function `eo_embed()` once per variable, with the target that compiles the package, the package namespace, the variable's name, the directory of the Go package, and the files that the directive's patterns match, each relative to that directory, as `go list -json` reports them in `EmbedFiles`:
+
+```cmake
+eo_embed(optimism NAMESPACE github_com_ethereum_go_ethereum_crypto_kzg4844 VARIABLE content
+  BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/upstream/op-geth/crypto/kzg4844 FILES trusted_setup.json)
+```
+
+`NAMESPACE` is omitted for package `main`, which is translated in the global namespace. `eo_embed()` generates a source that defines the function `_eo_embed_<variable>()` in that namespace, which returns the files as a `std::span<const eo::embed::file>`, each with its name and its contents. The source copies each file into the object with the assembler's `.incbin` directive, so the size of a file does not slow the compiler, and it needs an ELF target with GCC or Clang. The package header declares the function next to the variable, and the variable calls it in its initializer, not in `eo_init`, because Go's embedded variables have their values before any package is initialized:
+
+| Go declaration | Translation |
+|---|---|
+| `//go:embed f`<br>`var s string` | `auto _eo_embed_s() -> std::span<const eo::embed::file>;`<br>`inline std::string s = embed::string_of(_eo_embed_s());` |
+| `//go:embed f`<br>`var b []byte` | `auto _eo_embed_b() -> std::span<const eo::embed::file>;`<br>`inline slice<uint8_t> b = embed::bytes_of(_eo_embed_b());` |
+| `//go:embed f d`<br>`var files embed.FS` | `auto _eo_embed_files() -> std::span<const eo::embed::file>;`<br>`inline embed::FS files = embed::FS(_eo_embed_files());` |
+
+In package `main` the variables are not `inline`. A `[]byte` variable holds its own copy of the contents, as in Go, so the program may change it.
+
+`embed::FS` is a comparable struct, and its zero value, `embed::FS{}`, holds no files. It lists the files and every directory above them, sorted as Go sorts them. `f.ReadFile(name)` is `embed::FS::ReadFile(f, name)`, which returns a new `slice<uint8_t>` with the contents and nil. It returns a `*fs.PathError` whose `Op` is `open` and whose `Err` is `fs::ErrNotExist` for a name that `fs::ValidPath` rejects or that names nothing, and one whose `Op` is `read` and whose `Err` says `is a directory` for a directory, including `.`, as Go's does.
+
+`<eo/io/fs.h>` maps the errors `ErrInvalid`, `ErrPermission`, `ErrExist`, `ErrNotExist`, and `ErrClosed`, the struct `PathError`, with its fields `Op`, `Path`, and `Err` and its methods `Error`, `Unwrap`, and `Timeout`, and `ValidPath`. `pe.Error()` of a `*fs.PathError` is `fs::PathError::Error(pe)`, as in [Methods](#methods).
+
+Not covered yet: `FS.Open` and `FS.ReadDir`, the `fs.File` and `fs.DirEntry` values they return, and the use of an `embed.FS` as an `fs.FS`; the truncated SHA-256 hash that Go records for each embedded file; and the rest of `io/fs`, such as the interfaces `FS`, `File`, `FileInfo`, and `DirEntry`, `FileMode`, and the functions `ReadFile`, `ReadDir`, `Glob`, `Sub`, and `WalkDir`. `eo_embed()` does not expand the patterns of a directive: the translation lists the files.
+
 ### The io package
 
 Go's `io` maps, in part, to the namespace `io` from `<eo/io.h>`. It covers:
