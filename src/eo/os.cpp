@@ -83,8 +83,8 @@ auto ExpandEnv(const std::string& s) -> std::string {
       // Invalid expansion syntax is consumed, matching Go's os.Expand.
     } else if (name.empty()) {
       result += '$';
-    } else if (auto* value = std::getenv(std::string{name}.c_str())) {
-      result += value;
+    } else {
+      result += Getenv(std::string{name});
     }
 
     j += width;

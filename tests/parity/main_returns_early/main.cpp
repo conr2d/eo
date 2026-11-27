@@ -9,9 +9,9 @@ using namespace eo;
 func<> eo_main() {
   go([]() -> func<> {
     for (;;) {
-      co_await time::Sleep(std::chrono::milliseconds{1});
+      co_await time::Sleep(time::Millisecond);
     }
   });
-  co_await time::Sleep(std::chrono::milliseconds{10});
+  co_await time::Sleep(time::Duration{10000000});
   fmt::Println("main returns"s);
 }

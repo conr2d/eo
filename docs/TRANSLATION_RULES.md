@@ -2419,6 +2419,41 @@ In package `main` the variables are not `inline`. A `[]byte` variable holds its 
 
 Not covered yet: `FS.Open` and `FS.ReadDir`, the `fs.File` and `fs.DirEntry` values they return, and the use of an `embed.FS` as an `fs.FS`; the truncated SHA-256 hash that Go records for each embedded file; and the rest of `io/fs`, such as the interfaces `FS`, `File`, `FileInfo`, and `DirEntry`, `FileMode`, and the functions `ReadFile`, `ReadDir`, `Glob`, `Sub`, and `WalkDir`. `eo_embed()` does not expand the patterns of a directive: the translation lists the files. It also rejects a file name with `|`, a newline, a carriage return, or a tab, and a name with `;` cannot be passed in a CMake list, though Go embeds such files.
 
+### The time package
+
+Go's `time` maps, in part, to the namespace `time` from `<eo/time.h>`, ported from Go 1.26's `time.go`, `format.go`, `format_rfc3339.go`, `zoneinfo.go`, `zoneinfo_read.go`, and `zoneinfo_unix.go`. Its code is in the Eo library, `time.cpp`.
+
+`Duration`, `Month`, and `Weekday` are [defined types](#defined-types) over `int64_t`, with Go's constants, such as `time::Second`, `time::March`, and `time::Saturday`. A constant duration follows [Constants of defined types](#constants-of-defined-types): `2 * time.Millisecond` is `time::Duration{2000000}`, and `time.Second` on its own is `time::Second`. `Time` is a struct with Go's unexported fields, `wall`, `ext`, and `loc`, so it is comparable and copyable as in Go, and `t == u` compares the monotonic reading and the `Location` pointer, as Go's `==` does. `*time.Location` is `ptr<time::Location>`, and `time::UTC` and `time::Local` point to the package's two locations, so `loc == time::UTC` is Go's comparison. Methods follow [Methods](#methods): `t.Format(time.RFC3339)` is `time::Time::Format(t, time::RFC3339)`, `t.UnmarshalJSON(b)` is `time::Time::UnmarshalJSON(ref(t), b)`, `d.Seconds()` is `time::Duration::Seconds(d)`, and `loc.String()` is `time::Location::String(loc)`. `fmt` prints each of them with its `String` method.
+
+It covers these names:
+
+- `Duration`, with `String`, `Nanoseconds`, `Microseconds`, `Milliseconds`, `Seconds`, `Minutes`, `Hours`, `Truncate`, `Round`, and `Abs`, the constants `Nanosecond` to `Hour`, and `ParseDuration`;
+- `Month` and `Weekday`, with `String` and their constants;
+- `Time`, with every method of Go 1.26: the comparisons, `Date`, `Clock`, the fields of the date and the clock, `ISOWeek`, `YearDay`, `Add`, `Sub`, `AddDate`, `UTC`, `Local`, `In`, `Location`, `Zone`, `ZoneBounds`, `IsDST`, the `Unix` forms, `Truncate`, `Round`, `String`, `GoString`, `Format`, `AppendFormat`, and the binary, gob, JSON, and text marshalers;
+- `Now`, `Since`, `Until`, `Unix`, `UnixMilli`, `UnixMicro`, `Date`, `Parse`, `ParseInLocation`, the layout constants, and `ParseError`;
+- `Location`, `UTC`, `Local`, `FixedZone`, `LoadLocation`, and `LoadLocationFromTZData`;
+- `Sleep`, which takes a `Duration`: `time.Sleep(d)` is `co_await time::Sleep(d)`.
+
+The port keeps Go's results, including those that overflow, its errors, such as `parsing time "x" as "2006": cannot parse "x" as "2006"` from a `*time.ParseError`, and its panics, such as `time: missing Location in call to Date`:
+
+- `Now` reads `CLOCK_REALTIME` and `CLOCK_MONOTONIC`. A `Time` from `Now` has a monotonic reading, which `Sub`, `Since`, `Until`, and the comparisons use, which `String` prints as ` m=+0.000012345`, and which `Round(0)`, `In`, `UTC`, and `Local` strip, as in Go.
+- `Local` is loaded when a `Time` first needs it, from `TZ` or `/etc/localtime` as Go does on Unix, so a program that sets `TZ` with `os::Setenv` before that sees the new zone. `LoadLocation` reads the directory or zip file that `ZONEINFO` names, then `/usr/share/zoneinfo/` and Go's other Unix directories. Its errors are Go's: `unknown time zone X`, `time: invalid location name`, and a `syscall.Errno`, such as `is a directory` for `LoadLocation("America")`.
+- `FixedZone("", offset)` returns the same pointer for each whole hour from -12 to +14, as Go does.
+- A location's zones past its last transition come from the TZ string of its TZif file, which `tzset` reads as Go does.
+
+#### The time package not covered yet
+
+- the last two places where Go's `LoadLocation` looks: the tzdata that a program embeds with `time/tzdata`, and the `zoneinfo.zip` of `GOROOT`, which Go's toolchain installs. A zone that the system's tzdata lacks, such as `America/Godthab` on a system without Ubuntu's `tzdata-legacy`, is therefore unknown in C++ and found in Go;
+- `Timer`, `Ticker`, `After`, `AfterFunc`, and `Tick`. `NewTimer` and `NewTicker` still take a `std::chrono` duration and send a `std::chrono::system_clock::time_point` on `C`, as a provisional mapping;
+- `Time.AppendFormat`, `AppendText`, and `AppendBinary` append their whole result at once, where Go appends it in pieces. Both give the same slice, but when the pieces do not fit the capacity of `b`, Go writes those that fit into `b`'s array before it allocates, which another slice of that array can observe;
+- the `synctest` bubbles that `Since` and `Until` check, `ParseError`'s copies of its value, which only change what Go keeps alive, and the Windows, Plan 9, and Android ways of loading zones.
+
+### The os and syscall packages, in part
+
+`<eo/os.h>` maps `os.Getenv`, `os.LookupEnv`, `os.Setenv`, and `os.Unsetenv`, and `os.SyscallError` with `NewSyscallError`, besides `os.Exit` (see [Program termination](#program-termination)) and `os.ExpandEnv`. `os.Setenv` returns a `*os.SyscallError` whose `Syscall` is `setenv` and whose `Err` is `EINVAL` for an empty key, a key with `=` or NUL, and a value with NUL, as Go does: `setenv: invalid argument`. The functions take a lock around the C library's environment, which is not safe for concurrent use.
+
+`<eo/syscall.h>` maps `syscall.Errno`, with `Error`, `Is`, `Temporary`, and `Timeout`, whose messages are those of Go's table for Linux on amd64, and `syscall.Getenv`, `Setenv`, and `Unsetenv`. `errors::Is(err, fs::ErrNotExist)` is true for an `Errno` of `ENOENT`, as in Go. The constants, such as `syscall.ENOENT`, are not declared, because C's `<cerrno>` defines their names as macros, which would replace them in any translation unit that includes it.
+
 ### The io package
 
 Go's `io` maps, in part, to the namespace `io` from `<eo/io.h>`. It covers:
@@ -2861,7 +2896,7 @@ A Go operation that blocks the calling goroutine translates to an awaitable that
 | `ch <- v` | `co_await (ch << v)` | frozen, see [Channels](#channels) |
 | `v := <-ch`, `v, ok := <-ch` | `auto v = co_await *ch`, `auto [v, ok] = co_await eo::recv_ok(ch)` | frozen, see [Channels](#channels) |
 | `for v := range ch` | a loop on `co_await eo::recv_ok(...)` | frozen, see [Range loops](#range-loops) |
-| `time.Sleep(d)` | `co_await time::Sleep(d)` | provisional, including the duration |
+| `time.Sleep(d)` | `co_await time::Sleep(d)`, with `d` a `time::Duration` | see [The time package](#the-time-package) |
 
 A Go function whose body contains a blocking operation, or a call to a function translated as a coroutine, is translated as a coroutine returning `func<T>`, and every call to it is `co_await`ed. Other functions stay plain C++ functions. Calls through function values follow [Coroutine function values](#coroutine-function-values). Calls through interface methods, whose target is not known statically, are provisional ([#108](https://github.com/conr2d/eo/issues/108)).
 

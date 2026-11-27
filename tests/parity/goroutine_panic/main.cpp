@@ -12,6 +12,6 @@ func<> eo_main() {
     panic("boom"s);
     co_return;
   });
-  co_await time::Sleep(std::chrono::seconds{1});
+  co_await time::Sleep(time::Second);
   fmt::Println("unreachable"s);
 }

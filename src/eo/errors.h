@@ -217,4 +217,7 @@ inline auto Join(slice<error> errs) -> error {
   return eo::New<joinError>(joinError{std::move(e)});
 }
 
+// errors.ErrUnsupported: an operation that cannot be performed because it is unsupported.
+inline error ErrUnsupported = New("unsupported operation");
+
 } // namespace eo::errors
