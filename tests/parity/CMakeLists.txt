@@ -172,6 +172,29 @@ eo_embed(
   data/a.txt
   data/empty.txt
   data/sub/b.bin)
+eo_add_parity_case(time_package)
+eo_embed(eo_parity_time_package VARIABLE tables BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/time_package FILES tables.txt)
+eo_embed(
+  eo_parity_time_package
+  VARIABLE
+  zoneinfo
+  BASE_DIR
+  ${CMAKE_CURRENT_SOURCE_DIR}/time_package
+  FILES
+  zoneinfo/Africa/Casablanca
+  zoneinfo/America/New_York
+  zoneinfo/America/Nuuk
+  zoneinfo/America/Sao_Paulo
+  zoneinfo/America/St_Johns
+  zoneinfo/Antarctica/Troll
+  zoneinfo/Asia/Kolkata
+  zoneinfo/Asia/Tehran
+  zoneinfo/Australia/Lord_Howe
+  zoneinfo/Europe/Dublin
+  zoneinfo/Europe/London
+  zoneinfo/Europe/Moscow
+  zoneinfo/Pacific/Chatham
+  zoneinfo/Pacific/Kiritimati)
 eo_add_parity_case(unsafe_pointers)
 eo_add_parity_case(unsafe_slices)
 eo_add_parity_case(sql_driver)

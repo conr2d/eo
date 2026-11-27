@@ -12,6 +12,6 @@ void work() {
 func<> eo_main() {
   fmt::Println("start"s);
   go([=]() mutable { return work(); });
-  co_await time::Sleep(std::chrono::seconds{1});
+  co_await time::Sleep(time::Second);
   fmt::Println("unreachable"s);
 }
