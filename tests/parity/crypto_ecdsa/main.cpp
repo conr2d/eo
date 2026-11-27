@@ -212,7 +212,6 @@ void keys() {
     // Params is called once to pick the curve's implementation and once for each draw of D, which
     // is a single draw for a large N but for a negligible chance.
     fmt::Println(cr->reads, c->calls, c->reads >= 2, bits < 61 || c->reads == 2);
-    c->reads = 0;
     auto _eo_call_2 = priv->PublicKey.Curve == elliptic::Curve(c);
     auto _eo_call_3 = priv->PublicKey.Curve.Params()->Name;
     auto _eo_call_4 = priv->PublicKey.Curve.Params()->BitSize;

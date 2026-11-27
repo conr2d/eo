@@ -154,7 +154,6 @@ func keys() {
 		// Params is called once to pick the curve's implementation and once for each draw of D, which
 		// is a single draw for a large N but for a negligible chance.
 		fmt.Println(cr.reads, c.calls, c.reads >= 2, bits < 61 || c.reads == 2)
-		c.reads = 0
 		fmt.Println(priv.PublicKey.Curve == elliptic.Curve(c), priv.Curve.Params().Name, priv.Params().BitSize)
 		fmt.Println(priv.IsOnCurve(priv.X, priv.Y))
 	}
