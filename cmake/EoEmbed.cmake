@@ -2,24 +2,41 @@
 #
 # Compiles the files that a //go:embed directive of a Go variable names into <target>, as the Go
 # toolchain compiles them into the program. Each <file> is a path relative to <dir>, the directory of
-# the Go package, and is also the name of the file in an embed.FS. The generated source defines, in
-# <namespace>, or in the global namespace of package main when NAMESPACE is omitted, the function
-# _eo_embed_<variable>(), which returns the files as a
-# std::span<const eo::embed::file>, and which the translation of the variable calls (see the
-# //go:embed directives section of docs/TRANSLATION_RULES.md). The source is regenerated when a file
-# changes.
-set(EO_EMBED_SCRIPT ${CMAKE_CURRENT_LIST_DIR}/eo_embed_generate.cmake)
-
+# the Go package, and is also the name of the file in an embed.FS. A relative <dir> is relative to the
+# current source directory. The generated source defines, in <namespace>, or in the global namespace
+# of package main when NAMESPACE is omitted, the function _eo_embed_<variable>(), which returns the
+# files as a std::span<const eo::embed::file>, and which the translation of the variable calls (see
+# "The embed and io/fs packages" in docs/TRANSLATION_RULES.md). The function has external linkage,
+# so a package is embedded into one target, as it is compiled into one. The source is regenerated
+# when a file changes.
+#
+# The files are copied with the assembler's .incbin, so the target must be ELF and the compiler GCC
+# or Clang. A file name may not contain ";", "|", a newline, a carriage return, or a tab, which CMake
+# lists and the assembler's string literals cannot carry.
 function(eo_embed target)
   cmake_parse_arguments(PARSE_ARGV 1 arg "" "NAMESPACE;VARIABLE;BASE_DIR" "FILES")
   foreach(required VARIABLE BASE_DIR FILES)
-    if(NOT arg_${required})
+    if(NOT DEFINED arg_${required} OR "${arg_${required}}" STREQUAL "")
       message(FATAL_ERROR "eo_embed: ${required} is required")
     endif()
   endforeach()
+  if(NOT CMAKE_EXECUTABLE_FORMAT STREQUAL "ELF" OR NOT CMAKE_CXX_COMPILER_ID MATCHES "^(GNU|Clang)$")
+    message(FATAL_ERROR "eo_embed: .incbin needs an ELF target and GCC or Clang")
+  endif()
+  foreach(file IN LISTS arg_FILES)
+    if(file MATCHES "[|\n\r\t]")
+      message(FATAL_ERROR "eo_embed: the file name ${file} has a character that eo_embed() cannot pass")
+    endif()
+  endforeach()
+  # .incbin resolves a relative path against the build directory, and DEPENDS against the source
+  # directory, so the path is made absolute for both.
+  cmake_path(ABSOLUTE_PATH arg_BASE_DIR BASE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} NORMALIZE)
 
-  set(scope ${arg_NAMESPACE})
-  if(NOT scope)
+  # The script is found next to this file, which a project that adds Eo with add_subdirectory() also
+  # reaches, as a variable set here would not be visible in its directory.
+  set(script ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/eo_embed_generate.cmake)
+  set(scope "${arg_NAMESPACE}")
+  if(scope STREQUAL "")
     set(scope main)
   endif()
   set(output ${CMAKE_CURRENT_BINARY_DIR}/eo_embed/${target}/${scope}/${arg_VARIABLE}.cpp)
@@ -39,8 +56,8 @@ function(eo_embed target)
       -DBASE_DIR=${arg_BASE_DIR}
       "-DFILES=${files}"
       -P
-      ${EO_EMBED_SCRIPT}
-    DEPENDS ${depends} ${EO_EMBED_SCRIPT}
+      ${script}
+    DEPENDS ${depends} ${script}
     COMMENT "Embedding ${arg_VARIABLE} in ${target}"
     VERBATIM)
   target_sources(${target} PRIVATE ${output})

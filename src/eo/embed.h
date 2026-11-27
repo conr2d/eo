@@ -6,6 +6,7 @@
 #include <eo/core.h>
 #include <eo/errors.h>
 #include <eo/io/fs.h>
+#include <eo/panic.h>
 
 #include <algorithm>
 #include <cstddef>
@@ -129,14 +130,28 @@ struct FS {
   using _eo_methods = eo::methods<eo::method<&FS::ReadFile, "ReadFile">>;
 };
 
+namespace detail {
+
+  // The one file of a string or []byte variable, which Go's compiler requires, reporting "invalid
+  // go:embed: multiple files for type string" otherwise. A translation that names several is wrong,
+  // so it panics with that message rather than take the first.
+  inline auto only(std::span<const file> embedded, std::string_view type) -> std::string_view {
+    if (embedded.size() != 1) {
+      panic("invalid go:embed: multiple files for type " + std::string{type});
+    }
+    return embedded.front().data;
+  }
+
+} // namespace detail
+
 // The value of a string variable with a //go:embed directive, which names one file.
 inline auto string_of(std::span<const file> embedded) -> std::string {
-  return std::string{embedded.front().data};
+  return std::string{detail::only(embedded, "string")};
 }
 
 // The value of a []byte variable with a //go:embed directive, which names one file.
 inline auto bytes_of(std::span<const file> embedded) -> slice<uint8_t> {
-  return eo::bytes_from_string(std::string{embedded.front().data});
+  return eo::bytes_from_string(std::string{detail::only(embedded, "[]byte")});
 }
 
 } // namespace eo::embed

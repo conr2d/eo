@@ -1,11 +1,13 @@
 # Writes the source that eo_embed() compiles: run with cmake -P and the variables OUTPUT, NAMESPACE,
 # VARIABLE, BASE_DIR, and FILES, a list separated by "|". The assembler copies each file into the
-# object with .incbin, between two labels, so a file of any size costs the compiler nothing. The
-# labels are local to the object and named after the namespace, the variable, and the file's index.
+# object with .incbin, between two labels, so a file of any size costs the compiler nothing, and
+# records the file's size after it, which the assembler computes, as subtracting the addresses of the
+# labels in C++ would compare two distinct objects. The labels are local to the object and named after
+# the namespace, the variable, and the file's index.
 string(REPLACE "|" ";" files "${FILES}")
 
 set(prefix "_eo_embed_${VARIABLE}")
-if(NAMESPACE)
+if(NOT NAMESPACE STREQUAL "")
   string(MAKE_C_IDENTIFIER "${NAMESPACE}" scope)
   set(prefix "_eo_embed_${scope}_${VARIABLE}")
 endif()
@@ -21,31 +23,34 @@ foreach(file IN LISTS files)
   endif()
   set(begin "${prefix}_${index}_begin")
   set(end "${prefix}_${index}_end")
+  set(size "${prefix}_${index}_size")
   # A C string literal inside the assembler's own string literal: quotes and backslashes of the path
   # are escaped once for the assembler and once for C++.
   string(REPLACE "\\" "\\\\\\\\" asm_path "${path}")
   string(REPLACE "\"" "\\\\\\\"" asm_path "${asm_path}")
   string(REPLACE "\\" "\\\\" name_literal "${file}")
   string(REPLACE "\"" "\\\"" name_literal "${name_literal}")
-  string(APPEND labels "extern \"C\" const char ${begin}[];\nextern \"C\" const char ${end}[];\n")
+  string(APPEND labels "extern \"C\" const char ${begin}[];\nextern \"C\" const std::uint64_t ${size};\n")
   string(
     APPEND
     sections
     "__asm__(\".pushsection .rodata,\\\"a\\\"\\n\"\n"
-    "        \".local ${begin}, ${end}\\n\"\n"
+    "        \".local ${begin}, ${end}, ${size}\\n\"\n"
     "        \"${begin}:\\n\"\n"
     "        \".incbin \\\"${asm_path}\\\"\\n\"\n"
     "        \"${end}:\\n\"\n"
+    "        \".balign 8\\n\"\n"
+    "        \"${size}:\\n\"\n"
+    "        \".quad ${end} - ${begin}\\n\"\n"
     "        \".popsection\\n\");\n")
-  string(APPEND entries
-         "      {\"${name_literal}\", std::string_view{${begin}, static_cast<std::size_t>(${end} - ${begin})}},\n")
+  string(APPEND entries "      {\"${name_literal}\", std::string_view{${begin}, static_cast<std::size_t>(${size})}},\n")
   math(EXPR index "${index} + 1")
 endforeach()
 
 # Package main is translated in the global namespace.
 set(open "")
 set(close "")
-if(NAMESPACE)
+if(NOT NAMESPACE STREQUAL "")
   set(open "namespace ${NAMESPACE} {\n\n")
   set(close "\n} // namespace ${NAMESPACE}\n")
 endif()
@@ -57,6 +62,7 @@ file(
   "#include <eo/embed.h>\n"
   "\n"
   "#include <cstddef>\n"
+  "#include <cstdint>\n"
   "#include <span>\n"
   "#include <string_view>\n"
   "\n"

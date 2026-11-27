@@ -2403,7 +2403,7 @@ eo_embed(optimism NAMESPACE github_com_ethereum_go_ethereum_crypto_kzg4844 VARIA
   BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/upstream/op-geth/crypto/kzg4844 FILES trusted_setup.json)
 ```
 
-`NAMESPACE` is omitted for package `main`, which is translated in the global namespace. `eo_embed()` generates a source that defines the function `_eo_embed_<variable>()` in that namespace, which returns the files as a `std::span<const eo::embed::file>`, each with its name and its contents. The source copies each file into the object with the assembler's `.incbin` directive, so the size of a file does not slow the compiler, and it needs an ELF target with GCC or Clang. The package header declares the function next to the variable, and the variable calls it in its initializer, not in `eo_init`, because Go's embedded variables have their values before any package is initialized:
+`NAMESPACE` is omitted for package `main`, which is translated in the global namespace. `eo_embed()` generates a source that defines the function `_eo_embed_<variable>()` in that namespace, which returns the files as a `std::span<const eo::embed::file>`, each with its name and its contents. The source copies each file into the object with the assembler's `.incbin` directive, so the size of a file does not slow the compiler, and it needs an ELF target with GCC or Clang, which `eo_embed()` checks. A relative `BASE_DIR` is relative to the current source directory. The function has external linkage, so a package's files are embedded into one target, the one that compiles the package. The package header declares the function next to the variable, and the variable calls it in its initializer, not in `eo_init`, because Go's embedded variables have their values before any package is initialized:
 
 | Go declaration | Translation |
 |---|---|
@@ -2417,7 +2417,7 @@ In package `main` the variables are not `inline`. A `[]byte` variable holds its 
 
 `<eo/io/fs.h>` maps the errors `ErrInvalid`, `ErrPermission`, `ErrExist`, `ErrNotExist`, and `ErrClosed`, the struct `PathError`, with its fields `Op`, `Path`, and `Err` and its methods `Error`, `Unwrap`, and `Timeout`, and `ValidPath`. `pe.Error()` of a `*fs.PathError` is `fs::PathError::Error(pe)`, as in [Methods](#methods).
 
-Not covered yet: `FS.Open` and `FS.ReadDir`, the `fs.File` and `fs.DirEntry` values they return, and the use of an `embed.FS` as an `fs.FS`; the truncated SHA-256 hash that Go records for each embedded file; and the rest of `io/fs`, such as the interfaces `FS`, `File`, `FileInfo`, and `DirEntry`, `FileMode`, and the functions `ReadFile`, `ReadDir`, `Glob`, `Sub`, and `WalkDir`. `eo_embed()` does not expand the patterns of a directive: the translation lists the files.
+Not covered yet: `FS.Open` and `FS.ReadDir`, the `fs.File` and `fs.DirEntry` values they return, and the use of an `embed.FS` as an `fs.FS`; the truncated SHA-256 hash that Go records for each embedded file; and the rest of `io/fs`, such as the interfaces `FS`, `File`, `FileInfo`, and `DirEntry`, `FileMode`, and the functions `ReadFile`, `ReadDir`, `Glob`, `Sub`, and `WalkDir`. `eo_embed()` does not expand the patterns of a directive: the translation lists the files. It also rejects a file name with `|`, a newline, a carriage return, or a tab, and a name with `;` cannot be passed in a CMake list, though Go embeds such files.
 
 ### The io package
 
