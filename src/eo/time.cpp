@@ -373,7 +373,7 @@ namespace {
   }
 
   auto unixTime(int64_t sec, int32_t nsec) -> Time {
-    return Time{uint64_t(uint32_t(nsec)), sec + unixToInternal, Local};
+    return Time{uint64_t(int64_t(nsec)), sec + unixToInternal, Local};
   }
 
   auto lessThanHalf(Duration x, Duration y) -> bool {
@@ -3097,7 +3097,7 @@ auto Time::Add(Time t, Duration d) -> Time {
     dsec--;
     ns += 1000000000;
   }
-  t.wall = (t.wall & ~nsecMask) | uint64_t(uint32_t(ns));
+  t.wall = (t.wall & ~nsecMask) | uint64_t(int64_t(ns));
   addSec(t, dsec);
   if ((t.wall & hasMonotonic) != 0) {
     auto te = t.ext + dd;
@@ -3479,14 +3479,14 @@ auto Now() -> Time {
   auto start = startNano();
   auto [sec, nsec, mono] = runtimeNow();
   if (mono == 0) {
-    return Time{uint64_t(uint32_t(nsec)), sec + unixToInternal, Local};
+    return Time{uint64_t(int64_t(nsec)), sec + unixToInternal, Local};
   }
   mono -= start;
   sec += unixToInternal - minWall;
   if (uint64_t(sec) >> 33 != 0) {
-    return Time{uint64_t(uint32_t(nsec)), sec + minWall, Local};
+    return Time{uint64_t(int64_t(nsec)), sec + minWall, Local};
   }
-  return Time{hasMonotonic | uint64_t(sec) << nsecShift | uint64_t(uint32_t(nsec)), mono, Local};
+  return Time{hasMonotonic | uint64_t(sec) << nsecShift | uint64_t(int64_t(nsec)), mono, Local};
 }
 
 auto Since(Time t) -> Duration {
