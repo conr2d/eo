@@ -2372,6 +2372,20 @@ The functions are ported from Go 1.26:
 
 The results are Go's, but Go compiles the comparisons to code without branches, and C++ does not promise that, so the timing is outside the mapping.
 
+### The crypto/rand, crypto/elliptic, and crypto/ecdsa packages
+
+Go's `crypto/rand`, `crypto/elliptic`, and `crypto/ecdsa` map, in part, to the namespaces `rand`, `elliptic`, and `ecdsa` from `<eo/crypto/rand.h>`, `<eo/crypto/elliptic.h>`, and `<eo/crypto/ecdsa.h>`. They cover what a program needs to generate a key on a curve that it implements itself, such as go-ethereum's secp256k1, and are ported from Go 1.26 outside FIPS 140 mode:
+
+- `rand::Reader` is an `io::Reader` variable whose dynamic type is `rand.reader`, as `%T` prints it. Its `Read` fills the buffer from `getrandom(2)` and never fails. A program may assign another reader to it.
+- `rand::Read(b)` fills `b` and returns `len(b)` and nil. It reads the operating system directly while `rand::Reader` holds the default reader, and otherwise reads the replacement with `io::ReadFull`. A failure of either ends the process with Go's fatal error, `crypto/rand: failed to read random data (see https://go.dev/issue/66821): ...`, which a deferred `recover()` cannot stop. Go falls back to `/dev/urandom` on Linux kernels before 3.17, and Eo does not.
+- `elliptic::Curve` is the interface, with its six methods. `elliptic::CurveParams` is the struct, with its seven fields and its `Params` method. The generic arithmetic of `*CurveParams`, which Go deprecates, is not mapped, so a `*CurveParams` does not implement `Curve`.
+- `ecdsa::PublicKey` embeds `elliptic::Curve` and has the fields `X` and `Y`, and `ecdsa::PrivateKey` embeds `ecdsa::PublicKey` and has the field `D`, in Go's order, with field tables that mark the embedded fields. Both are comparable, as in Go. A promoted method is called on its path, as `priv->PublicKey.Curve.Params()` for `priv.Params()` (see [Embedded fields](#embedded-fields)).
+- `ecdsa::GenerateKey(c, r)` returns a `ptr<ecdsa::PrivateKey>` and an `error`. It draws `D` from `[1, N-1]` by rejection sampling, as Go's `randFieldElement` does, and sets `X` and `Y` to `c.ScalarBaseMult(D.Bytes())`.
+
+Go 1.26 changed the default of the GODEBUG setting `cryptocustomrand` to 0, so `GenerateKey` ignores `r` and reads the default reader, even when `rand::Reader` was replaced. Eo maps that default. A Go module whose `go` line names an earlier version gets `cryptocustomrand=1` and reads `r`, which is outside this mapping, as are the other GODEBUG settings. The parity case `crypto_ecdsa` sets `//go:debug cryptocustomrand=0`, because its module says `go 1.22`.
+
+Not covered yet: the NIST curves and everything that needs them; the other functions of the three packages, such as `rand.Int`, `rand.Text`, `elliptic.Marshal`, `ecdsa.Sign`, and `ecdsa.Verify`; the methods of the keys; and the method tables of the keys, so a key in an interface has none of the methods of its curve.
+
 ### The database/sql/driver package
 
 Go's `database/sql/driver` maps to the namespace `driver` from `<eo/database/sql/driver.h>`. It covers `Value` and `Valuer`, which a type implements so that `database/sql` can store it, as go-ethereum's `common.Hash` does. Eo has no `database/sql`, so nothing in Eo calls them. The rest of the package, the interfaces that a driver implements, such as `Driver`, `Conn`, and `Rows`, and the conversions, such as `IsValue` and `ValueConverter`, is not covered yet.

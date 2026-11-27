@@ -1,0 +1,48 @@
+rand.reader
+64 <nil>
+true
+0 <nil>
+16 <nil> true
+5 <nil> [1 2 3 4 5] 1
+true toy 61 2305843009213693951 2305843009213693949 7 1 2
+3 6 true false
+6 12
+7 14
+1792 3584
+5 true true true
+0 1
+true toy 5
+true
+8 true true true
+0 1
+true toy 8
+true
+61 true true true
+0 1
+true toy 61
+true
+256 true true true
+0 1
+true toy 256
+true
+true <nil>
+true <nil> 0
+true
+true false
+true false
+true true true
+ecdsa.PublicKey struct 3
+  Curve elliptic.Curve true
+  X *big.Int false
+  Y *big.Int false
+ecdsa.PrivateKey struct 2
+  PublicKey ecdsa.PublicKey true
+  D *big.Int false
+elliptic.CurveParams struct 7
+  P *big.Int false
+  N *big.Int false
+  B *big.Int false
+  Gx *big.Int false
+  Gy *big.Int false
+  BitSize int false
+  Name string false
