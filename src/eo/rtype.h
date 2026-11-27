@@ -144,6 +144,10 @@ namespace detail {
     const rptr_ops* ptr_ops = nullptr;
     mutable std::atomic<const rtype*> ptr_cache{nullptr};
     auto (*fields)() -> std::span<const rfield> = nullptr;
+    // An opaque struct's uncomparable field type, and whether the comparable fields before it are
+    // equal (see eo::opaque_struct), or empty and nullptr.
+    std::string_view opaque_uncomparable;
+    auto (*opaque_prefix_equal)(const void*, const void*) -> bool = nullptr;
     // An interface type's methods, ordered by name.
     auto (*imethods)() -> std::span<const entry_base> = nullptr;
     auto (*equal)(const void*, const void*) -> bool = nullptr;
@@ -314,7 +318,7 @@ namespace detail {
       return rk_func;
     } else if constexpr (is_chan_type<R>) {
       return rk_chan;
-    } else if constexpr (std::is_same_v<R, empty_struct> || go_struct<R>) {
+    } else if constexpr (std::is_same_v<R, empty_struct> || go_struct<R> || opaque_struct<R>) {
       return rk_struct;
     } else {
       return rk_invalid;
@@ -486,6 +490,8 @@ namespace detail {
       return [&]<std::size_t... I>(std::index_sequence<I...>) {
         return (... && zero_value<field_type<R, I>>(&boost::pfr::get<I>(v)));
       }(std::make_index_sequence<boost::pfr::tuple_size_v<R>>{});
+    } else if constexpr (opaque_struct<R>) {
+      return R::_eo_is_zero(v);
     } else if constexpr (requires { v == nullptr; }) {
       return v == nullptr;
     } else {
@@ -676,6 +682,12 @@ namespace detail {
       r.is_nil = [](const void* p) { return *rep_of<T>(p) == nullptr; };
     } else if constexpr (std::is_same_v<R, empty_struct> || go_struct<R>) {
       r.fields = &struct_fields<R>;
+    } else if constexpr (opaque_struct<R>) {
+      r.fields = []() -> std::span<const rfield> { return {}; };
+      r.opaque_uncomparable = R::_eo_uncomparable_field;
+      r.opaque_prefix_equal = [](const void* a, const void* b) {
+        return R::_eo_prefix_equal(*rep_of<T>(a), *rep_of<T>(b));
+      };
     }
   }
 
